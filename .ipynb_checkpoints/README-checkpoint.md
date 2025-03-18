@@ -1,19 +1,4 @@
-# Why are NWMs too warm in a cold air pool? A
-model intercomparison study
-
-cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks von cosma, alle sinnlos.
-
-ToDo till next meeting:
-- Hannes' Einleseroutinen sind nicht einheitlich, für UM pandas, meist xarray => vereinheitlichen tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen...
-- codes in normale .py fktionen abändern? Zmd die Einleseroutinen? -> cosma's code oft extrem ineffektiv! ICON "erledigt" => nicht alle Daten einlesen?
-- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot?
-
-- make overview topo plot of domain (ICON) => domain of model
-- f.e. also temp timeseries 2d 
-- revise other code
-- concept work 2nd research question, time onset of cap
-- write the changes in this file!
-
+# Representation of a CAP in Numerical Models
 
 Codes follow those provided by Hannes Wieser, but using Jupyter Notebooks (.ipynb).
 All read-in's, calculations and plots are provided for the cities Innsbruck, Kufstein and Imst.
