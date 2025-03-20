@@ -1,18 +1,25 @@
 # Why are NWMs too warm in a cold air pool? A
 model intercomparison study
+=> note changes in this file!
 
 cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks von cosma, alle sinnlos.
 
 ToDo till next meeting:
-- Hannes' Einleseroutinen sind nicht einheitlich, für UM pandas, meist xarray => vereinheitlichen tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen...
-- codes in normale .py fktionen abändern? Zmd die Einleseroutinen? -> cosma's code oft extrem ineffektiv! ICON "erledigt" => nicht alle Daten einlesen?
-- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot?
-
 - make overview topo plot of domain (ICON) => domain of model
 - f.e. also temp timeseries 2d 
-- revise other code
+- revise other code: Hannes Einleseroutinen vereinheitlichen... für UM pandas, meist xarray => vereinheitlichen tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen...
+- codes in normale .py fktionen abändern? ICON "erledigt" => nicht alle Daten (variablen) einlesen?
 - concept work 2nd research question, time onset of cap
-- write the changes in this file!
+- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot?
+
+created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
+changed read in fct of icon to make call of multiple hours easier 
+
+
+heights of cosma: 
+87 (icon, lowest lvl where?)
+80 (icon2te)
+56: hafelekar
 
 
 Codes follow those provided by Hannes Wieser, but using Jupyter Notebooks (.ipynb).

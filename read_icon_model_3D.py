@@ -5,6 +5,8 @@ functions used from outside:
 - read_icon_fixed_point_and_time()
 """
 import sys
+from operator import concat
+
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import confg
 import xarray as xr
@@ -37,10 +39,10 @@ def read_icon_fixed_point(nearest_grid_cell, day=16, variant="ICON"):
 
     if variant == "ICON":  # put together read icon & read icon2TE script
         file_pattern = f'ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{str(day)}T????00Z.nc'
-        folder = icon_folder_3D  # variable from confg-file
+        folder = confg.icon_folder_3D  # variable from confg-file
     elif variant == "ICON2TE":
         file_pattern = f'ICON_2TE_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{str(day)}T????00Z.nc'
-        folder = icon2TE_folder_3D
+        folder = confg.icon2TE_folder_3D
     else:
         print("invalid model variant, either ICON or ICON2TE")
 
@@ -97,14 +99,14 @@ def convert_calc_variables(df):
 
     return df
 
-def find_min_index(ds_icon, my_lon, my_lat):
+def find_min_index(ds_icon, lon, lat):
     """
     Distances are relatively short where the curvature of the Earth can be neglected (fast 0.04 seconds)
     deleted old function, still in 2TE version
     """
     # Convert degrees to radians for calculation
-    lon_rad = np.radians(my_lon)
-    lat_rad = np.radians(my_lat)
+    lon_rad = np.radians(lon)
+    lat_rad = np.radians(lat)
 
     lon_diff_squared = (ds_icon.clon - lon_rad) ** 2
     lat_diff_squared = (ds_icon.clat - lat_rad) ** 2
@@ -116,10 +118,10 @@ def find_min_index(ds_icon, my_lon, my_lat):
     min_idx = squared_distances.argmin()
     return min_idx.values
 
-def read_icon_fixed_point_and_time(day, hour, my_lon, my_lat, variant="ICON"):
+
+def read_icon_fixed_point_and_time(day, hour, lon, lat, variant="ICON"):
     """
     Read Icon 3D model at a fixed point and a fixed time
-
     """
 
     if day not in [15, 16]:
@@ -129,17 +131,40 @@ def read_icon_fixed_point_and_time(day, hour, my_lon, my_lat, variant="ICON"):
 
     if variant == "ICON":  # put together read icon & read icon2TE script
         icon_file = f'ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{day}T{formatted_hour}0000Z.nc'
-        folder = icon_folder_3D
+        folder = confg.icon_folder_3D
     elif variant == "ICON2TE":
         icon_file = f'ICON_2TE_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{day}T{formatted_hour}0000Z.nc'
-        folder = icon2TE_folder_3D
+        folder = confg.icon2TE_folder_3D
     else:
         print("invalid model variant, either ICON or ICON2TE")
 
     ds_icon = xr.open_dataset(f"{folder}/" + icon_file)
 
-    min_idx = find_min_index(ds_icon, my_lon, my_lat)
+    min_idx = find_min_index(ds_icon, lon, lat)
 
     nearest_data = ds_icon.isel(ncells=min_idx).isel(time=0)
+
+    return convert_calc_variables(nearest_data)  # calculate temp, pressure
+
+def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat=47.266076, variant="ICON"):
+    """ Read ICON 3D model at a fixed point and multiple hours """
+
+    if day not in [15, 16]:
+        raise ValueError("Only October day 15 or 16 is available!")
+
+    formatted_hours = [f"{hour:02d}" for hour in hours]  # create list of strings w hours
+
+    if variant == "ICON":
+        icon_files = [confg.icon_folder_3D + (f'/ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710'
+                                              f'{day}T' + hour + '0000Z.nc') for hour in formatted_hours]
+    elif variant == "ICON2TE":
+        icon_files = [confg.icon2TE_folder_3D + (f'/ICON_2TE_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710'
+                                                 f'{day}T' + hour + '0000Z.nc') for hour in formatted_hours]
+    else:
+        print("invalid model variant, either ICON or ICON2TE")
+
+    ds_icon = xr.open_mfdataset(icon_files, combine='by_coords')
+    min_idx = find_min_index(ds_icon, lon, lat)  # no clue what's that doing
+    nearest_data = ds_icon.isel(ncells=min_idx)
 
     return convert_calc_variables(nearest_data)  # calculate temp, pressure
