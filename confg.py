@@ -33,22 +33,22 @@ momma_our_period_file = f"{data_folder}/Observations/MOMMA/MOMMA_our_period.nc"
 # ----------------------------------Models-----------------------------------------------------
 
 # absolute paths AROME
-dir_2D_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_2D_fields"
-dir_3D_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_3D_fields"
-dir_timeseries_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_timeseries/"
+dir_2D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_2D_fields"
+dir_3D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_3D_fields"
+dir_timeseries_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_timeseries/"
 
 # absolute paths WRF
-wrf_folder = f"{model_folder}/WRF_ACINN"  # before: wrf_ACINN
+wrf_folder = f"{model_folder}WRF_ACINN"  # before: wrf_ACINN
 
 # absolute paths ICON
-icon_folder_3D = f"{model_folder}/ICON"
-icon_folder_meteogram = f"{model_folder}/icon/ICON_Meteogram"  # ?
+icon_folder_3D = f"{model_folder}ICON"
+icon_folder_meteogram = f"{model_folder}icon/ICON_Meteogram"  # ?
 
 # absolute paths ICON
-icon2TE_folder_3D = f"{model_folder}/ICON2TE"
+icon2TE_folder_3D = f"{model_folder}ICON2TE"
 
 # absolute Path UKMO
-ukmo_folder = f"{model_folder}/ukmo/"
+ukmo_folder = f"{model_folder}ukmo/"
 
 # -------------------------------Data and Plot paths -----------------------------------------------
 
