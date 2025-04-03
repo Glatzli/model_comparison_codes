@@ -35,7 +35,7 @@ def get_coordinates_by_station_name(station_name):
 
 def get_rotated_index_of_lat_lon(latitude, longitude):
     """Function to get the index of the selected latitude and longitude"""
-    dat = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_v.nc")
+    dat = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_v.nc", decode_timedelta = True)
 
     # Define the rotated pole coordinates and the regular longitude-latitude projection
     lon0, lat0 = -168.6, 42.7
@@ -57,67 +57,92 @@ def get_rotated_index_of_lat_lon(latitude, longitude):
     # print(f"Value at nearest xpoint: {dat['projection_x_coordinate'][yi, xi].values}")
     # print(f"Value at nearest ypoint: {dat['projection_y_coordinate'][yi, xi].values}")
 
-    assert np.isclose(dat['projection_x_coordinate'][yi, xi].values, longitude, atol=0.3)
+    assert np.isclose(dat['projection_x_coordinate'][yi, xi].values, longitude, atol=0.3)  # renamed from projection_x_coordinate to lon_proj
     assert np.isclose(dat['projection_y_coordinate'][yi, xi].values, latitude, atol=0.3)
 
     return xi, yi
 
 
-def get_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
+def convert_variables(ds, multiple_levels=True):
+    """converts variables with metpy, interpolates wind on pressure levels only if dataset in multiple levels
+
+    ds: ukmo-xarray dataset
+    multiple_levels: bool
+    """
+
+    ds["pressure"] = ds["air_pressure"] / 100
+    p = ds["pressure"] * units.hPa
+    ds["temperature"] = mpcalc.temperature_from_potential_temperature(p, ds["air_potential_temperature"] *
+                                                                      units("K"))  # .metpy.dequantify() - 273.15 # temp in Celsius w/o unit
+    # temp = ds["temperature"] * units("degC")  # convert to Celsius
+    # try to get temp, hum etc as data variables, not coordinates:
+    #ds = ds.assign(temperature = mpcalc.temperature_from_potential_temperature(pres, ds["air_potential_temperature"].values
+    #                                                                 * units("K")).magnitude - 273.15)
+
+    qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
+    u_icon = ds["transformed_x_wind"] * units("m/s")
+    v_icon = ds["transformed_y_wind"] * units("m/s")
+
+    ds['wind_dir'] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
+    ds["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
+
+    ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(p, ds["temperature"], qv)
+    # o.k. if interpolation is not necessary
+
+    #if multiple_levels:
+    #    ds = ds.rename_vars(name_dict={"level_height": "level_height_u_v_wind"})
+        # Wind is defined on another level than pressure, but I need the pressure at the wind level, so extrapolate it
+        # Use this function to calculate pressures at wind levels,
+        # ds = ds.interp(pressure=ds["level_height_u_v_wind"], method="linear", kwargs={"fill_value": "extrapolate"})
+        # but they are saved in the dataset within the same height coord?!?
+
+    #else: ds["relative_humidity"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], temp, qv).to("percent")
+    ds = ds.metpy.dequantify()
+    ds["temperature"] = ds["temperature"] - 273.15  # convert to Celsius
+    ds["rh"] = ds["rh"] * 100  # convert to percent
+    return ds
+
+def read_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
     """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)"""
     if city_name is not None:
         lat, lon = get_coordinates_by_station_name(city_name)
 
     xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
 
-    df = pd.DataFrame()
-    for var in ["u", "v", "w", "z", "th", "q", "p"]:
+    for i, var in enumerate(["u", "v", "w", "z", "th", "q", "p"]):
         data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
-        dat = data.sel(time=slice("2017-10-15T14:00:00", "2017-10-16T12:00:00.000000000"))
+        data = data.sel(time=slice("2017-10-15T14:00:00", "2017-10-16T12:00:00.000000000"))  # delete first 2h
+        data = data.isel(grid_latitude=yi, grid_longitude=xi, model_level_number=0, bnds=1)  # selects lowest level, and lat, lon
 
-        data_final = dat.isel(grid_latitude=yi, grid_longitude=xi, model_level_number=0, bnds=1)
+        if i == 0:  # this is not beautiful but o.k.
+            dat = data
+        else:
+            dat = xr.merge([dat, data], compat='override')
 
         # print(data_final["level_height"].values) # u and v are on 2.5 m, all other variables at 5m
+    # dat = convert_variables(dat, multiple_levels=False)
+    return dat
 
-        if var == "v":
-            df["transformed_y_wind"] = data_final["transformed_y_wind"]
-            df.set_index(data_final["time"].values, inplace=True)
+def read_ukmo_fixed_point(city_name=None, lat=None, lon=None):
+    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)"""
+    if city_name is not None:
+        lat, lon = get_coordinates_by_station_name(city_name)
 
-        elif var == "u":
-            df["transformed_x_wind"] = data_final["transformed_x_wind"]
+    xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
+    datasets = []  # List to hold datasets for each variable
 
-        elif var == "w":
-            df["upward_air_velocity"] = data_final["upward_air_velocity"]
-        elif var == "z":
-            df["geopotential_height"] = data_final["geopotential_height"]
-        elif var == "th":
-            df["air_potential_temperature"] = data_final["air_potential_temperature"]
-        elif var == "q":
-            df["specific_humidity"] = data_final["specific_humidity"]
-        elif var == "p":
-            df["air_pressure"] = data_final["air_pressure"]
+    for i, var in enumerate(["u", "v", "w", "z", "th", "q", "p"]):
+        data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
+        data = data.sel(time=slice("2017-10-15T14:00:00", "2017-10-16T12:00:00.000000000"))  # delete first 2h
+        data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)  # selects lowest level, and lat, lon
 
-    # convert variables
-    temp_pot = df["air_potential_temperature"].values * units("K")
-    pres = df["air_pressure"].values * units("Pa")
+        datasets.append(data)
+        # print(data_final["level_height"].values) # u and v are on 2.5 m, all other variables at 5m
 
-    df["temperature"] = mpcalc.temperature_from_potential_temperature(pres,
-                                                                      temp_pot).magnitude - 273.15  # convert it to celsius
-
-    df["specific_humidity"] = df["specific_humidity"] * 1000  # from kg / kg in g/kg
-    u_icon = df["transformed_x_wind"].values * units("m/s")
-    v_icon = df["transformed_y_wind"].values * units("m/s")
-
-    df["wind_dir"] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
-    df["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
-
-    temp_C = df["temperature"].values * units("degC")
-
-    specific_humidity = df["specific_humidity"].values * units("g/kg")
-
-    df["relative_humidity"] = mpcalc.relative_humidity_from_specific_humidity(pres.to(units.hPa), temp_C.to(units.K),
-                                                                              specific_humidity).to("percent")
-    return df
+    dat = xr.merge(datasets, compat='override')
+    dat = dat.rename_dims({"model_level_number": "height"})
+    dat = convert_variables(dat, multiple_levels=True)
+    return dat
 
 
 def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
@@ -134,49 +159,22 @@ def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", l
     # original: my_lat, my_lon = get_coordinates_by_station_name(city_name)
     xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
 
-    # df = xr.Dataset() # pd.DataFrame()
-    for i, var in enumerate(["u", "v", "w", "z", "th", "q", "p"]):
+    datasets = []  # List to hold datasets for each variable
+    for var in ["u", "v", "w", "z", "th", "q", "p"]:
         data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
         data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)
+        datasets.append(data)
 
-        if i == 0:  # this is not beautiful but o.k.
-            dat = data.sel(time=time)
-        else:
-            dat = xr.merge([dat, data.sel(time=time)], compat='override')
-
-    dat = dat.rename_vars(name_dict={"level_height": "level_height_u_v_wind"})
-
-    # convert variables
-    temp_pot = dat["air_potential_temperature"].values * units("K")
-    dat["pressure"] = dat["air_pressure"].values / 100
-    pres = dat["pressure"].values * units("hPa")
-    spec_g_kg = dat["specific_humidity"].values * 1000 * units("g/kg")
-
-    dat["temperature"] = mpcalc.temperature_from_potential_temperature(pres,
-                                                                      temp_pot).magnitude - 273.15  # convert it to celsius
-
-    temp_c = dat["temperature"].values * units("degC")
-
-    dat["dewpoint"] = dewpoint_from_specific_humidity(pres, temp_c, spec_g_kg)
-
-    dat["specific_humidity"] = dat["specific_humidity"] * 1000  # from g/kg into kg / kg
-    u_icon = dat["transformed_x_wind"].values * units("m/s")
-    v_icon = dat["transformed_y_wind"].values * units("m/s")
-
-    dat["wind_dir"] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
-    dat["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
-
-    # Wind is defined on another level than pressure, but I need the pressure at the wind level, so extrapolate it
-    # Use this function to calculate pressures at wind levels
-    dat = dat.interp(pressure = dat["level_height_u_v_wind"], method="linear", kwargs={"fill_value": "extrapolate"})
-
-    dat["relative_humidity"] = relative_humidity_from_dewpoint(dat["temperature"].values * units("degC"),
-                                                              dat["dewpoint"].values * units("degC")) * 100
+    dat = xr.merge(datasets, compat='override')
+    dat = convert_variables(dat, multiple_levels=True)
+    dat = dat.rename_dims({"model_level_number": "height"})
     return dat
 
 
 def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
     """read all ukmo data (~40GB) as xarray dataset
+    Problem: "regular_longitude" and "regular_latitude" are not coordinates, but data variables!
+    (written by chatgpt, maybe coord. transform is totally useless)
 
     """
     um_files = [ukmo_folder + "/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_" + var + ".nc"
@@ -225,21 +223,16 @@ def get_ukmo_height_of_city_name(city_name):
 if __name__ == '__main__':
     # get values on lowest level
     # get_coordinates_by_station_name("IAO")
-    # df = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
-    # df_ukmo = get_ukmo_fixed_point_lowest_level(lat=45, lon=9)
-    # print(df_ukmo)
+    # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    um = read_ukmo_fixed_point_and_time(time="2017-10-15T14:00:00", lat=47.266076, lon=11.4011756)
+    um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
     um
+    # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
+    # um
+
+    # um = read_full_ukmo(["th", "p"])
+    # um
+
 
     # xi, yi = get_rotated_index_of_lat_lon(latitude=47.266076, longitude=11.4011756)
-    """
-    variables = ["u", "v", "w", "z", "th", "q", "p"]
-    um_files = [ukmo_folder + "/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_" + var + ".nc"
-                for var in variables]
-    um = xr.open_mfdataset(um_files, combine='by_coords', compat='override', decode_timedelta = True)
-    um
-    """
-
     # df3d = get_ukmo_fixed_point_lowest_level("Kufstein")
-    # print(df3d["specific_humidity"])

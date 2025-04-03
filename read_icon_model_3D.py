@@ -62,7 +62,7 @@ def read_icon_fixed_point(nearest_grid_cell, day=16, variant="ICON"):
     return ds
 
 # 3 Mal ", dims=["height"] entfernt"
-def convert_calc_variables(df):
+def convert_calc_variables(ds):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
 
@@ -76,28 +76,24 @@ def convert_calc_variables(df):
     """
 
     # Convert pressure from Pa to hPa
-    df['pressure'] = df['pres'] / 100.0
-    p = df['pressure'].values * units.hPa
+    ds['pressure'] = (ds['pres'] / 100.0) * units.hPa
 
-    # Calculate temperature from potential temperature
-    temp_C = df["temp"] - 273.15
-    df["temperature"] = temp_C
+    # calc pot temp
+    ds["th"] = mpcalc.potential_temperature(ds['pressure'], ds["temp"] * units.kelvin)
 
-    # calculate specific + relativ humidity
-    temp_values = temp_C.values * units.degC
-    specific_humidity = df["qv"].values * 1000 * units("g/kg")
-    df['specific_humidity'] = xr.DataArray(data=specific_humidity.magnitude)
+    # convert temp to °C
+    ds["temp"]  = (ds["temp"] - 273.15) * units.degC
 
-    # the variables that go into mpcalc have to Arrays (Quantitys) without Dimension (important to take .values before)
-    relative_humidity = mpcalc.relative_humidity_from_specific_humidity(p, temp_values, specific_humidity).to('percent')
-    df['relative_humidity'] = xr.DataArray(data=relative_humidity.magnitude)
+    ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
+
+    # calculate relative humidity
+    ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temp"], ds['qv']) * 100  # for percent
 
     # calculate dewpoint
-    rh_values = df["relative_humidity"].values * units.percent
-    dewpoint = mpcalc.dewpoint_from_relative_humidity(temp_values, rh_values).to("degC")
-    df['dewpoint'] = xr.DataArray(data=dewpoint.magnitude)
+    ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
+                                                      specific_humidity = ds['qv']) # , temperature = ds["temp"]
 
-    return df
+    return ds.metpy.dequantify()  # remove units from the dataset
 
 def find_min_index(ds_icon, lon, lat):
     """
@@ -146,7 +142,7 @@ def read_icon_fixed_point_and_time(day, hour, lon, lat, variant="ICON"):
 
     return convert_calc_variables(nearest_data)  # calculate temp, pressure
 
-def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat=47.266076, variant="ICON"):
+def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat=47.266076, variant="ICON"):  # , variables=["height", "time", "temp"]
     """ Read ICON 3D model at a fixed point and multiple hours """
 
     if day not in [15, 16]:
@@ -164,7 +160,13 @@ def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat
         print("invalid model variant, either ICON or ICON2TE")
 
     ds_icon = xr.open_mfdataset(icon_files, combine='by_coords')
+    # ds_icon = ds_icon[variables]
     min_idx = find_min_index(ds_icon, lon, lat)  # no clue what's that doing
-    nearest_data = ds_icon.isel(ncells=min_idx)
+    ds_icon = ds_icon.isel(ncells=min_idx)
 
-    return convert_calc_variables(nearest_data)  # calculate temp, pressure
+    return convert_calc_variables(ds_icon)  # calculate temp, pressure
+
+if __name__ == '__main__':
+    icon15 = read_icon_fixed_point_multiple_hours(day = 15, hours = range(12, 18), lon = 11.4011756, lat = 47.266076,
+                                                  variant="ICON")
+    icon15

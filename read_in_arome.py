@@ -13,7 +13,7 @@ import tarfile
 
 def read_timeSeries_AROME(location):
     """The Timeseries is a direct AROME model output which holds all variables (see Data_structure.md) for a specific
-    location
+    location -> interpolated to 2m(?), only lowest level!
     ::param location: is the selected location
     """
     pattern = f"AROME_Geosphere_20171015T1200Z_{location}_timeseries_40s_*.nc"
@@ -78,28 +78,48 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
     """
     datasets = []  # List to hold datasets for each variable
 
-    for var in variables:
+    for i, var in enumerate(variables):
         # Construct the file path and open the dataset
         file_path = os.path.join(confg.dir_3D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc")
         ds = xr.open_dataset(file_path)
 
-        if time is None:
+        if time is None:  # if no time is given, read full timerange
             time_start = pd.to_datetime('2017-10-15 14:00:00',
                                         format='%Y-%m-%d %H:%M:%S')
             time_end = pd.to_datetime('2017-10-16 12:00:00',
                                       format='%Y-%m-%d %H:%M:%S')
             time = pd.date_range(start=time_start, end=time_end, freq='30min')
 
+        # what is this? ds_selected = ds.isel(x=398, y=215)
         # Select or interpolate the dataset based on the method
-        ds_selected = ds.isel(x=398, y=215)
+        if method == "interp":
+            if level is None:  # the level can be None in the case of the radiosonde
+                ds_selected = ds.interp(time=time, longitude=lon, latitude=lat)
+            else:
+                ds_selected = ds.interp(time=time, nz=level, longitude=lon, latitude=lat)
+        elif (method == "sel") & slice_lat_lon:  # Default to 'sel' if method is not 'interp'
+            if level is None:
+                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat)
+            else:
+                ds_selected = ds.sel(time=time, nz=level, longitude=lon, latitude=lat)
+        elif (method == "sel") & (not slice_lat_lon) & (isinstance(time, pd.Timestamp)):
+            if level is None:
+                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat, method="nearest")
+            else:
+                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat, nz=level, method="nearest")
+        else:
+            if level is None:
+                ds_selected = ds.sel(longitude=lon, latitude=lat, method="nearest").isel(time=slice(4, None))
+            else:
+                ds_selected = ds.sel(nz=level, longitude=lon, latitude=lat, method="nearest").isel(
+                    time=slice(4, None))
 
         # Update variable units
         for variable, units in confg.variables_units_3D_AROME.items():
             if variable in ds_selected:
                 ds_selected[variable].attrs['units'] = units
 
-        # Quantify the dataset and append to the list
-        datasets.append(ds_selected.metpy.quantify())
+        datasets.append(ds_selected)
 
     # Merge all datasets
     return xr.merge(datasets, join="exact")
@@ -128,11 +148,12 @@ def read_in_arome(time, method, lon, lat):
 
 
 if __name__ == '__main__':
-    with tarfile.open(confg.model_folder + "AROME/AROME_TEAMx_CAP_3D_fields.tar.gz", "r:gz") as tar:
-        for member in tar.getmembers():
-            f = tar.extractfile(member)
-            if f is not None:
-                content = f.read()
+    lat_ibk = 47.259998
+    lon_ibk = 11.384167
+    # arome = read_timeSeries_AROME(location)
+    #import cProfile
+    #cProfile.run('read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)')
 
 
-    tar
+    arome = read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    arome

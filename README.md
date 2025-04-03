@@ -2,48 +2,47 @@
 model intercomparison study
 => note changes in this file!
 
-cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks von cosma meist sinnlos.
+cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks meist sinnlos. Hannes hat auch 0.0 tests geschrieben...
+What i would probably need for my analysis/plots:
+2d slices: 
+- time-height visualization at certain point -> calculate valley-heat deficit
+- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (as in Schöni's thesis)
 
-Meeting m Hannes:
-1. stimmt es, dass nicht alle Daten auf dem Gitlab-repo raufgeladen 
-wurden? Also die Modelldaten sowieso nicht, aber die exportierte 
-ZAMG-Stations-Datei finde ich zB nicht. (Die hat Cosma iwie auch nicht 
-benutzt, sondern nur die HOBOs soweit ich das bis jetzt gesehen hab.)
+Hannes codes laufen jetzt auch alle bei mir! -> kann einiges recyceln
+code optimization: 
+- create a list, put datasets into it, then merge it with xr.merge => muuuuuch faster!!! 
+- or merge them every iteration through the variables?
+quantify makes code pretty slow, use less often?!
+still not sure how metpy calcs can be done fast with variables:
+- rather define new variable with units
+- or assign units to dataset and then dequantify again? -> small effect!
+- 
+probably most effective: rewrite calculations as in wrf-model (only calculate what is really needed with subset of variables)!
 
-2. check ich das einlesen des AROME-Modells noch nicht ganz. Das 
-Skript: "change_coords_of_arome_nc.py" beinhaltet ja Funktionen, die 
-nur 1x verwendet werden um die Dateigröße zu verringern und die 
-Dimensionen des Datasets zu ändern:
-"""This script was used to convert the `variables` lat lon time (nz if 
-3D) to `coordinates`
-Initially the coords were the indexes record, X,Y (level) first, so we 
-reduced the filesize by a lot"""
-Aber damit hab ich ein paar Probleme weil ich 1. die veränderten Daten 
-nicht habe? Also die Funktion "read_timeSeries_AROME(location)" kann 
-ich nicht ausführen, weil mir die Daten dazu fehlen.
-Dazu habe ich die 3 .tar.gz - komprimierte Dateien, eine davon mit 
-über 20GB?
-
-ICON fkt eig, Idee wie es schneller wäre? 
-
-3. UM: Why pandas df?!? -> fixed point fkt jetzt als dataset
--> einlesen von ganzen Daten mit dask auf einmal möglich (~40GB) aber berechnen von lat, lon & temp in °C schwierig!
--> transformieren von ges. daten in lat, lon möglich? -> dzt nur für 1 pkt
--> für 2d plots mehrere gitterpunkte einlesen: zB mit fixed point fkt, dann halt jeden gitterpkt einzeln
-
-
+erledigt:
+- nun halbwegs Überblick über Einleseroutinen, tlw schon umgeschrieben (zB UM von pandas auf xr, noch etwas arbeit)
+- hannes' code funktioniert nun auch bei mir
+- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet?!
+- ICON metpy calculations now much faster
 
 ToDo till next meeting:
-- make overview topo plot of domain (ICON) => domain of model
-- f.e. also temp timeseries 2d 
-- revise other code: Hannes Einleseroutinen vereinheitlichen... für UM pandas, meist xarray => vereinheitlichen tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen... -> mit hannes absprechen!
-- hannes codes durchgeschaut: fkt nicht wirklich, iwie Problem mit Arome-Dimensionsänderung?
-- codes in normale .py fktionen abändern? ICON "erledigt" => nicht alle Daten (variablen) einlesen?
-- concept work 2nd research question, time onset of cap
-- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot?
+- create uniform time & height coordinates! (rename them)
+- make overview topo plot of domain (ICON) => domain of model, probably in 2D variables
+- temp timeseries 2d: which vertical coordinate is where?
+- rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent
+- manuela sent me variable guidelines, search them to find topo variable?
+- revise read in fcts: Hannes Einleseroutinen vereinheitlichen... für UM pandas, meist xarray => vereinheitlichen! tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen... -> mit hannes absprechen!
+- codes in normale .py fktionen abändern -> in progress
+- concept work 2nd research question, time onset of cap -> write concept!
+- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot? -> nearly done, only no temp for all models
+- for presentation look at radiosonde, hatpro data (hannes plots), maybe include in pres.
+- maybe make plot of pot temp with isolines (like fig 6 in pcap study)
+- helen: plot topography of each model -> where is Inn-valley? search grid cells & plot temp along the cells to get along-valley cross section
+
+Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
+- Tests! zmd Tests für die Einleseroutinen...
 
 created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
-changed read in fct of icon to make call of multiple hours easier 
 
 
 heights of cosma: 
