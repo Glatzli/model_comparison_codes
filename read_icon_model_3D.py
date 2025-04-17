@@ -7,6 +7,8 @@ functions used from outside:
 import sys
 from operator import concat
 
+from xarray import decode_cf
+
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import confg
 import xarray as xr
@@ -90,8 +92,8 @@ def convert_calc_variables(ds):
     ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temp"], ds['qv']) * 100  # for percent
 
     # calculate dewpoint
-    ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
-                                                      specific_humidity = ds['qv']) # , temperature = ds["temp"]
+    #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
+    #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
 
     return ds.metpy.dequantify()  # remove units from the dataset
 
@@ -143,7 +145,7 @@ def read_icon_fixed_point_and_time(day, hour, lon, lat, variant="ICON"):
     return convert_calc_variables(nearest_data)  # calculate temp, pressure
 
 def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat=47.266076, variant="ICON"):  # , variables=["height", "time", "temp"]
-    """ Read ICON 3D model at a fixed point and multiple hours """
+    """ Read ICON 3D model at a fixed point with multiple hours """
 
     if day not in [15, 16]:
         raise ValueError("Only October day 15 or 16 is available!")
@@ -159,9 +161,10 @@ def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat
     else:
         print("invalid model variant, either ICON or ICON2TE")
 
-    ds_icon = xr.open_mfdataset(icon_files, combine='by_coords')
+    ds_icon = xr.open_mfdataset(icon_files, concat_dim="time", combine="nested", data_vars='minimal',
+                                coords='minimal', compat='override', decode_cf=False) # combine='by_coords')
     # ds_icon = ds_icon[variables]
-    min_idx = find_min_index(ds_icon, lon, lat)  # no clue what's that doing
+    min_idx = find_min_index(ds_icon, lon, lat)  # no clue what that's doing
     ds_icon = ds_icon.isel(ncells=min_idx)
 
     return convert_calc_variables(ds_icon)  # calculate temp, pressure

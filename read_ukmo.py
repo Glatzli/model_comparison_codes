@@ -9,6 +9,7 @@ from metpy.units import units
 # from rasterio.env import local
 from scipy.interpolate import interp1d
 
+import confg
 from confg import station_files_zamg, stations_ibox, MOMMA_stations_PM, ukmo_folder
 
 
@@ -70,23 +71,19 @@ def convert_variables(ds, multiple_levels=True):
     multiple_levels: bool
     """
 
-    ds["pressure"] = ds["air_pressure"] / 100
-    p = ds["pressure"] * units.hPa
-    ds["temperature"] = mpcalc.temperature_from_potential_temperature(p, ds["air_potential_temperature"] *
+    ds["pressure"] = (ds["air_pressure"] / 100) * units("hPa")
+    # p = ds["pressure"] * units.hPa
+    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["air_potential_temperature"] *
                                                                       units("K"))  # .metpy.dequantify() - 273.15 # temp in Celsius w/o unit
-    # temp = ds["temperature"] * units("degC")  # convert to Celsius
-    # try to get temp, hum etc as data variables, not coordinates:
-    #ds = ds.assign(temperature = mpcalc.temperature_from_potential_temperature(pres, ds["air_potential_temperature"].values
-    #                                                                 * units("K")).magnitude - 273.15)
 
     qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
-    u_icon = ds["transformed_x_wind"] * units("m/s")
-    v_icon = ds["transformed_y_wind"] * units("m/s")
+    # u_icon = ds["transformed_x_wind"] * units("m/s")  # I don't need this now...
+    # v_icon = ds["transformed_y_wind"] * units("m/s")
 
-    ds['wind_dir'] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
-    ds["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
+    # ds['wind_dir'] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
+    # ds["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
 
-    ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(p, ds["temperature"], qv)
+    ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], ds["temperature"], qv)
     # o.k. if interpolation is not necessary
 
     #if multiple_levels:
@@ -123,26 +120,37 @@ def read_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
     # dat = convert_variables(dat, multiple_levels=False)
     return dat
 
-def read_ukmo_fixed_point(city_name=None, lat=None, lon=None):
-    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)"""
+def read_ukmo_fixed_point(city_name=None, lat=None, lon=None, variable_list=["u", "v", "w", "z", "th", "q", "p"]):
+    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
+    now with xr mfdataset much faster!
+    """
     if city_name is not None:
         lat, lon = get_coordinates_by_station_name(city_name)
 
     xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
-    datasets = []  # List to hold datasets for each variable
 
-    for i, var in enumerate(["u", "v", "w", "z", "th", "q", "p"]):
-        data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
-        data = data.sel(time=slice("2017-10-15T14:00:00", "2017-10-16T12:00:00.000000000"))  # delete first 2h
-        data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)  # selects lowest level, and lat, lon
+    ukmo_files = [confg.ukmo_folder + f"/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc" for var in variable_list]
+    data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
+                             coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
 
-        datasets.append(data)
-        # print(data_final["level_height"].values) # u and v are on 2.5 m, all other variables at 5m
+    data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)  # selects lat, lon
 
-    dat = xr.merge(datasets, compat='override')
-    dat = dat.rename_dims({"model_level_number": "height"})
-    dat = convert_variables(dat, multiple_levels=True)
-    return dat
+    data = data.rename({"model_level_number": "height"})
+    data = convert_variables(data, multiple_levels=True)
+    return data
+
+def read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["u", "v", "w", "z", "th", "q", "p"]):
+    """read full domain of UKMO Model at a fixed time"""
+
+    ukmo_files = [confg.ukmo_folder + f"/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc" for var in variable_list]
+    data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
+                             coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
+
+    data = data.sel(time=time)  # selects time , bnds=1
+
+    data = data.rename({"model_level_number": "height"})
+    data = convert_variables(data, multiple_levels=True)
+    return data
 
 
 def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
@@ -167,7 +175,7 @@ def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", l
 
     dat = xr.merge(datasets, compat='override')
     dat = convert_variables(dat, multiple_levels=True)
-    dat = dat.rename_dims({"model_level_number": "height"})
+    dat = dat.rename({"model_level_number": "height"})
     return dat
 
 
@@ -225,7 +233,8 @@ if __name__ == '__main__':
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
+    #um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
+    um = read_ukmo_fixed_time(time="2017-10-15T14:00:00")
     um
     # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
     # um

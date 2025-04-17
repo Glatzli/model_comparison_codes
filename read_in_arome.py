@@ -7,8 +7,44 @@ import glob
 # import numpy as np
 from metpy.units import units
 import metpy
+import metpy.calc as mpcalc
 import tarfile
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Qt5Agg')
 
+
+
+def convert_calc_variables(ds):
+    """
+    Converts and calculates meteorological variables for a xarray Dataset.
+
+    Parameters:
+    - df: A xarray Dataset containing the columns 'p' for pressure in Pa
+          and 'th' for potential temperature in Kelvin.
+
+    Returns:
+    - A xarray Dataset with the original data and new columns:
+      'pressure' in hPa and 'temperature' in degrees Celsius.
+    """
+
+    # Convert pressure from Pa to hPa
+    ds['pressure'] = (ds['p'] / 100.0) * units.hPa
+
+    # calc temp
+    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["th"] * units("K"))
+
+    # calculate relative humidity
+    ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temperature"], ds['q']* units("kg/kg")) * 100  # for percent
+
+    # calculate dewpoint
+    #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
+    #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
+    ds = ds.metpy.dequantify()
+    # convert temp to °C
+    ds["temperature"] = ds["temperature"] - 273.15
+
+    return ds
 
 
 def read_timeSeries_AROME(location):
@@ -124,8 +160,57 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
     # Merge all datasets
     return xr.merge(datasets, join="exact")
 
-def read_in_arome(time, method, lon, lat):
-    """plot the MODEL output of AROME as it would be a Radiosonde"""
+def read_in_arome():
+    """
+    reads in all arome data (fast)
+    :return: ds with all raw arome data (~40GB!)
+    """
+    arome_paths = [confg.dir_3D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc" for var in
+                   ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]]
+    ds = xr.open_mfdataset(arome_paths, combine="by_coords", data_vars='minimal',
+                           coords='minimal', compat='override', decode_timedelta=True)
+    ds = ds.rename({"nz": "height"})  # rename to uniform height coordinate
+    ds = ds.isel(height=slice(None, None, -1))  # reverse height axis to have uniform 0 at ground level!
+    return ds
+
+def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel"):  # , variable_list=["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
+    """
+    Read the AROME model output for a fixed point (e.g., a radiosonde) at a specific location and time.
+    The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
+
+    :param lat: Latitude of the fixed point.
+    :param lon: Longitude of the fixed point.
+    :param method: Selection method of point ('sel' or 'interp').
+    :param variable_list: List of variables to include in the final dataset.
+    :return: Merged xarray Dataset
+    """
+    ds = read_in_arome()
+    if method == "interp":  # interpolate to point, uses numpy/scipy interp routines...
+        ds = ds.interp(latitude=lat, longitude=lon)
+    elif method == "sel":   # selects nearest point
+        ds = ds.sel(latitude=lat, longitude=lon, method="nearest")
+
+    ds = convert_calc_variables(ds)
+    return ds
+
+def read_in_arome_fixed_time(time="2017-10-15T14:00:00"):
+    """
+    read arome data for a fixed time
+    :param time: time as string f.e. "2017-10-15T12:00:00", you can use pd.to_datetime() to convert a string to a timestamp
+    :return:
+    ds of arome data with only wanted timestamp (~2GB)
+    """
+    ds = read_in_arome()
+    ds = ds.sel(time=time)  # select just needed timestep
+
+    ds = convert_calc_variables(ds)
+    return ds
+
+
+def read_in_arome_radiosonde(time, method, lon, lat):
+    """
+    from hannes' plotting routines...
+    read the MODEL output of AROME as it would be a Radiosonde with geopot height as vertical coordinate"""
     my_variable_list = ["p", "q", "th", "u", "v", "z"]
 
     if (method == "sel") | (method == "interp"):
@@ -136,15 +221,43 @@ def read_in_arome(time, method, lon, lat):
 
     df_final = read_3D_variables_AROME(variables=my_variable_list, method=method, lon=lon, lat=lat, time=time)
 
-    print(df_final["p"].metpy.unit_array.magnitude)
-    #Extract values
+    # print(df_final["p"].metpy.unit_array.magnitude) Extract values
+
+    df_final["windspeed"] = metpy.calc.wind_speed(df_final["u"], df_final["v"])
+    df_final["wind direction"] = metpy.calc.wind_direction(df_final["u"], df_final["v"], convention='from')
     df_final["temperature"] = metpy.calc.temperature_from_potential_temperature(df_final["p"], df_final["th"])
+    df_final["dewpoint"] = metpy.calc.dewpoint_from_specific_humidity(pressure=df_final["p"],
+                                                                      temperature=df_final["temperature"],
+                                                                      specific_humidity=df_final["q"])
+
     p = df_final["p"].metpy.unit_array.to(units.hPa)  # Metadata is removed
     T = df_final["temperature"].metpy.unit_array.to(units.degC)
 
+    Td = df_final["dewpoint"].metpy.unit_array
+    wind_speed = df_final["windspeed"].metpy.unit_array.to(units.knots)
+    wind_dir = df_final['wind direction']
+    u, v = metpy.calc.wind_components(wind_speed, wind_dir)  # orig mpcalc
+
     ds = xr.Dataset()
 
-    return df_final
+    # Add variables to the dataset
+    ds['u_wind'] = xr.DataArray(u.magnitude, dims=('height',),
+                                coords={'height': df_final["z"].values},
+                                attrs={'units': str(u.units)})
+    ds['v_wind'] = xr.DataArray(v.magnitude, dims=('height',),
+                                coords={'height': df_final["z"].values},
+                                attrs={'units': str(v.units)})
+    ds['pressure'] = xr.DataArray(p.magnitude, dims=('height',),
+                                  coords={'height': df_final["z"].values},
+                                  attrs={'units': str(p.units)})
+    ds['temperature'] = xr.DataArray(T.magnitude, dims=('height',),
+                                     coords={'height': df_final["z"].values},
+                                     attrs={'units': str(T.units)})
+    ds['dewpoint'] = xr.DataArray(Td.magnitude, dims=('height',),
+                                  coords={'height': df_final["z"].values},
+                                  attrs={'units': str(Td.units)})
+
+    return ds.metpy.quantify()
 
 
 if __name__ == '__main__':
@@ -155,5 +268,7 @@ if __name__ == '__main__':
     #cProfile.run('read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)')
 
 
-    arome = read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    #arome = read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    # arome = read_in_arome_fixed_point()
+    arome = read_in_arome_fixed_time()
     arome

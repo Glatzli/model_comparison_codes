@@ -1,26 +1,35 @@
 # Models
 
-## General Information
+## model overview
 
-- [x] AROME
-- [x] UKMO
-- [x] ICON
-- [x] ICON-2TE_BLM-GUF
-- [x] WRF_ACINN
+- AROME
+- ICON
+- ICON-2TE_BLM-GUF (same var's & setup as ICON)
+- UKMO
+- WRF_ACINN
 
 
 ## AROME
--> rewrite read 3D function with fm_dataset!
+already improved:
+	+ read_in_arome_fixed_point: with open_mfdataset insanely fast
+	+ conver_calc_variables: had 0 calcs of temperature or rh before...
+	+ read_in_arome_fixed_time: reads full domain at 1 timestamp (~2GB)
 
-problem: i don't have proper lat/lon coordinates...
-nun transformierte Daten von Hannes: läuft
-Cosma hatte die falschen Daten verwendet, bzw hat sie die Transformation nicht verwendet!
+topography plot is lowest level of geopotential height
+
+ToDo:
+- maybe add functionality to fixed_time function to read only part of domain?
+	
+
+(vertikale coordinate in dataset ist ursprünglich nz, hannes nutzt für comparison_temp_icon_wrf_arome-plot einfach geopotentielle Höhe und nicht die echte Höhe?!? -> geopot. height ändert sich mit höhe!
+er definiert für diesen plot read-in-arome nochmal neu & berechnet zeugs mit metpy => schiach!
+dann erst erstellt er dataset mit den berechneten variablen, vorher ist es dataframe...)
 
 - Resolution: 1 kilometer
 - Time (renamed: time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 
 - Longitude extend from: 7.405 to 15.395 degrees (0.1 degrees) in total 800 steps
 - Latitude extends from 45.1 to 49.49 degrees by (0.1 degrees) in total 440 steps
-- nz (renamed: height) extends from 1.0 to 90.0 (90 is at the ground)
+- nz (renamed: height) extends from 1.0 to 90.0 (orig: 90 is at the ground) -> now inversed (1 is at the ground)
 
 2D AROME (`AROME_TEAMx_CAP_2D_fields`):
 
@@ -77,9 +86,14 @@ Timeseries (`AROME_TEAMx_CAP_timeseries`):
 
 
 ## ICON
--> metpy calculations now much faster
-maybe add subset for variables (would need a lot of if's as in wrf-fct if not all var's are read)
--> added read multiple hours fct => now easy 
+already improved:
+	+ metpy calculations now much faster
+	+ added read multiple hours fct => now easy
+	+ add step to cut out only one point! (?)
+
+ToDo:
+- read_icon_fixed_time for 2d plots
+- maybe add subset for variables (would need a lot of if's as in wrf-fct if not all var's are read)
 
 untersch gitter je nach variable -> google
 wie mit clat/clon umgehen? -> google
@@ -93,8 +107,7 @@ Arakawa-c grid, so you have mass points in the center of the cell, and complete 
 calculated in the cell's center (qv), and others at the full level (v). Technically, you should interpolate the
 variables at the full model level to the mass points, but due to the resolution we used in the boundary layer and the
 preliminary study you are doing, I do not think you need to do it. I would use for all variables z_ifc. Regarding
-height, I think that for the time being you can ignore the first
-point `take [1:90] of z_ifc height to have same coordinates` in the array (the highest level), so you have a 90 level
+height, I think that for the time being you can ignore the first point `take [1:90] of z_ifc height to have same coordinates` in the array (the highest level), so you have a 90 level
 array (I forgot to storage the z_mc, which is the height for the full level).
 
 The meteogram takes the values in the grid point nearest to the station's coordinate.
@@ -110,6 +123,14 @@ date = np.char.decode(ds_met.date)`
 
 Meteogram (nvars=0 temperature (K), nvars=1 u_wind, nvars=2 v_wind, nvars=3 w_wind, nvars=4 tke, nvars=5
 water_vapor_mixing_ratio):
+
+coordinates:
+- time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00, read in only 1h steps!
+- height: 1.0 ... 90.0 (90 is at the ground)
+- height_2: 1.0 ... 91.0
+- height_3: 1.0 ... 91.0ic
+- vertices ?
+- ncells_2 ?
 
 - `time` - Timestamp of the data
 - `t2m_C` - Temperature at 2 meters (unit: °C)
@@ -185,18 +206,28 @@ water_vapor_mixing_ratio):
 - `snowfrac_lc` - Snow-cover fraction (unit: %)
 
 ## UKMO
-orig als pd df eingelesen!
-why does hannes interpolate pressure at wind levels if the same vertical coordinate is used (model_level_number or height for both?!)
+already improved:
+	+ uniformly xarray, no pandas!
+	+ read_ukmo_fixed_point with open_mfdataset now insanely fast!
+
+questions:
+- what is the bnds-variable?
+- why does hannes interpolate pressure at wind levels if the same vertical coordinate is used (model_level_number or height for both?!)
 maybe I could also use the "IRIS"-package for reading this data?
 https://scitools-iris.readthedocs.io/en/stable/userguide/index.html
 
--> transformieren von ges. daten in lat, lon möglich? -> dzt nur für 1 pkt?
+ToDo:
 -> für 2d plots mehrere gitterpunkte einlesen: zB mit fixed point fkt, dann halt jeden gitterpkt einzeln
--> would need fixed_point_all_levels-fkt!
--> METPY-einbindung ist Pfusch: fehlende coordinaten! => ändere evtl auf metpy w. xarray?
--> bei wrf funktioniert ausrechnen ohne coordinaten zu verlieren!
-original dimensions: "Time"; "bottom_top", changed to "time", "height"
--> is rh: relative humidity working correct (%?)
+-> read_ukmo_fixed_time is loosing lat/lon info => transform them w. fct get_rotated_index_of_lat_lon (works currently only for 1 point)...
+
+-> is rh: relative humidity working correct (%?) -> looks o.k. from plotting
+
+coordinates:
+- time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 (drop first 2h)
+- model_level_number (renamed height): 1 ... 70 (0 is at the ground)
+- grid_latitude ?
+- grid_longitude ?
+- bnds ?
 
 Available variables:
 
@@ -209,12 +240,25 @@ Available variables:
 - `p` - air pressure (unit: Pa)
 
 ## WRF_ACINN (ETH not used cause start of simulation is midnight!)
+already improved: 
+	+ work uniformly with xarrray datasets, no pandas! 
+	+ read_wrf_fixed_time much faster (w. read_mfdataset)
+	+ metpy calculations: only necessary & faster
+	+ time/height coords: uniform w other models
+	+ generate_datasets function properly defined
 
-read_wrf_fixed_time: possible to read in only box of lat, lon -> program this also for other models?
--> fkt eig recht gut. Aber warum wieder erst dataframe erstellen und dann erst dataset draus machen?!
-- definition of function "generate_datasets" inside function -> maybe rewrite this?!  
--> rewrite with read fm_dataset!
-- metpy calcs could be re-written to be a bit faster...
+topography plot still doesn't work, I don't know why...
+
+ToDo:
+- I don't have geopotential height! Only geometric height or (best) terrain height... but miss this for other vars!
+read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are south_north & west_east 
+=> impossible to find lat/lon... 
+
+coordinates:
+- Time (renamed time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00
+- bottom_top (renamed height): 0 ... 69 (0 is at the ground)
+- south_north: ?
+- west_east: ?
 
 Meteogram:
 
@@ -253,7 +297,7 @@ Meteogram:
 - `swd` - Downward shortwave flux at ground surface (Units: W m^-2)
 - `swu` - Upward shortwave flux at ground surface (Units: W m^-2)
 - `th` - Perturbation potential temperature (theta-t0) (Units: K)
-- `time` - Time since reference point (Units not specified)
+- `time` - Time since reference point (Units not specified) -> deleted
 - `tke` - Turbulent kinetic energy from PBL (Units: m^2 s^-2)
 - `tsk` - Surface skin temperature (Units: K)
 - `u` - X-wind component (Units: m s^-1)

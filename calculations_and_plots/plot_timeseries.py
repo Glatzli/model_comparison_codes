@@ -1,17 +1,24 @@
+"""
+This script is used to plot the time series of the vertical distribution of potential temperature for all models.
+problem: vertical coordinate is not the same for all models => use pressure?
+"""
+
 import sys
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import importlib
 import read_in_arome
 import read_icon_model_3D
 import read_ukmo
-importlib.reload(read_icon_model_3D)
+# importlib.reload(read_icon_model_3D)
 import read_wrf_helen
-importlib.reload(read_wrf_helen)
+# importlib.reload(read_wrf_helen)
 import confg
 import xarray as xr
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from colorspace import diverging_hcl
+
 
 
 def plot_temp_time_contours(pot_temp, model="AROME"):
@@ -52,12 +59,12 @@ def plot_temp_time_contours(pot_temp, model="AROME"):
 
 
 def plot_arome():
-    arome = read_in_arome.read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    arome = read_in_arome.read_3D_variables_AROME(variables=["th", "z", "p"], method="sel", lat=lat_ibk, lon=lon_ibk)
     pot_temp = arome.th.isel(nz=np.arange(40, 90))
     plot_temp_time_contours(pot_temp, model="AROME")
 
 def plot_icon():
-    icon15 = read_icon_model_3D.read_icon_fixed_point_multiple_hours(day=15, hours=range(12, 24), lon=lon_ibk,
+    icon15 = read_icon_model_3D.read_icon_fixed_point_multiple_hours(day=15, hours=range(12, 14), lon=lon_ibk,
                                                                      lat=lat_ibk, variant="ICON")
     icon16 = read_icon_model_3D.read_icon_fixed_point_multiple_hours(day=16, hours=range(00, 13), lon=lon_ibk,
                                                                      lat=lat_ibk, variant="ICON")
@@ -83,7 +90,7 @@ def plot_ukmo():
 
 def plot_wrf():
     wrf = read_wrf_helen.read_wrf_fixed_point(lat=lat_ibk, lon=lon_ibk)
-    wrf_pot_temp = wrf.th.isel(bottom_top=slice(0, 50))
+    wrf_pot_temp = wrf.th.isel(height=slice(0, 50))
     plot_temp_time_contours(pot_temp=wrf_pot_temp, model="WRF")
 
 
@@ -92,13 +99,12 @@ if __name__ == '__main__':
     lon_ibk = 11.384167
     pal1 = diverging_hcl(palette="Blue-Red 2")
 
-    plot_arome()
+    matplotlib.use('Qt5Agg')  # Use the Qt5Agg backend for interactive plotting
 
-    # plot_icon()
+    # plot_arome()
+
+    plot_icon()
     # plot_icon2te()
 
     # plot_ukmo()
     # plot_wrf()
-
-
-

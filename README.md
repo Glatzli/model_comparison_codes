@@ -1,43 +1,50 @@
 # Why are NWMs too warm in a cold air pool? A
 model intercomparison study
-=> note changes in this file!
 
 cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks meist sinnlos. Hannes hat auch 0.0 tests geschrieben...
+vertical coordinates: 
+- cosma used in plotting routine again metpy to calculate pressure & pot temp => bullshit
+- hannes sometimes used geopotential height for plotting model topography
+
 What i would probably need for my analysis/plots:
 2d slices: 
-- time-height visualization at certain point -> calculate valley-heat deficit
+- time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
 - longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (as in Schöni's thesis)
+-> proper read-in only for AROME-model
 
-Hannes codes laufen jetzt auch alle bei mir! -> kann einiges recyceln
+(Hannes codes laufen jetzt auch alle bei mir! -> kann einiges recyceln
 code optimization: 
+- merge datasets every iteration through the variables?
 - create a list, put datasets into it, then merge it with xr.merge => muuuuuch faster!!! 
-- or merge them every iteration through the variables?
 quantify makes code pretty slow, use less often?!
 still not sure how metpy calcs can be done fast with variables:
 - rather define new variable with units
-- or assign units to dataset and then dequantify again? -> small effect!
-- 
-probably most effective: rewrite calculations as in wrf-model (only calculate what is really needed with subset of variables)!
+- or assign units to dataset and then dequantify again? -> small effect!)
 
 erledigt:
-- nun halbwegs Überblick über Einleseroutinen, tlw schon umgeschrieben (zB UM von pandas auf xr, noch etwas arbeit)
+- Einleseroutinen viel um/neugeschrieben
 - hannes' code funktioniert nun auch bei mir
 - cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet?!
-- ICON metpy calculations now much faster
+- all metpy calculations now much faster
+- create uniform time & height coordinates! (rename them) -> done
 
 ToDo till next meeting:
-- create uniform time & height coordinates! (rename them)
 - make overview topo plot of domain (ICON) => domain of model, probably in 2D variables
 - temp timeseries 2d: which vertical coordinate is where?
-- rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent
-- manuela sent me variable guidelines, search them to find topo variable?
-- revise read in fcts: Hannes Einleseroutinen vereinheitlichen... für UM pandas, meist xarray => vereinheitlichen! tlw wird nur einzelner timestamp, oder einzelner gitterpkt eingelesen... -> mit hannes absprechen!
-- codes in normale .py fktionen abändern -> in progress
+- rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
+- manuela' variable guidelines, search them to find topo variable? -> not really helpful!
 - concept work 2nd research question, time onset of cap -> write concept!
-- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot? -> nearly done, only no temp for all models
+- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot? -> for ibk done, not for surroundings
+- need to solve problem with lat/lons to know which gridpoint is chosen in the end 
 - for presentation look at radiosonde, hatpro data (hannes plots), maybe include in pres.
-- maybe make plot of pot temp with isolines (like fig 6 in pcap study)
-- helen: plot topography of each model -> where is Inn-valley? search grid cells & plot temp along the cells to get along-valley cross section
+
+FIRST:
+- what are vertical levels? make plot uniform to compare them -> maybe use pressure? Problem: it's not a coordinate for any model. 
+- helen: plot topography of each model -> where is Inn-valley? search grid cells & plot temp along the cells to get along-valley cross section: 
+ICON: tried psy-view, but it's only possible to visualize one single level!
+tried plotting with cartopy but somehow dimensions doesn't really fit... is this "grid-file" missing?
+"All approaches have in common that the NetCDF
+grid file must be read in together with the data file." (Icon tutorial 2023)
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
 - Tests! zmd Tests für die Einleseroutinen...
@@ -50,11 +57,8 @@ heights of cosma:
 80: (icon2te)
 56: hafelekar
 
-What i did:
-vertical plot of icon with time, probably wrong vert. coord (rather use z_ifc = geopot. height) (timeseries notebook)
 
-
-
+old stuff:
 Codes follow those provided by Hannes Wieser, but using Jupyter Notebooks (.ipynb).
 All read-in's, calculations and plots are provided for the cities Innsbruck, Kufstein and Imst.
 
