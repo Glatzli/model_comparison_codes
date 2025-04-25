@@ -1,18 +1,43 @@
-# Why are NWMs too warm in a cold air pool? A
+Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
-
-cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks meist sinnlos. Hannes hat auch 0.0 tests geschrieben...
-vertical coordinates: 
-- cosma used in plotting routine again metpy to calculate pressure & pot temp => bullshit
-- hannes sometimes used geopotential height for plotting model topography
 
 What i would probably need for my analysis/plots:
 2d slices: 
 - time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
-- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (as in Schöni's thesis)
+- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
 -> proper read-in only for AROME-model
 
-(Hannes codes laufen jetzt auch alle bei mir! -> kann einiges recyceln
+erledigt:
+- Einleseroutinen viel um/neugeschrieben
+- hannes' code funktioniert nun auch bei mir
+- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
+- all metpy calculations now much faster
+- create uniform time & height coordinates! (rename them) -> done
+
+general notes:
+- first plot: temp timeseries 2d: which vertical coordinate is where (mark Hafelekar)? -> for ibk done, not for surroundings
+- vertical coordinates: now use standard-coordinate 0 ... 90 approx. could also use pressure (from first timestep?-> changes w time! Problem: it's not a coordinate for any model!) 
+
+- model topography: probably in 2D variables (?) hannes used geopotential height! how best? (model topo or real DEM?): Rachoecker hat auch schiachen overview-plot: mache Ausschnitt v AROME topo etw größer, hau Stadtnamen rein u slope profiles? Inn-Valley Beschriftung & passt scho?
+search grid cells & plot temp along the cells to get along-valley cross section: 
+ICON: tried psy-view, but it's only possible to visualize one single level!
+tried plotting with cartopy but somehow dimensions doesn't really fit... is this "grid-file" missing?
+"All approaches have in common that the NetCDF
+grid file must be read in together with the data file." (Icon tutorial 2023)
+
+- concept work 2nd research question, time onset of cap -> write concept!
+- horizontal plots: need to solve problem with lat/lons to know which gridpoint is chosen in the end 
+- for presentation look at radiosonde, hatpro data (hannes plots), maybe include in pres.
+
+- rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
+- manuela' variable guidelines, search them to find topo variable? -> not really helpful!
+
+
+Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
+- Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
+
+created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
+
 code optimization: 
 - merge datasets every iteration through the variables?
 - create a list, put datasets into it, then merge it with xr.merge => muuuuuch faster!!! 
@@ -21,36 +46,7 @@ still not sure how metpy calcs can be done fast with variables:
 - rather define new variable with units
 - or assign units to dataset and then dequantify again? -> small effect!)
 
-erledigt:
-- Einleseroutinen viel um/neugeschrieben
-- hannes' code funktioniert nun auch bei mir
-- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet?!
-- all metpy calculations now much faster
-- create uniform time & height coordinates! (rename them) -> done
-
-ToDo till next meeting:
-- make overview topo plot of domain (ICON) => domain of model, probably in 2D variables
-- temp timeseries 2d: which vertical coordinate is where?
-- rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
-- manuela' variable guidelines, search them to find topo variable? -> not really helpful!
-- concept work 2nd research question, time onset of cap -> write concept!
-- make first plots: make timeseries of surroundings of ibk? first 2d, timeseries plot? -> for ibk done, not for surroundings
-- need to solve problem with lat/lons to know which gridpoint is chosen in the end 
-- for presentation look at radiosonde, hatpro data (hannes plots), maybe include in pres.
-
-FIRST:
-- what are vertical levels? make plot uniform to compare them -> maybe use pressure? Problem: it's not a coordinate for any model. 
-- helen: plot topography of each model -> where is Inn-valley? search grid cells & plot temp along the cells to get along-valley cross section: 
-ICON: tried psy-view, but it's only possible to visualize one single level!
-tried plotting with cartopy but somehow dimensions doesn't really fit... is this "grid-file" missing?
-"All approaches have in common that the NetCDF
-grid file must be read in together with the data file." (Icon tutorial 2023)
-
-Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
-- Tests! zmd Tests für die Einleseroutinen...
-
-created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
-
+cosma just adapted, often hard coded codes from Hannes. "zeitreihen"-notebooks meist sinnlos. Hannes hat 0 tests geschrieben...
 
 heights of cosma: 
 87: (icon, lowest lvl where?)
@@ -59,6 +55,7 @@ heights of cosma:
 
 
 old stuff:
+
 Codes follow those provided by Hannes Wieser, but using Jupyter Notebooks (.ipynb).
 All read-in's, calculations and plots are provided for the cities Innsbruck, Kufstein and Imst.
 

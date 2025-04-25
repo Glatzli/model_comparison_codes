@@ -97,7 +97,7 @@ ToDo:
 
 untersch gitter je nach variable -> google
 wie mit clat/clon umgehen? -> google
-evtl use package: https://psyplot.github.io/psy-view/index.html
+evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
 -> plot temp w z_ifc not possible 
 
 Basically, the ICON grid is a triangular unstructured grid, so ncells is the total number of cells you may find in the

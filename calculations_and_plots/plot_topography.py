@@ -19,9 +19,9 @@ def plot_topography(ds, model_name="AROME"):
     """plot model topography as contour plot in the innvalley"""
     pal = terrain_hcl()
     # box to plot:
-    min_lat = 47.0
+    min_lat = 46.5
     max_lat = 48
-    min_lon = 11.0
+    min_lon = 10.5
     max_lon = 12.5
     levels = np.arange(0, 3500, 500)
     fig, ax = plt.subplots(figsize=(12, 10), subplot_kw={'projection': ccrs.PlateCarree()})
@@ -47,6 +47,10 @@ def plot_topography(ds, model_name="AROME"):
                              transform=ccrs.PlateCarree())  # plot ends up being smth i don't understand, maybe it's rotated?!
       # pal = terrain_hcl()
     ax.add_feature(cfeature.BORDERS, edgecolor='black', linewidth=1)  # add national borders
+    ax.scatter(confg.station_files_zamg["IAO"]["lon"], confg.station_files_zamg["IAO"]["lat"],  # add innsbruck marker
+               label=confg.station_files_zamg["IAO"]["name"][0:-4], marker=".", s=20, color="black")
+    ax.text(confg.station_files_zamg["IAO"]["lon"], confg.station_files_zamg["IAO"]["lat"],
+            confg.station_files_zamg["IAO"]["name"][0:-4])  # plot name
     ax.set_xlim(min_lon, max_lon)
     ax.set_ylim(min_lat, max_lat)
     ax.set_xticks(np.arange(min_lon, max_lon, 0.5), crs=ccrs.PlateCarree())
@@ -66,11 +70,10 @@ def plot_topography(ds, model_name="AROME"):
 
 
 if __name__ == '__main__':
-    # ds = read_in_arome.read_in_arome_fixed_time()
-    ds = read_wrf_helen.read_wrf_fixed_time(min_lon=7, max_lon=15, min_lat=46, max_lat=48)
+    ds = read_in_arome.read_in_arome_fixed_time()
+    # ds = read_wrf_helen.read_wrf_fixed_time(min_lon=7, max_lon=15, min_lat=46, max_lat=48)
 
     # Plot stations as points, underneath as contour the AROME Model height
-    plot_topography(ds, model_name="WRF")  # mit dist_degree = 0.4
+    plot_topography(ds, model_name="AROME")  # mit dist_degree = 0.4
     plt.show()
-
-
+    print("susi")
