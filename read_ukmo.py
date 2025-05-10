@@ -1,4 +1,8 @@
-"""Script to read in UKMO Model: at fixed time OR at fixed height (model level)"""
+"""Script to read in UKMO Model: at fixed time OR at fixed height (model level)
+
+re-written by Daniel
+
+"""
 import cartopy.crs as ccrs
 import metpy.calc as mpcalc
 import numpy as np

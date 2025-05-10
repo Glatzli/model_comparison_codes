@@ -1,5 +1,7 @@
 """Script to read in WRF ACINN data
 Note: it is a sort of WRF Data, but still different than the WRF_ETH files.
+re-written by Daniel
+
 
 Use salem from Prof. Maussion (https://salem.readthedocs.io/en/stable/) to read it in, had to modify it sometimes
 

@@ -29,7 +29,10 @@ dann erst erstellt er dataset mit den berechneten variablen, vorher ist es dataf
 - Time (renamed: time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 
 - Longitude extend from: 7.405 to 15.395 degrees (0.1 degrees) in total 800 steps
 - Latitude extends from 45.1 to 49.49 degrees by (0.1 degrees) in total 440 steps
-- nz (renamed: height) extends from 1.0 to 90.0 (orig: 90 is at the ground) -> now inversed (1 is at the ground)
+- nz extends from 1.0 to 90.0 (orig: 90 is at the ground) -> now inversed (1 is at the ground)
+
+for plotting new created datasets:
+- height (geopot. height at timestep 20)
 
 2D AROME (`AROME_TEAMx_CAP_2D_fields`):
 
@@ -93,7 +96,7 @@ already improved:
 
 ToDo:
 - read_icon_fixed_time for 2d plots
-- maybe add subset for variables (would need a lot of if's as in wrf-fct if not all var's are read)
+- maybe add subset for variables to minimize data
 
 untersch gitter je nach variable -> google
 wie mit clat/clon umgehen? -> google
@@ -215,12 +218,12 @@ questions:
 - why does hannes interpolate pressure at wind levels if the same vertical coordinate is used (model_level_number or height for both?!)
 maybe I could also use the "IRIS"-package for reading this data?
 https://scitools-iris.readthedocs.io/en/stable/userguide/index.html
+- rh metpy calc: working correct (%?) -> looks o.k. from plotting
 
 ToDo:
--> für 2d plots mehrere gitterpunkte einlesen: zB mit fixed point fkt, dann halt jeden gitterpkt einzeln
--> read_ukmo_fixed_time is loosing lat/lon info => transform them w. fct get_rotated_index_of_lat_lon (works currently only for 1 point)...
+- no read_fixed_time: is loosing lat/lon info => transform them w. fct get_rotated_index_of_lat_lon (works currently only for 1 point)... 
+evtl with fixed point fkt, dann halt jeden gitterpkt einzeln
 
--> is rh: relative humidity working correct (%?) -> looks o.k. from plotting
 
 coordinates:
 - time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 (drop first 2h)
@@ -252,7 +255,7 @@ topography plot still doesn't work, I don't know why...
 ToDo:
 - I don't have geopotential height! Only geometric height or (best) terrain height... but miss this for other vars!
 read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are south_north & west_east 
-=> impossible to find lat/lon... 
+- impossible to find lat/lon!
 
 coordinates:
 - Time (renamed time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00

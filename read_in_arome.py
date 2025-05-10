@@ -1,3 +1,7 @@
+"""
+re-written by Daniel
+"""
+
 
 import confg
 import os
@@ -11,6 +15,10 @@ import metpy.calc as mpcalc
 import tarfile
 import matplotlib.pyplot as plt
 import matplotlib
+from pathlib import Path
+
+from confg import variables_units_2D_AROME
+
 matplotlib.use('Qt5Agg')
 
 
@@ -18,6 +26,8 @@ matplotlib.use('Qt5Agg')
 def convert_calc_variables(ds):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
+    by Daniel
+    Idea: calculate only variables which are possible with read ds
 
     Parameters:
     - df: A xarray Dataset containing the columns 'p' for pressure in Pa
@@ -27,15 +37,15 @@ def convert_calc_variables(ds):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
-
-    # Convert pressure from Pa to hPa
-    ds['pressure'] = (ds['p'] / 100.0) * units.hPa
-
-    # calc temp
-    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["th"] * units("K"))
-
-    # calculate relative humidity
-    ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temperature"], ds['q']* units("kg/kg")) * 100  # for percent
+    if "p" in ds:
+        # Convert pressure from Pa to hPa
+        ds['pressure'] = (ds['p'] / 100.0) * units.hPa
+        if "th" in ds:
+            # calc temp
+            ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["th"] * units("K"))
+            if "q" in ds:
+                # calculate relative humidity only if it's loaded in the dataset
+                ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temperature"], ds['q']* units("kg/kg")) * 100  # for percent
 
     # calculate dewpoint
     #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
@@ -44,9 +54,33 @@ def convert_calc_variables(ds):
     # convert temp to °C
     ds["temperature"] = ds["temperature"] - 273.15
 
-    return ds
+    return ds.compute()
+
+def create_ds_geopot_height_as_z_coordinate(ds):
+    """
+    create a new dataset with geopotential height as vertical coordinate for temperature for plotting
+    :param ds:
+    :return:
+    :ds_new: new dataset with geopotential height as vertical coordinate
+    """
+    geopot_height = ds.z.isel(time=20).compute()
+
+    ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
+        data_vars=dict(
+            th=(["time", "height"], ds.th.values),
+            p=(["time", "height"], ds.p.values),
+        ),
+        coords=dict(
+            height=("height", geopot_height.values),
+            time=("time", ds.time.values)
+        ),
+        attrs=dict(description="AROME data with geopotential height at mid of ds as vertical coordinate"))
+
+    return ds_new
 
 
+
+# those 3 functions are old one used by hannes, not used now!
 def read_timeSeries_AROME(location):
     """The Timeseries is a direct AROME model output which holds all variables (see Data_structure.md) for a specific
     location -> interpolated to 2m(?), only lowest level!
@@ -63,7 +97,6 @@ def read_timeSeries_AROME(location):
         return xr.open_dataset(matching_files[0])
     else:
         raise FileNotFoundError(f"No files found for location {location}")
-
 
 def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
     """ WITH the sel Method
@@ -97,7 +130,6 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
 
     return xr.merge(datasets, join="exact")
 
-
 def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, level=None, time=None):
     """
     Merge datasets for a list of variables at a specific location and time.
@@ -120,71 +152,60 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
         ds = xr.open_dataset(file_path)
 
         if time is None:  # if no time is given, read full timerange
-            time_start = pd.to_datetime('2017-10-15 14:00:00',
+            time_start = pd.to_datetime('2017-10-15 12:00:00',
                                         format='%Y-%m-%d %H:%M:%S')
             time_end = pd.to_datetime('2017-10-16 12:00:00',
                                       format='%Y-%m-%d %H:%M:%S')
             time = pd.date_range(start=time_start, end=time_end, freq='30min')
 
-        # what is this? ds_selected = ds.isel(x=398, y=215)
-        # Select or interpolate the dataset based on the method
+        # select point in space in domain either through interpolation or nearest point
         if method == "interp":
-            if level is None:  # the level can be None in the case of the radiosonde
-                ds_selected = ds.interp(time=time, longitude=lon, latitude=lat)
-            else:
-                ds_selected = ds.interp(time=time, nz=level, longitude=lon, latitude=lat)
-        elif (method == "sel") & slice_lat_lon:  # Default to 'sel' if method is not 'interp'
-            if level is None:
-                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat)
-            else:
-                ds_selected = ds.sel(time=time, nz=level, longitude=lon, latitude=lat)
-        elif (method == "sel") & (not slice_lat_lon) & (isinstance(time, pd.Timestamp)):
-            if level is None:
-                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat, method="nearest")
-            else:
-                ds_selected = ds.sel(time=time, longitude=lon, latitude=lat, nz=level, method="nearest")
-        else:
-            if level is None:
-                ds_selected = ds.sel(longitude=lon, latitude=lat, method="nearest").isel(time=slice(4, None))
-            else:
-                ds_selected = ds.sel(nz=level, longitude=lon, latitude=lat, method="nearest").isel(
-                    time=slice(4, None))
+            ds_selected = ds.interp(longitude=lon, latitude=lat)
+        elif method == "sel":
+            ds_selected = ds.sel(longitude=lon, latitude=lat, method="nearest")
+        # shorter, used by Daniel (Hannes had a lot of checks for lat lon time etc -> I will make seperate function for that)
 
         # Update variable units
-        for variable, units in confg.variables_units_3D_AROME.items():
-            if variable in ds_selected:
-                ds_selected[variable].attrs['units'] = units
+        # for variable, units in confg.variables_units_3D_AROME.items():
+        #    if variable in ds_selected:
+        #        ds_selected[variable].attrs['units'] = units
 
         datasets.append(ds_selected)
 
     # Merge all datasets
-    return xr.merge(datasets, join="exact")
+    ds = xr.merge(datasets, join="exact")
+    ds = ds.isel(nz=slice(None, None, -1))  # reverse nz axis to have uniform 0 at ground level!
+    ds = create_ds_geopot_height_as_z_coordinate(ds)  # create new dataset with geopotential height as vertical coordinate
+    ds = convert_calc_variables(ds)
+    return ds
 
-def read_in_arome():
+def read_in_arome(variables=["p", "th", "z"]):
     """
-    reads in all arome data (fast)
+    doesn't work due to dask issues when calculating the variables... use rather original read_3D variables func...
+    reads in all arome data (fast) by Daniel
+    :param variables: list of variables to read in, max possible: ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
     :return: ds with all raw arome data (~40GB!)
     """
     arome_paths = [confg.dir_3D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc" for var in
-                   ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]]
+                   variables]
     ds = xr.open_mfdataset(arome_paths, combine="by_coords", data_vars='minimal',
                            coords='minimal', compat='override', decode_timedelta=True)
     ds = ds.rename({"nz": "height"})  # rename to uniform height coordinate
     ds = ds.isel(height=slice(None, None, -1))  # reverse height axis to have uniform 0 at ground level!
     return ds
 
-def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel"):  # , variable_list=["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
+def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"]):  # , variable_list=
     """
-    Read the AROME model output for a fixed point (e.g., a radiosonde) at a specific location and time.
+    Read the AROME model output for a fixed point at a specific location with full time range.
     The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
 
     :param lat: Latitude of the fixed point.
     :param lon: Longitude of the fixed point.
     :param method: Selection method of point ('sel' or 'interp').
-    :param variable_list: List of variables to include in the final dataset.
+    :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
     :return: Merged xarray Dataset
     """
-    ds = read_in_arome()
+    ds = read_in_arome(variables)
     if method == "interp":  # interpolate to point, uses numpy/scipy interp routines...
         ds = ds.interp(latitude=lat, longitude=lon)
     elif method == "sel":   # selects nearest point
@@ -203,7 +224,7 @@ def read_in_arome_fixed_time(time="2017-10-15T14:00:00"):
     ds = read_in_arome()
     ds = ds.sel(time=time)  # select just needed timestep
 
-    ds = convert_calc_variables(ds)
+    # ds = convert_calc_variables(ds)
     return ds
 
 
@@ -264,11 +285,20 @@ if __name__ == '__main__':
     lat_ibk = 47.259998
     lon_ibk = 11.384167
     # arome = read_timeSeries_AROME(location)
-    #import cProfile
-    #cProfile.run('read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)')
 
 
-    #arome = read_3D_variables_AROME(variables=["th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
-    # arome = read_in_arome_fixed_point()
-    arome = read_in_arome_fixed_time()
+    arome = read_3D_variables_AROME(variables=["p", "th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    # arome = read_in_arome_fixed_point(variables=["p", "th", "z"])
+    # arome = read_in_arome_fixed_time(time="2017-10-15T12:00:00")
+    arome
+    arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
+    try:
+        if arome_path.exists():
+            os.chmod(arome_path, 0o666)
+        arome.to_netcdf(arome_path, mode="w", format="NETCDF4")
+    except PermissionError:
+        print("Permission denied: unable to save AROME data to the specified directory.")
+
+
+
     arome

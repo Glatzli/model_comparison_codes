@@ -1,4 +1,4 @@
-"""Read in the 3D ICON Model
+"""Read in the 3D ICON Model, re-written by Daniel
 
 functions used from outside:
 - read_icon_fixed_point() need dask to read it in, a lot of RAM used
