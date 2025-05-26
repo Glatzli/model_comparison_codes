@@ -26,6 +26,7 @@ import confg
 from metpy.units import units
 # warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 import matplotlib
+from pathlib import Path
 matplotlib.use('Qt5Agg')
 
 def __open_wrf_dataset_my_version(file, **kwargs):
@@ -191,18 +192,42 @@ def convert_calc_variables(ds):
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
     # Convert pressure from Pa to hPa
-    ds['pressure'] = (ds['p'] / 100) * units.hPa
+    ds['p'] = (ds['p'] / 100) * units.hPa
 
     # calculate temp in K
-    ds["temp"] = mpcalc.temperature_from_potential_temperature(ds['pressure'], ds["th"] * units("K"))
+    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
 
-    ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["pressure"], ds["temp"], ds["q_mixingratio"] * units("kg/kg")) * 100  # for percent
+    # ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["p"], ds["temperature"], ds["q_mixingratio"] * units("kg/kg")) * 100  # for percent
     # ds["Td"] = mpcalc.dewpoint_from_relative_humidity(ds["temp"], ds["rh"])  # I don't need it now, evtl. there is an error in calc of rh...
 
     ds = ds.metpy.dequantify()
-    ds["temp"]  = ds["temp"] - 273.15  # convert temp to °C
+    ds["temperature"]  = ds["temperature"] - 273.15  # convert temp to °C
 
     return ds
+
+
+def create_ds_geopot_height_as_z_coordinate(ds):
+    """
+    create a new dataset with geopotential height as vertical coordinate for temperature for plotting
+    :param ds:
+    :return:
+    :ds_new: new dataset with geopotential height as vertical coordinate
+    """
+    geometric_height = ds.z.compute()
+
+    ds_new = xr.Dataset(
+        data_vars=dict(
+            th=(["time", "height"], ds.th.values),
+            # p=(["time", "height"], ds.p.values),
+        ),
+        coords=dict(
+            height=("height", geometric_height.values),
+            time=("time", ds.time.values)
+        ),
+        attrs=dict(description="WRF data with geopotential height at mid of ds as vertical coordinate"))
+
+    return ds_new
+
 
 def read_wrf_fixed_point_and_time(day: int, hour: int, latitude: float, longitude: float, minute: int):
     """Read in WRF ACINN at a fixed time (hour, day, min) and location (lat, lon)
@@ -245,7 +270,6 @@ def read_wrf_fixed_point_and_time(day: int, hour: int, latitude: float, longitud
     df = convert_calc_variables(df)
 
     return df
-
 
 
 def generate_datasets(lat=47.259998, lon=11.384167, start_day=15, end_day=16,
@@ -343,12 +367,20 @@ def read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, m
     return ds
 
 if __name__ == '__main__':
-    #wrf = read_wrf_fixed_point(lat=47.259998, lon=11.384167)
+    lat_ibk = 47.259998
+    lon_ibk = 11.384167
+    wrf = read_wrf_fixed_point(lat=lat_ibk, lon=lon_ibk)
+
+    wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
+    wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
+    wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
+    wrf_plotting
+
     #wrf.rh.isel(time=0).plot(y="height")
 
-    wrf = read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=12, max_lon=13, min_lat=49, max_lat=50)
+    # wrf = read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=12, max_lon=13, min_lat=49, max_lat=50)
 
-    # df = read_wrf_fixed_point_and_time(day=16, hour=3, latitude=confg.station_files_zamg["IAO"]["lat"],
+    #df = read_wrf_fixed_point_and_time(day=16, hour=3, latitude=confg.station_files_zamg["IAO"]["lat"],
     #                               longitude=confg.station_files_zamg["IAO"]["lon"], minute=0)
 
 

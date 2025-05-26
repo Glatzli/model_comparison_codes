@@ -12,6 +12,7 @@ from metpy.calc import dewpoint_from_specific_humidity, relative_humidity_from_d
 from metpy.units import units
 # from rasterio.env import local
 from scipy.interpolate import interp1d
+from pathlib import Path
 
 import confg
 from confg import station_files_zamg, stations_ibox, MOMMA_stations_PM, ukmo_folder
@@ -75,19 +76,19 @@ def convert_variables(ds, multiple_levels=True):
     multiple_levels: bool
     """
 
-    ds["pressure"] = (ds["air_pressure"] / 100) * units("hPa")
+    ds["p"] = (ds["p"] / 100) * units("hPa")
     # p = ds["pressure"] * units.hPa
-    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["air_potential_temperature"] *
+    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] *
                                                                       units("K"))  # .metpy.dequantify() - 273.15 # temp in Celsius w/o unit
 
-    qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
+    # qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
     # u_icon = ds["transformed_x_wind"] * units("m/s")  # I don't need this now...
     # v_icon = ds["transformed_y_wind"] * units("m/s")
 
     # ds['wind_dir'] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
     # ds["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
 
-    ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], ds["temperature"], qv)
+    # ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], ds["temperature"], qv)
     # o.k. if interpolation is not necessary
 
     #if multiple_levels:
@@ -100,8 +101,39 @@ def convert_variables(ds, multiple_levels=True):
     #else: ds["relative_humidity"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], temp, qv).to("percent")
     ds = ds.metpy.dequantify()
     ds["temperature"] = ds["temperature"] - 273.15  # convert to Celsius
-    ds["rh"] = ds["rh"] * 100  # convert to percent
+    # ds["rh"] = ds["rh"] * 100  # convert to percent
     return ds
+
+
+def create_ds_geopot_height_as_z_coordinate(ds):
+    """
+    create a new dataset with geopotential height as vertical coordinate for temperature for plotting
+    :param ds:
+    :return:
+    :ds_new: new dataset with geopotential height as vertical coordinate
+    """
+    geopot_height = ds.z.isel(time=20).compute()
+
+    ds_new = xr.Dataset(
+        data_vars=dict(
+            th=(["time", "height"], ds.th.values),
+            p=(["time", "height"], ds.p.values),
+        ),
+        coords=dict(
+            height=("height", geopot_height.values),
+            time=("time", ds.time.values)
+        ),
+        attrs=dict(description="UKMO data with geopotential height at mid of ds as vertical coordinate"))
+
+    return ds_new
+
+
+def rename_variables(ds):
+    """rename variables to have a consistent naming convention"""
+    ds = ds.rename({"model_level_number": "height", "air_potential_temperature": "th", "air_pressure": "p",
+                    "specific_humidity": "q", "geopotential_height": "z"})
+    return ds
+
 
 def read_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
     """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)"""
@@ -138,8 +170,7 @@ def read_ukmo_fixed_point(city_name=None, lat=None, lon=None, variable_list=["u"
                              coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
 
     data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)  # selects lat, lon
-
-    data = data.rename({"model_level_number": "height"})
+    data = rename_variables(data)
     data = convert_variables(data, multiple_levels=True)
     return data
 
@@ -152,7 +183,7 @@ def read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["u", "v", "w
 
     data = data.sel(time=time)  # selects time , bnds=1
 
-    data = data.rename({"model_level_number": "height"})
+    data = rename_variables(data)
     data = convert_variables(data, multiple_levels=True)
     return data
 
@@ -237,8 +268,12 @@ if __name__ == '__main__':
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    #um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
-    um = read_ukmo_fixed_time(time="2017-10-15T14:00:00")
+    um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
+    # um = read_ukmo_fixed_time(time="2017-10-15T14:00:00")
+    um_geopot = create_ds_geopot_height_as_z_coordinate(um)
+
+    um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
+    um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     um
     # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
     # um

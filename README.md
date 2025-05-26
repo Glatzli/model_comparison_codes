@@ -14,24 +14,43 @@ erledigt:
 - all metpy calculations now much faster
 - create uniform time & height coordinates! (rename them) -> done
 
+ToDo presentation:
+- state of research Rauchoecker
+- topo overview AROME or WRF, PIANO
+- preliminary work (Fabian Schöni, cosma)
+
+Questions for meeting: 
+- presentation: start with what is a cold pool?
+- other literature to compare 
+- research goals: find extent: look at 2m temperature => get overview of valley res.
+
+- How should I best present 6 temp timeseries plots? -> maybe first obs than model
+- interpolation: matters more for quantitative analysis, for timerseries in vertical plots not that necessary
+- hydrostatic for pot temp (pressure) 
+- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
+- make table for each model for surface & above surface: what can i calc where: schöni's thesis helps probably smth
+- Why are models too warm research goal: look at temp equation and probably only radiation/advection which dominates? other terms parametrised probably & all different?...
+
+in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
+
+
 ToDo till next meeting:
-- focus on presentation & concept: make first draft of presentation slides for concept pres.
-- 1 plot to motivate problem from hannes f.e.
 - imagine presenting to present to colleaugue or physics student
+- 
 
 general notes:
-- first plot: temp timeseries 2d:
-1. plot hatpro data: only normal temp [K] available, no pot temp! => need pressure for calculation!
-	make plot w temp [°C]: Problems with calcs & dask read ins... AND you don't see anything really! -> take pressure values from any (AROME) model and calculate pot temp for HATPRO data to plot it?
-=> now interpolated HATPRO data (linearly?) onto AROME levels and used AROME pressure levels to calc pot temp
+- first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
+	HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
+	now pot temp timeseries for ibk for AROME, ICON and HATPRO
 
-	=> read only th & p for temp-plot?
-2. make vertical coord uniform w geopot height to show at meeting: -> create new dataset with new vertical coordinate in read in routines for all models! geopot height is not changing a lot (just use timestep in middle of period) and plot temp etc along geopot height
-(- vertical coordinates: now use standard-coordinate 0 ... 90 approx. could also use pressure (from first timestep?-> changes w time! Problem: it's not a coordinate for any model!)
+models: create new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
+	
 
 
 - model topography: probably in 2D variables (?) hannes used geopotential height! how best? (model topo or real DEM?): Rachoecker hat auch schiachen overview-plot: mache Ausschnitt v AROME topo etw größer, hau Stadtnamen rein u slope profiles? Inn-Valley Beschriftung & passt scho?
-search grid cells & plot temp along the cells to get along-valley cross section: 
+search grid cells & plot temp along the cells to get along-valley cross section -> Hannes made topo plot from geopot height, hgt variable is only tuned to 2m!
+HOBO dataset: https://zenodo.org/records/4672313
+
 ICON: tried psy-view, but it's only possible to visualize one single level!
 tried plotting with cartopy but somehow dimensions doesn't really fit... is this "grid-file" missing?
 "All approaches have in common that the NetCDF

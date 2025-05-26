@@ -32,7 +32,10 @@ dann erst erstellt er dataset mit den berechneten variablen, vorher ist es dataf
 - nz extends from 1.0 to 90.0 (orig: 90 is at the ground) -> now inversed (1 is at the ground)
 
 for plotting new created datasets:
-- height (geopot. height at timestep 20)
+- height (geopot. height [m] at timestep 20)
+with vars:
+- th = pot temp [K]
+- p = pressure [hPa]
 
 2D AROME (`AROME_TEAMx_CAP_2D_fields`):
 
@@ -135,6 +138,18 @@ coordinates:
 - vertices ?
 - ncells_2 ?
 
+calculated vars:
+pressure -> hPa
+th.. potential temp [K]
+temp -> °C
+
+for plotting new created datasets:
+- height (geometric height [m] at timestep 20)
+with vars:
+- th = pot temp [K]
+- p = pressure [hPa]
+
+
 - `time` - Timestamp of the data
 - `t2m_C` - Temperature at 2 meters (unit: °C)
 - `u` - Zonal wind (unit: m s^-1)
@@ -224,6 +239,11 @@ ToDo:
 - no read_fixed_time: is loosing lat/lon info => transform them w. fct get_rotated_index_of_lat_lon (works currently only for 1 point)... 
 evtl with fixed point fkt, dann halt jeden gitterpkt einzeln
 
+for plotting new created datasets:
+- height (geopot. height [m] at timestep 20)
+with vars:
+- th = pot temp [K]
+- p = pressure [hPa]
 
 coordinates:
 - time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 (drop first 2h)
@@ -241,6 +261,11 @@ Available variables:
 - `th` - air potential temperature (unit: K)
 - `q` - specific humidity (unit: kg kg^-1)
 - `p` - air pressure (unit: Pa)
+When read with open_mfdataset vars get long names, renamed them!
+
+calculated variables with MetPy:
+- pressure [hPa]
+- temperature [°C]
 
 ## WRF_ACINN (ETH not used cause start of simulation is midnight!)
 already improved: 
@@ -255,7 +280,7 @@ topography plot still doesn't work, I don't know why...
 ToDo:
 - I don't have geopotential height! Only geometric height or (best) terrain height... but miss this for other vars!
 read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are south_north & west_east 
-- impossible to find lat/lon!
+-> impossible to find lat/lon!
 
 coordinates:
 - Time (renamed time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00

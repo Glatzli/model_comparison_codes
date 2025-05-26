@@ -56,6 +56,7 @@ def convert_calc_variables(ds):
 
     return ds.compute()
 
+
 def create_ds_geopot_height_as_z_coordinate(ds):
     """
     create a new dataset with geopotential height as vertical coordinate for temperature for plotting
@@ -98,7 +99,7 @@ def read_timeSeries_AROME(location):
     else:
         raise FileNotFoundError(f"No files found for location {location}")
 
-def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
+def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False):
     """ WITH the sel Method
     Read all the 2D variables (single netcdf per variable) and merge them
 
@@ -178,6 +179,7 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
     ds = create_ds_geopot_height_as_z_coordinate(ds)  # create new dataset with geopotential height as vertical coordinate
     ds = convert_calc_variables(ds)
     return ds
+
 
 def read_in_arome(variables=["p", "th", "z"]):
     """
@@ -290,15 +292,19 @@ if __name__ == '__main__':
     arome = read_3D_variables_AROME(variables=["p", "th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
     # arome = read_in_arome_fixed_point(variables=["p", "th", "z"])
     # arome = read_in_arome_fixed_time(time="2017-10-15T12:00:00")
+
+    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
+    arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+    arome.to_netcdf(arome_path, mode="w", format="NETCDF4")
     arome
-    arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
+
+    read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
+"""
     try:
         if arome_path.exists():
             os.chmod(arome_path, 0o666)
-        arome.to_netcdf(arome_path, mode="w", format="NETCDF4")
+
     except PermissionError:
         print("Permission denied: unable to save AROME data to the specified directory.")
+"""
 
-
-
-    arome

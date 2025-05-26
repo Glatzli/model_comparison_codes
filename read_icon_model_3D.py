@@ -16,6 +16,7 @@ import numpy as np
 from functools import partial
 import metpy.calc as mpcalc
 from metpy.units import units
+from pathlib import Path
 
 
 def read_icon_fixed_point(nearest_grid_cell, day=16, variant="ICON"):
@@ -86,16 +87,46 @@ def convert_calc_variables(ds):
     # convert temp to °C
     ds["temp"]  = (ds["temp"] - 273.15) * units.degC
 
-    ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
+    #
+    #
+    #
+    # ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
 
     # calculate relative humidity
-    ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temp"], ds['qv']) * 100  # for percent
+    # ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temp"], ds['qv']) * 100  # for percent
 
     # calculate dewpoint
     #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
     #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
 
     return ds.metpy.dequantify()  # remove units from the dataset
+
+
+def create_ds_geopot_height_as_z_coordinate(ds):
+    """
+    create a new dataset with geopotential height as vertical coordinate for temperature for plotting, orig copied from
+    AROME
+    :param ds:
+    :return:
+    :ds_new: new dataset with geopotential height as vertical coordinate
+    """
+    geopot_height = ds.z_ifc.isel(time=20).compute()
+    ds.z_ifc.isel(time=20, height_3=slice(1, 91)).compute()
+
+    ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
+        data_vars=dict(
+            th=(["time", "height"], ds.th.values),
+            temp=(["time", "height"], ds.temp.values),
+        ),
+        coords=dict(
+            height=("height", ds.z_ifc.isel(time=20, height_3=slice(1, 91)).values),
+            # skip most upper level, different height coordinates => just trust in hannes' notes...
+            time=("time", ds.time.values)
+        ),
+        attrs=dict(description="ICON data with z_ifc geometric height at half level center at mid of ds as vertical coordinate"))
+
+    return ds_new
+
 
 def find_min_index(ds_icon, lon, lat):
     """
@@ -144,32 +175,76 @@ def read_icon_fixed_point_and_time(day, hour, lon, lat, variant="ICON"):
 
     return convert_calc_variables(nearest_data)  # calculate temp, pressure
 
+
+def generate_icon_filenames(day, hours=[12], variant="ICON"):
+    """
+    Erstellt eine Liste von Dateinamen für halbstündliche Daten.
+
+    Parameters:
+    - day: Tag im Format '15' oder '16'.
+    - hours: list of hours
+    - variant: model variant, either "ICON" or "ICON2TE".
+
+    Returns:
+    - Eine Liste von Dateinamen als Strings.
+    """
+    if variant == "ICON":
+        filenames = [confg.icon_folder_3D +
+            f"/{variant}_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{day}T{hour:02d}{minute:02d}00Z.nc"
+            for hour in hours for minute in [0, 30]
+        ]
+    elif variant == "ICON_2TE":
+        filenames = [confg.icon2TE_folder_3D +
+             f"/{variant}_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710{day}T{hour:02d}{minute:02d}00Z.nc"
+             for hour in hours for minute in [0, 30]
+         ]
+
+    return filenames
+
+
 def read_icon_fixed_point_multiple_hours(day=16, hours=[12], lon=11.4011756, lat=47.266076, variant="ICON"):  # , variables=["height", "time", "temp"]
     """ Read ICON 3D model at a fixed point with multiple hours """
 
     if day not in [15, 16]:
         raise ValueError("Only October day 15 or 16 is available!")
 
-    formatted_hours = [f"{hour:02d}" for hour in hours]  # create list of strings w hours
+    icon_filepaths = generate_icon_filenames(day=day, hours=hours, variant=variant)
+    if day == 16 and 12 in hours:
+        icon_filepaths = icon_filepaths[:-1]  # remove last file, cause it's only available till 1200
 
-    if variant == "ICON":
-        icon_files = [confg.icon_folder_3D + (f'/ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710'
-                                              f'{day}T' + hour + '0000Z.nc') for hour in formatted_hours]
-    elif variant == "ICON2TE":
-        icon_files = [confg.icon2TE_folder_3D + (f'/ICON_2TE_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_201710'
-                                                 f'{day}T' + hour + '0000Z.nc') for hour in formatted_hours]
-    else:
-        print("invalid model variant, either ICON or ICON2TE")
-
-    ds_icon = xr.open_mfdataset(icon_files, concat_dim="time", combine="nested", data_vars='minimal',
-                                coords='minimal', compat='override', decode_cf=False) # combine='by_coords')
+    ds_icon = xr.open_mfdataset(icon_filepaths, combine = "by_coords", data_vars = 'minimal',
+                             coords = 'minimal', compat = 'override', decode_timedelta=True)
+                                # concat_dim="time", combine="nested", data_vars='minimal',
+                                # coords='minimal', compat='override', decode_cf=False)
     # ds_icon = ds_icon[variables]
     min_idx = find_min_index(ds_icon, lon, lat)  # no clue what that's doing
     ds_icon = ds_icon.isel(ncells=min_idx)
+    ds_icon = convert_calc_variables(ds_icon)
 
-    return convert_calc_variables(ds_icon)  # calculate temp, pressure
+    return  ds_icon  # calculate temp, pressure
 
 if __name__ == '__main__':
-    icon15 = read_icon_fixed_point_multiple_hours(day = 15, hours = range(12, 18), lon = 11.4011756, lat = 47.266076,
+    lat_ibk = 47.259998
+    lon_ibk = 11.384167
+    """
+    icon15 = read_icon_fixed_point_multiple_hours(day = 15, hours = range(16, 20), lon = 11.4011756, lat = 47.266076,
                                                   variant="ICON")
     icon15
+    """
+
+    # with this code the ICON model is read in, one specific latitude is extracted and saved as new dataset with geometric
+    # height as vert coord
+    icon15 = read_icon_fixed_point_multiple_hours(day=15, hours=np.arange(12, 24), lon=lon_ibk, lat=lat_ibk, variant="ICON")
+    icon16 = read_icon_fixed_point_multiple_hours(day=16, hours=np.arange(0, 13), lon=lon_ibk, lat=lat_ibk, variant="ICON")
+    variables = ["th", "temp", "z_ifc"]  # "temp", "pres", "u", "v", "w",
+    icon = xr.concat([icon15[variables], icon16[variables]], dim="time")
+
+
+    icon_plotting = create_ds_geopot_height_as_z_coordinate(icon)
+    icon_path = Path(confg.model_folder + "/ICON/" + "ICON_temp_timeseries_ibk.nc")
+    icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
+
+    # icon 2te
+    # icon_2te_path = Path(confg.model_folder + "/ICON2TE/" + "ICON_2TE_temp_timeseries_ibk.nc")
+    # icon_plotting.to_netcdf(icon_2te_path, mode="w", format="NETCDF4")
+    icon_plotting

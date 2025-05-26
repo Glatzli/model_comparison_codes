@@ -73,6 +73,7 @@ def merge_save_hatpro():
 def interpolate_hatpro():
     """
     interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure
+    and save it as a netcdf file
     :return:
     """
     arome = xr.open_dataset(confg.model_folder + "/AROME/AROME_temp_timeseries_ibk.nc")
