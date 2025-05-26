@@ -5,11 +5,11 @@ You have to change it!
 
 # -------------------------------------------To change --------------------------------------------------------
 # Folder where the data is saved:
-data_folder = "D:\data"
+data_folder = "D:/MSc_Arbeit/data/"
 # Folder where the model output is saved:
-model_folder = "D:"
+model_folder = "D:/MSc_Arbeit/"
 # Plot directory (where to save the plots)
-dir_PLOTS = "D:\plots"
+dir_PLOTS = "D:/MSc_Arbeit/plots/"
 # -------------------------------------------------------------------------------------------------------------
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
@@ -33,22 +33,22 @@ momma_our_period_file = f"{data_folder}/Observations/MOMMA/MOMMA_our_period.nc"
 # ----------------------------------Models-----------------------------------------------------
 
 # absolute paths AROME
-dir_2D_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_2D_fields"
-dir_3D_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_3D_fields"
-dir_timeseries_AROME = f"{model_folder}/AROME/AROME_TEAMx_CAP_timeseries/"
+dir_2D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_2D_fields"
+dir_3D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_3D_fields"
+dir_timeseries_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_timeseries/"
 
 # absolute paths WRF
-wrf_folder = f"{model_folder}/wrf_ACINN"
+wrf_folder = f"{model_folder}WRF_ACINN"  # before: wrf_ACINN
 
 # absolute paths ICON
-icon_folder_3D = f"{model_folder}/ICON"
-icon_folder_meteogram = f"{model_folder}/icon/ICON_Meteogram"
+icon_folder_3D = f"{model_folder}ICON"
+icon_folder_meteogram = f"{model_folder}icon/ICON_Meteogram"  # ?
 
 # absolute paths ICON
-icon2TE_folder_3D = f"{model_folder}/ICON2TE"
+icon2TE_folder_3D = f"{model_folder}ICON2TE"
 
 # absolute Path UKMO
-ukmo_folder = f"{model_folder}/ukmo/"
+ukmo_folder = f"{model_folder}ukmo/"
 
 # -------------------------------Data and Plot paths -----------------------------------------------
 
@@ -61,13 +61,13 @@ EC_1min_final = f"{dir_EC_stations}/EC_1min_file.nc"
 ibox_folder = f"{data_folder}/Observations/Ibox"
 
 # HOBOS station
-hobos_file = f"{data_folder}/Observations/HOBOS/hobos_final.nc"
+hobos_file = f"{data_folder}/Observations/hobos_final.nc"  # Observations/HOBOS/
 
 # LIDAR obs
 lidar_obs_folder = f"{data_folder}/Observations/LIDAR"
 
 # HATPRO obs
-hatpro_folder = f"{data_folder}/Observations/HATPRO_obs"
+hatpro_folder = f"{data_folder}/Observations/HATPRO_obs"  # nicht vorhanden?
 
 # Define colors for the models to use the same in each plot:
 colordict = {"HOBOS": "purple",
