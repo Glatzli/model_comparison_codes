@@ -20,13 +20,11 @@ ToDo presentation:
 - preliminary work (Fabian Schöni, cosma)
 
 Questions for meeting: 
-- presentation: start with what is a cold pool?
-- other literature to compare 
-- research goals: find extent: look at 2m temperature => get overview of valley res.
+- research goals: find extent: look at 2m temperature => get overview of valley resolution (i.e. where valley is)
 
-- How should I best present 6 temp timeseries plots? -> maybe first obs than model
-- interpolation: matters more for quantitative analysis, for timerseries in vertical plots not that necessary
-- hydrostatic for pot temp (pressure) 
+- interpolation: matters more for quantitative analysis, for timerseries in vertical plots not that necessary (maybe use hydrostatic approach for HATPRO pot temp calculation (pressure))
+
+"missing" data:
 - Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
 - make table for each model for surface & above surface: what can i calc where: schöni's thesis helps probably smth
 - Why are models too warm research goal: look at temp equation and probably only radiation/advection which dominates? other terms parametrised probably & all different?...
@@ -34,14 +32,10 @@ Questions for meeting:
 in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
 
 
-ToDo till next meeting:
-- imagine presenting to present to colleaugue or physics student
-- 
-
 general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
-	HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
-	now pot temp timeseries for ibk for AROME, ICON and HATPRO
+HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
+now pot temp timeseries for ibk for all models incl HATPRO
 
 models: create new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
 	
