@@ -7,13 +7,6 @@ What i would probably need for my analysis/plots:
 - longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
 => works only for AROME-model w lat/lons!
 
-erledigt:
-- Einleseroutinen viel um/neugeschrieben
-- hannes' code funktioniert nun auch bei mir
-- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
-- all metpy calculations now much faster
-- create uniform time & height coordinates! (rename them) -> done
-
 ToDo presentation:
 - state of research Rauchoecker
 - topo overview AROME or WRF, PIANO
@@ -76,6 +69,13 @@ Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
 - Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
 
 created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
+
+erledigt:
+- Einleseroutinen viel um/neugeschrieben
+- hannes' code funktioniert nun auch bei mir
+- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
+- all metpy calculations now much faster
+- create uniform time & height coordinates! (rename them) -> done
 
 code optimization: 
 - merge datasets every iteration through the variables?
