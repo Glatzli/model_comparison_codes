@@ -17,6 +17,8 @@ ToDo till next meeting:
 Input from presentation/last meetings:
 - research goals: rewrite into 1 with subpoints
 - station data: important to describe what is measured where to not miss data that I had available! (MOMMA's have radiation f.e.)
+- domain overview:
+  	add Hafelekar mentioning, change MOMMAS to circles & make HOBOS better visable...
 - temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
 	=> maybe compute comparison...
 	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
@@ -26,7 +28,7 @@ Input from presentation/last meetings:
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
 - 2-D calcs:
   	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid  or  https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
-  	- kann auch Christian Posch fragen! arbeitet mit CET (schneller) oder für command line aufruf in PY
+  	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
   	- find extent of CAP: look at 2m temperature => get overview of valley in models
 - compute VHD: for spatial extent
 - heat budget calc:
