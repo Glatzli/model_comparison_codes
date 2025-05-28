@@ -21,7 +21,16 @@ in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> 
 
 ToDo till next meeting:
 - imagine presenting to present to colleaugue or physics student
-- 
+
+
+
+Input from presentation/last meetings:
+- research goals: rewrite into 1 with subpoints
+- station data: important to describe what is measured where to not miss data that I had available! (MOMMA's have radiation f.e.)
+- temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
+	=> maybe compute comparison...
+	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
+
 
 general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
