@@ -27,10 +27,16 @@ ToDo till next meeting:
 Input from presentation/last meetings:
 - research goals: rewrite into 1 with subpoints
 - station data: important to describe what is measured where to not miss data that I had available! (MOMMA's have radiation f.e.)
+
 - temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
 	=> maybe compute comparison...
 	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
+- (rotach: compare radiation to know what's causing temp difference (not in model vars available!))
 
+- 2-D calcs:
+  	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid  or  https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
+  	- kann auch Christian Posch fragen! arbeitet mit CET (schneller) oder für command line aufruf in PY
+- compute VHD: for spatial extent
 
 general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
