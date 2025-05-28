@@ -542,4 +542,4 @@ if __name__ == '__main__':
     # plot the locations of Lidar
     #plot_lidar_and_Modelgrid_points(ds_small_extent, "AROME", ext_lat=extent_lat_small,
     #                                ext_lon=extent_lon_small)  # mit dist_degree = 0.05
-    plt.show()
+    # plt.show()
