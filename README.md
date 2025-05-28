@@ -2,17 +2,15 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
+- rewrite research goals, concept
+- make overview plot with all (probably) needed stations
+- regrid ICON
 
-
-Questions for meeting: 
-- presentation: start with what is a cold pool?
-- other literature to compare 
-
+Questions for next meeting: 
 
 
 
 ToDo till next meeting:
-- imagine presenting to present to colleaugue or physics student
 
 
 
@@ -37,6 +35,9 @@ Input from presentation/last meetings:
   	- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
   	- 2nd research question: in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
  
+Feedback presentation:
+- introduce first models, then show results and not else!
+- Understand all variables written in a figure (f.e. Hz = vertical comp of heat flux...)
 
 
 
@@ -53,18 +54,9 @@ look at 2D files (WRF), land cover (forest, etc)
 AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 -> make own overview plot till concept presentation?
 
-
-
 - rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
 - manuela' variable guidelines, search them to find topo variable? -> not really helpful!
 
-
-
-What i would probably need for my analysis/plots:
-2d slices: 
-- time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
-- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
-=> works only for AROME-model w lat/lons!
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
