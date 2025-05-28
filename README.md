@@ -1,16 +1,8 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
-What i would probably need for my analysis/plots:
-2d slices: 
-- time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
-- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
-=> works only for AROME-model w lat/lons!
+ToDo:
 
-ToDo presentation:
-- state of research Rauchoecker
-- topo overview AROME or WRF, PIANO
-- preliminary work (Fabian Schöni, cosma)
 
 Questions for meeting: 
 - presentation: start with what is a cold pool?
@@ -62,6 +54,13 @@ look at hannes' 2d temp plots for lat/lon things...
 - manuela' variable guidelines, search them to find topo variable? -> not really helpful!
 - heat budget: look at which variables are in model ouput, which can i calculate for the budget eq? advection for all
 - rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! ()
+
+
+What i would probably need for my analysis/plots:
+2d slices: 
+- time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
+- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
+=> works only for AROME-model w lat/lons!
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
