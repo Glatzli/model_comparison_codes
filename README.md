@@ -2,8 +2,6 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
-- rewrite research goals, concept
-- make overview plot with all (probably) needed stations
 - regrid ICON
 
 Questions for next meeting: 
@@ -27,7 +25,8 @@ Input from presentation/last meetings:
   	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
 - 2-D calcs:
-  	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid  or  https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
+  	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid 
+  	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
   	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
   	- find extent of CAP: look at 2m temperature => get overview of valley in models
 - compute VHD: for spatial extent
