@@ -223,6 +223,19 @@ with vars:
 - `freshsnow` - Age of snow in top of snow layer (unit: 1)
 - `snowfrac_lc` - Snow-cover fraction (unit: %)
 
+attrs from netcdf file:
+{'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
+ 'Conventions': 'CF-1.6',
+ 'number_of_grid_used': 1,
+ 'uuidOfHGrid': '655488b8-6e60-ac09-a653-9b1ce37a2b20',
+ 'uuidOfVGrid': '5210aca5-6684-c009-3731-0a31182a3180',
+ 'institution': 'Max Planck Institute for Meteorology/Deutscher Wetterdienst',
+ 'title': 'ICON simulation',
+ 'source': 'git@gitlab.dkrz.de:icon/icon-nwp.git@1638fcbef3269d733d8bc637d523f31663fb60c3',
+ 'history': '/work/bb1096/b380910/models/icon/icon-nwp_2TE//bin/icon at 20230331 144353',
+ 'references': 'see MPIM/DWD publications',
+ 'comment': 'Julian Quimbayo-Duarte (b380910) on l30537 (Linux 4.18.0-348.el8.x86_64 x86_64)'}
+
 ## UKMO
 already improved:
 	+ uniformly xarray, no pandas!
