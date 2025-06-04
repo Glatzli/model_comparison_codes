@@ -31,7 +31,10 @@ Input from presentation/last meetings:
   	  	numberOfGridUsed: 45	Centre	78
 		Subcentre	255
 		Type	hrz_regional
-  	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid 
+   	- or like: https://wiki.mpimet.mpg.de/doku.php?id=analysis:postprocessing_icon:regridding:shell:start
+  	- could also use docker with: https://github.com/DeutscherWetterdienst/regrid  (some standard grid-files available, but only up to 2km res...)
+ 
+   	- 
   	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
   	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
   	- find extent of CAP: look at 2m temperature => get overview of valley in models
