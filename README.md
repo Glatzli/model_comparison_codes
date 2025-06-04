@@ -26,7 +26,11 @@ Input from presentation/last meetings:
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
 - 2-D calcs:
   	- Problem: need CDO installation (& python virtual machine)
-  	- fehlende Abhängigkeiten: Python Core & win32api paket benötigt... 
+  	- fehlende Abhängigkeiten: Python Core & win32api paket benötigt...
+  	- use grid file from http://icon-downloads.mpimet.mpg.de/dwd_grids.xml#grid45 for first try:
+  	  	numberOfGridUsed: 45	Centre	78
+		Subcentre	255
+		Type	hrz_regional
   	- regrid ICON: https://github.com/DeutscherWetterdienst/regrid 
   	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
   	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
