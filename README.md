@@ -27,12 +27,12 @@ Input from presentation/last meetings:
 - 2-D calcs:
   	- Problem: need CDO installation (& python virtual machine)
   	- fehlende Abhängigkeiten: Python Core & win32api paket benötigt...
-  	- use grid file from http://icon-downloads.mpimet.mpg.de/dwd_grids.xml#grid45 for first try:
+  	- use grid file from http://icon-downloads.mpimet.mpg.de/dwd_grids.xml#grid45 for first try (still miss ICON grid-file for the native model grid (in this case R2B9 for the dpp0016 simulation) and also one dpp0016 	data file...):
   	  	numberOfGridUsed: 45	Centre	78
 		Subcentre	255
 		Type	hrz_regional
-   	- or like: https://wiki.mpimet.mpg.de/doku.php?id=analysis:postprocessing_icon:regridding:shell:start
-  	- could also use docker with: https://github.com/DeutscherWetterdienst/regrid  (some standard grid-files available, but only up to 2km res...)
+   	  like: https://wiki.mpimet.mpg.de/doku.php?id=analysis:postprocessing_icon:regridding:shell:start
+  	- could also use docker like: https://github.com/DeutscherWetterdienst/regrid  (some standard grid-files available, but only up to 2km res and need to install docker...)
  
    	- 
   	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
