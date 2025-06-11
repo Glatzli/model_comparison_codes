@@ -4,6 +4,9 @@ model intercomparison study
 ToDo:
 - regrid ICON
 
+WSL workspace folder:
+\\wsl.localhost\Ubuntu-24.04\mnt\wslg\distro\home\daniel\workspace\regrid_icon
+
 Questions for next meeting: 
 
 
