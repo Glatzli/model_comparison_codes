@@ -103,7 +103,7 @@ ToDo:
 
 REGRIDDING:
 - probably 6th grid in grid file is the right one, how to define in gendis?
-- how to generate grid file with "gridfile" command? -> I get only very long useless output!
+- how to generate grid description-txt file with "gridfile" command? -> I get only very long useless output!
 
 DOMAIN extent (from clat & clon bnds to degree):
 lat: 42.67218 - 49.728592
