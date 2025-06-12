@@ -102,10 +102,13 @@ ToDo:
 - maybe add subset for variables to minimize data
 
 DOMAIN extent (from clat & clon bnds to degree):
+
 lat: 42.67218 - 49.728592
+
 lon: 0.9697978 - 16.333878
 
 cdo gendis,custom_icon_d2.txt -setgrid,nvertex=6 d01_DOM01_gridfile.nc weight_icon_setgrid.nc
+
 cdo gendis,regrid_ICON/custom_icon_d2.txt regrid_ICON/d01_DOM01_gridfile.nc regrid_ICON/weight_icon_wo_setgrid.nc
 
 cdo -remap,regrid_ICON/custom_icon_d2.txt,regrid_ICON/weight_icon_wo_setgrid.nc ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T120000Z.nc ICON_20171015T120000Z_remapped.nc
