@@ -4,8 +4,7 @@ model intercomparison study
 ToDo:
 - regrid ICON
 
-WSL workspace folder:
-\\wsl.localhost\Ubuntu-24.04\mnt\wslg\distro\home\daniel\workspace\regrid_icon
+
 
 Questions for next meeting: 
 
@@ -69,6 +68,9 @@ AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 
 - rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
 - manuela' variable guidelines, search them to find topo variable? -> not really helpful!
+
+- WSL workspace folder:
+\\wsl.localhost\Ubuntu-24.04\mnt\wslg\distro\home\daniel\workspace\regrid_icon
 
 
 
