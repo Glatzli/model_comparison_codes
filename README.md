@@ -7,7 +7,7 @@ ToDo:
 
 
 Questions for next meeting: 
-
+- KI zum papers lesen/analysieren von Uni?
 
 
 ToDo till next meeting:
