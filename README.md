@@ -5,10 +5,10 @@ ToDo:
 - regrid ICON
 
 
-
 Questions for next meeting: 
 - KI zum papers lesen/analysieren von Uni?
-
+- regridding funktioniert jetzt wsl, aber langwierig...
+- dokumente als PDF speichern & unterschreiben?
 
 ToDo till next meeting:
 
