@@ -102,12 +102,19 @@ ToDo:
 - maybe add subset for variables to minimize data
 
 REGRIDDING:
-- probably 6th grid in grid file is the right one, how to define in gendis?
-- how to generate grid description-txt file with "gridfile" command? -> I get only very long useless output!
+select variables and create new .nc file, CDO merges timestamps together. => If i select only some vars and put it into one file: only 1 gigantic ICON file w all timesteps!
+cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T120000Z.nc ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T123000Z.nc ICON_20171015T1200_1230_selvars.nc
 
+cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T120000Z.nc ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T123000Z.nc ../../../h/ICON/ICON_20171015T1200_1230_selvars.nc
+
+(if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
 DOMAIN extent (from clat & clon bnds to degree):
 lat: 42.67218 - 49.728592
 lon: 0.9697978 - 16.333878
+
+solved:
+- probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
+- how to generate grid description-txt file with "gridfile" command? -> take Julian's
 
 cdo gendis,custom_icon_d2.txt -setgrid,nvertex=6 d01_DOM01_gridfile.nc weight_icon_setgrid.nc
 cdo gendis,regrid_ICON/custom_icon_d2_pfusch.txt regrid_ICON/d01_DOM01_gridfile
