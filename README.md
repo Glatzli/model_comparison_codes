@@ -11,7 +11,9 @@ Questions for next meeting:
 - dokumente als PDF speichern & unterschreiben?
 
 ToDo till next meeting:
-
+- regrid icon2te
+- check if regridded is nearly equal to normal grid (pot temp plot ibk)
+- calc VHD
 
 
 Input from presentation/last meetings:
