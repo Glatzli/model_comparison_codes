@@ -33,9 +33,10 @@ momma_our_period_file = f"{data_folder}/Observations/MOMMA/MOMMA_our_period.nc"
 # ----------------------------------Models-----------------------------------------------------
 
 # absolute paths AROME
-dir_2D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_2D_fields"
-dir_3D_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_3D_fields"
-dir_timeseries_AROME = f"{model_folder}AROME/AROME_TEAMx_CAP_timeseries/"
+dir_AROME = model_folder + "/AROME/"
+dir_2D_AROME = f"{dir_AROME}AROME_TEAMx_CAP_2D_fields"
+dir_3D_AROME = f"{dir_AROME}AROME_TEAMx_CAP_3D_fields"
+dir_timeseries_AROME = f"{dir_AROME}AROME_TEAMx_CAP_timeseries/"
 
 # absolute paths WRF
 wrf_folder = f"{model_folder}WRF_ACINN"  # before: wrf_ACINN

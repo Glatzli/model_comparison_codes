@@ -4,6 +4,8 @@ re-written by Daniel
 
 
 import confg
+import importlib
+importlib.reload(confg)
 import os
 import pandas as pd
 import xarray as xr
@@ -113,7 +115,6 @@ def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"],
 
     for variable in variableList:
         file_path = os.path.join(confg.dir_2D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variable}.nc")
-
         ds = xr.open_dataset(file_path)
 
         # Use no method if lat or lon are slice objects
@@ -216,14 +217,14 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     ds = convert_calc_variables(ds)
     return ds
 
-def read_in_arome_fixed_time(time="2017-10-15T14:00:00"):
+def read_in_arome_fixed_time(time="2017-10-15T14:00:00", variables=["p", "th", "z"]):
     """
     read arome data for a fixed time
     :param time: time as string f.e. "2017-10-15T12:00:00", you can use pd.to_datetime() to convert a string to a timestamp
     :return:
     ds of arome data with only wanted timestamp (~2GB)
     """
-    ds = read_in_arome()
+    ds = read_in_arome(variables)
     ds = ds.sel(time=time)  # select just needed timestep
 
     # ds = convert_calc_variables(ds)
@@ -289,16 +290,16 @@ if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
 
 
-    arome = read_3D_variables_AROME(variables=["p", "th", "z"], method="sel", lat=lat_ibk, lon=lon_ibk)
+    # arome3d = read_3D_variables_AROME(variables=["z"], method="sel")
     # arome = read_in_arome_fixed_point(variables=["p", "th", "z"])
-    # arome = read_in_arome_fixed_time(time="2017-10-15T12:00:00")
+    arome3d_new = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])
 
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
-    arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
-    arome.to_netcdf(arome_path, mode="w", format="NETCDF4")
-    arome
-
-    read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
+    # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+    arome = arome3d_new.isel(height=0).compute()
+    arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
+    # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
 """
     try:
         if arome_path.exists():
