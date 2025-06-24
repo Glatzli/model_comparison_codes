@@ -6,11 +6,12 @@ ToDo:
 
 
 Questions for next meeting: 
-- KI zum papers lesen/analysieren von Uni?
+- KI zum papers lesen/analysieren von Uni: kleines template am Ende wofür KI verwendet wurde. Inhaltlich muss Arbeit von mir sein, umformulieren ist gut!
 - regridding funktioniert jetzt wsl, aber langwierig...
 - dokumente als PDF speichern & unterschreiben?
 
 ToDo till next meeting:
+- formular digital mit bild unterschreiben => kein stress
 - regrid icon2te
 - check if regridded is nearly equal to normal grid (pot temp plot ibk)
 - calc VHD
