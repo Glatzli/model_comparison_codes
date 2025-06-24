@@ -24,7 +24,11 @@ from colorspace import diverging_hcl
 
 def plot_pot_temp_time_contours(pot_temp, model="AROME"):
     """
-    plot pot temp time & height series for all models. problem: I don't have pressure for HATPRO (plot temp from models?)!
+    plot pot temp time & height series for all models. HATPRO was interpolated to AROME levels & it's pressure is used
+    to compute pot temp.
+    thin 1 K pot temp contour lines, thick 5 K pot temp contour lines and red/blue shading for the 1/2 hrly
+    warming/cooling in pot temp is plotted
+
     :param pot_temp:
     :param model:
     :return:
