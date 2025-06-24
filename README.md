@@ -4,7 +4,6 @@ model intercomparison study
 ToDo:
 - regrid ICON
 
-
 Questions for next meeting: 
 - KI zum papers lesen/analysieren von Uni: kleines template am Ende wofür KI verwendet wurde. Inhaltlich muss Arbeit von mir sein, umformulieren ist gut!
 - regridding funktioniert jetzt wsl, aber langwierig...
@@ -54,6 +53,12 @@ Feedback presentation:
 - introduce first models, then show results and not else!
 - Understand all variables written in a figure (f.e. Hz = vertical comp of heat flux...)
 
+general notes:
+- first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
+HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
+now pot temp timeseries for ibk for all models incl HATPRO
+
+
 
 
 general notes:
@@ -69,6 +74,8 @@ look at 2D files (WRF), land cover (forest, etc)
 AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 -> make own overview plot till concept presentation?
 
+
+
 - rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
 - manuela' variable guidelines, search them to find topo variable? -> not really helpful!
 
@@ -81,7 +88,13 @@ Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
 - maybe overthink read in function setup again (to have enough functions with 1 task...)
 - Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
 
-created additionalcalc/timeseries notebook for first draft of timeseries & 2d plots
+erledigt:
+- Einleseroutinen viel um/neugeschrieben
+- hannes' code funktioniert nun auch bei mir
+- cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
+- all metpy calculations now much faster
+- create uniform time & height coordinates! (rename them) -> done
+- ...
 
 erledigt:
 - Einleseroutinen viel um/neugeschrieben
