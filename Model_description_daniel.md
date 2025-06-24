@@ -101,6 +101,27 @@ ToDo:
 - read_icon_fixed_time for 2d plots
 - maybe add subset for variables to minimize data
 
+REGRIDDING:
+- deleted ICON2_TE from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
+select variables and create new .nc file, CDO merges timestamps together. => If i select only some vars and put it into one file: only 1 gigantic ICON file w all timesteps!
+
+cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_*.nc ICON_20171015Tall_selvars.nc
+cdo -remap,latlon_grid_1km.txt,Wfile_TEAMX.nc ICON_20171015Tall_selvars.nc latlon_TEAMX.nc
+
+DOMAIN extent (from clat & clon bnds to degree):
+lat: 42.67218 - 49.728592
+lon: 0.9697978 - 16.333878
+
+solved:
+- probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
+- how to generate grid description-txt file with "gridfile" command? -> take Julian's
+
+(cdo gendis,custom_icon_d2.txt -setgrid,nvertex=6 d01_DOM01_gridfile.nc weight_icon_setgrid.nc
+cdo gendis,regrid_ICON/custom_icon_d2_pfusch.txt regrid_ICON/d01_DOM01_gridfile
+.nc regrid_ICON/weight_icon_wo_setgrid.nc
+cdo -remap,regrid_ICON/custom_icon_d2.txt,regrid_ICON/weight_icon_wo_setgrid.nc ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T120000Z.nc ICON_20171015T120000Z_remapped.nc
+-> remap (Abort): Size of source grid and weights from regrid_ICON/weight_icon_wo_setgrid.nc differ!)
+
 untersch gitter je nach variable -> google
 wie mit clat/clon umgehen? -> google
 evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
@@ -222,6 +243,19 @@ with vars:
 - `h_snow` - Snow depth (unit: m)
 - `freshsnow` - Age of snow in top of snow layer (unit: 1)
 - `snowfrac_lc` - Snow-cover fraction (unit: %)
+
+attrs from netcdf file:
+{'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
+ 'Conventions': 'CF-1.6',
+ 'number_of_grid_used': 1,
+ 'uuidOfHGrid': '655488b8-6e60-ac09-a653-9b1ce37a2b20',
+ 'uuidOfVGrid': '5210aca5-6684-c009-3731-0a31182a3180',
+ 'institution': 'Max Planck Institute for Meteorology/Deutscher Wetterdienst',
+ 'title': 'ICON simulation',
+ 'source': 'git@gitlab.dkrz.de:icon/icon-nwp.git@1638fcbef3269d733d8bc637d523f31663fb60c3',
+ 'history': '/work/bb1096/b380910/models/icon/icon-nwp_2TE//bin/icon at 20230331 144353',
+ 'references': 'see MPIM/DWD publications',
+ 'comment': 'Julian Quimbayo-Duarte (b380910) on l30537 (Linux 4.18.0-348.el8.x86_64 x86_64)'}
 
 ## UKMO
 already improved:

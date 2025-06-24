@@ -1,45 +1,62 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
-What i would probably need for my analysis/plots:
-2d slices: 
-- time-height/pressure visualization at certain point -> calculate valley-heat deficit -> proper read in for all models!
-- longitude (x) & height-slices (get overview of full valley) or lat (y) & height-slices (comparison with SPs)
-=> works only for AROME-model w lat/lons!
+ToDo:
+- regrid ICON
 
-ToDo presentation:
-- state of research Rauchoecker
-- topo overview AROME or WRF, PIANO
-- preliminary work (Fabian Schöni, cosma)
 
-Questions for meeting: 
-- presentation: start with what is a cold pool?
-- other literature to compare 
-- research goals: find extent: look at 2m temperature => get overview of valley res.
-
-- How should I best present 6 temp timeseries plots? -> maybe first obs than model
-- interpolation: matters more for quantitative analysis, for timerseries in vertical plots not that necessary
-- hydrostatic for pot temp (pressure) 
-- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
-- make table for each model for surface & above surface: what can i calc where: schöni's thesis helps probably smth
-- Why are models too warm research goal: look at temp equation and probably only radiation/advection which dominates? other terms parametrised probably & all different?...
-
-in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
-
+Questions for next meeting: 
+- KI zum papers lesen/analysieren von Uni: kleines template am Ende wofür KI verwendet wurde. Inhaltlich muss Arbeit von mir sein, umformulieren ist gut!
+- regridding funktioniert jetzt wsl, aber langwierig...
+- dokumente als PDF speichern & unterschreiben?
 
 ToDo till next meeting:
-- imagine presenting to present to colleaugue or physics student
-- 
+- formular digital mit bild unterschreiben => kein stress
+- regrid icon2te
+- check if regridded is nearly equal to normal grid (pot temp plot ibk)
+- calc VHD
+
+
+Input from presentation/last meetings:
+- research goals: rewrite into 1 with subpoints
+- station data: important to describe what is measured where to not miss data that I had available! (MOMMA's have radiation f.e.)
+- domain overview:
+  	add Hafelekar mentioning, change MOMMAS to circles & make HOBOS better visable...
+- temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
+	=> maybe compute comparison...
+	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
+	created new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
+- humidity:
+  	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
+- (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
+- 2-D calcs:
+  	- Problem: need CDO installation (& python virtual machine)
+  	- fehlende Abhängigkeiten: Python Core & win32api paket benötigt...
+  	- use grid file from http://icon-downloads.mpimet.mpg.de/dwd_grids.xml#grid45 for first try (still miss ICON grid-file for the native model grid (in this case R2B9 for the dpp0016 simulation) and also one dpp0016 	data file...):
+  	  	numberOfGridUsed: 45	Centre	78
+		Subcentre	255
+		Type	hrz_regional
+   	  like: https://wiki.mpimet.mpg.de/doku.php?id=analysis:postprocessing_icon:regridding:shell:start
+  	- could also use docker like: https://github.com/DeutscherWetterdienst/regrid  (some standard grid-files available, but only up to 2km res and need to install docker...)
+ 
+   	- 
+  	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
+  	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
+  	- find extent of CAP: look at 2m temperature => get overview of valley in models
+- compute VHD: for spatial extent
+- heat budget calc:
+	- find extent: look at 2m temperature => get overview of valley res.
+- Preliminary work:
+  	- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
+  	- 2nd research question: in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
+ 
+Feedback presentation:
+- introduce first models, then show results and not else!
+- Understand all variables written in a figure (f.e. Hz = vertical comp of heat flux...)
+
+
 
 general notes:
-- first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
-	HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
-	now pot temp timeseries for ibk for AROME, ICON and HATPRO
-
-models: create new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
-	
-
-
 - model topography: probably in 2D variables (?) hannes used geopotential height! how best? (model topo or real DEM?): Rachoecker hat auch schiachen overview-plot: mache Ausschnitt v AROME topo etw größer, hau Stadtnamen rein u slope profiles? Inn-Valley Beschriftung & passt scho?
 search grid cells & plot temp along the cells to get along-valley cross section -> Hannes made topo plot from geopot height, hgt variable is only tuned to 2m!
 HOBO dataset: https://zenodo.org/records/4672313
@@ -52,16 +69,12 @@ look at 2D files (WRF), land cover (forest, etc)
 AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 -> make own overview plot till concept presentation?
 
-
-- concept work 2nd research question, time onset of cap -> write concept!
-- horizontal plots: need to solve problem with lat/lons to know which gridpoint is chosen in the end 
-look at hannes' 2d temp plots for lat/lon things...
-- for presentation look at radiosonde, hatpro data (hannes plots), maybe include in pres.
-
 - rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
 - manuela' variable guidelines, search them to find topo variable? -> not really helpful!
-- heat budget: look at which variables are in model ouput, which can i calculate for the budget eq? advection for all
-- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! ()
+
+- WSL workspace folder:
+\\wsl.localhost\Ubuntu-24.04\mnt\wslg\distro\home\daniel\workspace\regrid_icon
+
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
