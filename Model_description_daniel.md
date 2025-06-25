@@ -102,7 +102,7 @@ ToDo:
 - maybe add subset for variables to minimize data
 
 REGRIDDING:
-- deleted ICON2_TE from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
+- deleted original ICON files from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
 select variables and create new .nc file: CDO merges timestamps together. => only 1 gigantic ICON file w all timesteps!
 
 cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_*.nc ICON_20171015Tall_selvars.nc
