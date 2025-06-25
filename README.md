@@ -11,7 +11,7 @@ Questions for next meeting:
 
 ToDo till next meeting:
 - formular digital mit bild unterschreiben => kein stress
-- check if regridded is nearly equal to normal grid (pot temp plot ibk)
+- check if regridded is nearly equal to normal grid (pot temp plot ibk): looks good!
 - calc VHD
 
 
