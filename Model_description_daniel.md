@@ -103,7 +103,7 @@ ToDo:
 
 REGRIDDING:
 - deleted ICON2_TE from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
-select variables and create new .nc file, CDO merges timestamps together. => If i select only some vars and put it into one file: only 1 gigantic ICON file w all timesteps!
+select variables and create new .nc file: CDO merges timestamps together. => only 1 gigantic ICON file w all timesteps!
 
 cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_*.nc ICON_20171015Tall_selvars.nc
 cdo -remap,latlon_grid_1km.txt,Wfile_TEAMX.nc ICON_20171015Tall_selvars.nc latlon_TEAMX.nc
@@ -116,16 +116,10 @@ solved:
 - probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
 - how to generate grid description-txt file with "gridfile" command? -> take Julian's
 
-(cdo gendis,custom_icon_d2.txt -setgrid,nvertex=6 d01_DOM01_gridfile.nc weight_icon_setgrid.nc
-cdo gendis,regrid_ICON/custom_icon_d2_pfusch.txt regrid_ICON/d01_DOM01_gridfile
-.nc regrid_ICON/weight_icon_wo_setgrid.nc
-cdo -remap,regrid_ICON/custom_icon_d2.txt,regrid_ICON/weight_icon_wo_setgrid.nc ICON_BLM-GUF_20171015T1200Z_CAP02_2D-3D_10min_1km_all_20171015T120000Z.nc ICON_20171015T120000Z_remapped.nc
--> remap (Abort): Size of source grid and weights from regrid_ICON/weight_icon_wo_setgrid.nc differ!)
-
-untersch gitter je nach variable -> google
-wie mit clat/clon umgehen? -> google
+staggered/unstaggered grid: google!
 evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
 -> plot temp w z_ifc not possible 
+
 
 Basically, the ICON grid is a triangular unstructured grid, so ncells is the total number of cells you may find in the
 domain. As it is an unstructured grid, you need information on the neighbors of every cell to "re-construct" the grid
