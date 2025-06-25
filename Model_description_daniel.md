@@ -112,6 +112,10 @@ DOMAIN extent (from clat & clon bnds to degree):
 lat: 42.67218 - 49.728592
 lon: 0.9697978 - 16.333878
 
+subset DOMAIN with CDO:
+lat: 46.5 - 48.2° N
+lon: 9.2° - 13° E
+
 solved:
 - probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
 - how to generate grid description-txt file with "gridfile" command? -> take Julian's
