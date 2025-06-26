@@ -5,9 +5,7 @@ ToDo:
 - regrid ICON
 
 Questions for next meeting: 
-- Academic AI
-- regridding funktioniert jetzt!
-- dokumente als PDF speichern & unterschreiben?
+- dokumente als PDF speichern & unterschreiben
 
 ToDo till next meeting:
 - formular digital mit bild unterschreiben => kein stress
