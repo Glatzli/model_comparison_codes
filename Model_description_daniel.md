@@ -103,10 +103,6 @@ ToDo:
 - plot 2d
 - Is staggering changed in regridding?
 
-solved:
-- probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
-- how to generate grid description-txt file with "gridfile" command? -> take Julian's
-
 staggered/unstaggered grid: google!
 evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
 -> plot temp w z_ifc not possible 
@@ -127,7 +123,6 @@ height, I think that for the time being you can ignore the first point `take [1:
 array (I forgot to storage the z_mc, which is the height for the full level).
 
 The meteogram takes the values in the grid point nearest to the station's coordinate.
-
 model storage data every 8 seconds.
 
 `station_name = np.char.decode(ds_met.station_name.values)
@@ -154,15 +149,6 @@ with METPY calc vars:
 - th = pot temp [K]
 - temp = temperature [°C]
 
-? 
-- `time` - Timestamp of the data
-- `t2m_C` - Temperature at 2 meters (unit: °C)
-- `u` - Zonal wind (unit: m s^-1)
-- `v` - Meridional wind (unit: m s^-1)
-- `w` - Vertical velocity (unit: m s^-1)
-- `tke` - Turbulent kinetic energy (unit: J kg^-1)
-- `sh` - Specific humidity (unit: g kg^-1)
-
 regridded to latlon variables, longname, coordinates:
 - height_bnds, Kein long_name vorhanden, None, ['height']
 - height_3_bnds, Kein long_name vorhanden, None, ['height_3']
@@ -178,19 +164,6 @@ regridded to latlon variables, longname, coordinates:
 - z_ifc, geometric height at half level center, m, ['lon', 'lat', 'height_3']
 - rho, density, kg m-3, ['time', 'lon', 'lat', 'height']
 - theta_v, virtual potential temperature, K, ['time', 'lon', 'lat', 'height']
-
-attrs from netcdf file:
-{'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
- 'Conventions': 'CF-1.6',
- 'number_of_grid_used': 1,
- 'uuidOfHGrid': '655488b8-6e60-ac09-a653-9b1ce37a2b20',
- 'uuidOfVGrid': '5210aca5-6684-c009-3731-0a31182a3180',
- 'institution': 'Max Planck Institute for Meteorology/Deutscher Wetterdienst',
- 'title': 'ICON simulation',
- 'source': 'git@gitlab.dkrz.de:icon/icon-nwp.git@1638fcbef3269d733d8bc637d523f31663fb60c3',
- 'history': '/work/bb1096/b380910/models/icon/icon-nwp_2TE//bin/icon at 20230331 144353',
- 'references': 'see MPIM/DWD publications',
- 'comment': 'Julian Quimbayo-Duarte (b380910) on l30537 (Linux 4.18.0-348.el8.x86_64 x86_64)'}
 
  REGRIDDING:
 - deleted original ICON files from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
@@ -316,6 +289,15 @@ Meteogram:
 
 OLD stuff:
 ICON:
+? 
+- `time` - Timestamp of the data
+- `t2m_C` - Temperature at 2 meters (unit: °C)
+- `u` - Zonal wind (unit: m s^-1)
+- `v` - Meridional wind (unit: m s^-1)
+- `w` - Vertical velocity (unit: m s^-1)
+- `tke` - Turbulent kinetic energy (unit: J kg^-1)
+- `sh` - Specific humidity (unit: g kg^-1)
+
 original HEXA 3D Variables:
 - `clon_bnds` - No long name available (Units not specified)
 - `clat_bnds` - No long name available (Units not specified)
@@ -379,3 +361,16 @@ original HEXA 3D Variables:
 - `h_snow` - Snow depth (unit: m)
 - `freshsnow` - Age of snow in top of snow layer (unit: 1)
 - `snowfrac_lc` - Snow-cover fraction (unit: %)
+
+attrs from orig netcdf file:
+{'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
+ 'Conventions': 'CF-1.6',
+ 'number_of_grid_used': 1,
+ 'uuidOfHGrid': '655488b8-6e60-ac09-a653-9b1ce37a2b20',
+ 'uuidOfVGrid': '5210aca5-6684-c009-3731-0a31182a3180',
+ 'institution': 'Max Planck Institute for Meteorology/Deutscher Wetterdienst',
+ 'title': 'ICON simulation',
+ 'source': 'git@gitlab.dkrz.de:icon/icon-nwp.git@1638fcbef3269d733d8bc637d523f31663fb60c3',
+ 'history': '/work/bb1096/b380910/models/icon/icon-nwp_2TE//bin/icon at 20230331 144353',
+ 'references': 'see MPIM/DWD publications',
+ 'comment': 'Julian Quimbayo-Duarte (b380910) on l30537 (Linux 4.18.0-348.el8.x86_64 x86_64)'}
