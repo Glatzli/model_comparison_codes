@@ -40,6 +40,7 @@ Input from presentation/last meetings:
   	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
   	- find extent of CAP: look at 2m temperature => get overview of valley in models
 - compute VHD: for spatial extent
+  PCGP evaluation: didn't interpolate roughness length param. from ICON model...
 - heat budget calc:
 	- find extent: look at 2m temperature => get overview of valley res.
 - Preliminary work:
