@@ -96,25 +96,12 @@ already improved:
 	+ metpy calculations now much faster
 	+ added read multiple hours fct => now easy
 	+ add step to cut out only one point! (?)
+ 	+ regridded, cut to smaller extent
+  	+ read ICON full extent for 1 timestep
 
 ToDo:
-- read_icon_fixed_time for 2d plots
-- maybe add subset for variables to minimize data
-
-REGRIDDING:
-- deleted original ICON files from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
-select variables and create new .nc file: CDO merges timestamps together. => only 1 gigantic ICON file w all timesteps!
-
-cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_*.nc ICON_20171015Tall_selvars.nc
-cdo -remap,latlon_grid_1km.txt,Wfile_TEAMX.nc ICON_20171015Tall_selvars.nc latlon_TEAMX.nc
-
-DOMAIN extent (from clat & clon bnds to degree):
-lat: 42.67218 - 49.728592
-lon: 0.9697978 - 16.333878
-
-subset DOMAIN with CDO:
-lat: 46.5 - 48.2° N
-lon: 9.2° - 13° E
+- plot 2d
+- Is staggering changed in regridding?
 
 solved:
 - probably 6th grid in grid file is the right one, how to define in gendis? -> just take Julian's weight file
@@ -123,6 +110,10 @@ solved:
 staggered/unstaggered grid: google!
 evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
 -> plot temp w z_ifc not possible 
+
+DOMAIN subset with CDO to:
+lat: 46.5 - 48.2° N
+lon: 9.2° - 13° E
 
 
 Basically, the ICON grid is a triangular unstructured grid, so ncells is the total number of cells you may find in the
@@ -139,9 +130,6 @@ The meteogram takes the values in the grid point nearest to the station's coordi
 
 model storage data every 8 seconds.
 
-`import xarray as xr`
-`ds_met = xr.open_dataset("the_file_loc/the_file_name.nc")`
-
 `station_name = np.char.decode(ds_met.station_name.values)
 variables = np.char.decode(ds_met.var_name.values)
 date = np.char.decode(ds_met.date)`
@@ -156,15 +144,15 @@ coordinates:
 - height_3: 1.0 ... 91.0
 
 calculated vars:
-pressure -> hPa
-th.. potential temp [K]
-temp -> °C
+- p = pressure [hPa]
+- th = pot temp [K]
+- temp = temperature [°C]
 
 for plotting new created datasets:
 - height (geometric height [m] at timestep 20)
-with vars:
+with METPY calc vars:
 - th = pot temp [K]
-- p = pressure [hPa]
+- temp = temperature [°C]
 
 
 - `time` - Timestamp of the data
@@ -176,20 +164,20 @@ with vars:
 - `sh` - Specific humidity (unit: g kg^-1)
 
 regridded to latlon variables, longname, coordinates:
-- height_bnds, Kein long_name vorhanden, ['height']
-- height_3_bnds, Kein long_name vorhanden, ['height_3']
-- u, Zonal wind, ['time', 'lon', 'lat', 'height']
-- v, Meridional wind, ['time', 'lon', 'lat', 'height']
-- w, Vertical velocity, ['time', 'lon', 'lat', 'height_2']
-- temp, Temperature, ['time', 'lon', 'lat', 'height']
-- pres, Pressure, ['time', 'lon', 'lat', 'height']
-- qv, Specific humidity, ['time', 'lon', 'lat', 'height']
-- clc, cloud cover, ['time', 'lon', 'lat', 'height']
-- tke, turbulent kinetic energy, ['time', 'lon', 'lat', 'height_2']
-- slope_angle, Slpe angle, ['lon', 'lat']
-- z_ifc, geometric height at half level center, ['lon', 'lat', 'height_3']
-- rho, density, ['time', 'lon', 'lat', 'height']
-- theta_v, virtual potential temperature, ['time', 'lon', 'lat', 'height']
+- height_bnds, Kein long_name vorhanden, None, ['height']
+- height_3_bnds, Kein long_name vorhanden, None, ['height_3']
+- u, Zonal wind, m s-1, ['time', 'lon', 'lat', 'height']
+- v, Meridional wind, m s-1, ['time', 'lon', 'lat', 'height']
+- w, Vertical velocity, m s-1, ['time', 'lon', 'lat', 'height_2']
+- temp, Temperature, K, ['time', 'lon', 'lat', 'height']
+- pres, Pressure, Pa, ['time', 'lon', 'lat', 'height']
+- qv, Specific humidity, kg kg-1, ['time', 'lon', 'lat', 'height']
+- clc, cloud cover, %, ['time', 'lon', 'lat', 'height']
+- tke, turbulent kinetic energy, m2 s-2, ['time', 'lon', 'lat', 'height_2']
+- slope_angle, Slpe angle, rad, ['lon', 'lat']
+- z_ifc, geometric height at half level center, m, ['lon', 'lat', 'height_3']
+- rho, density, kg m-3, ['time', 'lon', 'lat', 'height']
+- theta_v, virtual potential temperature, K, ['time', 'lon', 'lat', 'height']
 
 attrs from netcdf file:
 {'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
@@ -203,6 +191,17 @@ attrs from netcdf file:
  'history': '/work/bb1096/b380910/models/icon/icon-nwp_2TE//bin/icon at 20230331 144353',
  'references': 'see MPIM/DWD publications',
  'comment': 'Julian Quimbayo-Duarte (b380910) on l30537 (Linux 4.18.0-348.el8.x86_64 x86_64)'}
+
+ REGRIDDING:
+- deleted original ICON files from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
+select variables and create new .nc file: CDO merges timestamps together. => only 1 gigantic ICON file w all timesteps!
+
+cdo select,name=u,v,w,temp,pres,qv,clc,tke,slope_angle,z_ifc,rho,theta_v ICON_BLM-GUF_*.nc ICON_20171015Tall_selvars.nc
+cdo -remap,latlon_grid_1km.txt,Wfile_TEAMX.nc ICON_20171015Tall_selvars.nc latlon_TEAMX.nc
+
+DOMAIN extent (from clat & clon bnds to degree):
+lat: 42.67218 - 49.728592
+lon: 0.9697978 - 16.333878
 
 ## UKMO
 already improved:
