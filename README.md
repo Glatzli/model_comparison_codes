@@ -2,9 +2,18 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
-- regrid ICON
+
 
 Questions for next meeting: 
+- ICON variables?!: for PCGP LU dataset I would need:
+    Slope angle (β): The steepness of the terrain.
+    Slope aspect (γ): The orientation of the slope.
+    Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
+    Albedo (α): The reflectivity of the surface.
+  + LU dataset? -> In ICON I had "fraction of land cover" + "roughness lenght" - didn't interpolate that to lat/lon!
+  -> Problem?
+	-> 
+
 - dokumente als PDF speichern & unterschreiben
 
 ToDo till next meeting:
@@ -25,12 +34,22 @@ Input from presentation/last meetings:
 
 To Do:
 - PCGP evaluation:
-  	didn't interpolate roughness length param. from ICON model => egal
-  	only from height (+ICON slope angle)
-  	where LU dataset for models? 
+	would need:
+	Slope angle (β): The steepness of the terrain.
+	Slope aspect (γ): The orientation of the slope.
+	Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
+	Albedo (α): The reflectivity of the surface.
+
+	+ LU dataset? -> In ICON I had "fraction of land cover" + "roughness lenght" - didn't interpolate that to lat/lon!
+	-> Problem?
+
+	only from geopot height (+ICON slope angle) possible?
+  	-> just compare height from models 8 grid points with real one...
+
+    
 - compute VHD: for spatial extent
   
-  
+
 - find extent of CAP: look at 2m temperature => get overview of valley in models
   
 - heat budget calc:
