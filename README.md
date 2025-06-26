@@ -14,10 +14,6 @@ ToDo till next meeting:
 
 
 Input from presentation/last meetings:
-- research goals: rewrite into 1 with subpoints
-- station data: important to describe what is measured where to not miss data that I had available! (MOMMA's have radiation f.e.)
-- domain overview:
-  	add Hafelekar mentioning, change MOMMAS to circles & make HOBOS better visable...
 - temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
 	=> maybe compute comparison...
 	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
@@ -25,22 +21,18 @@ Input from presentation/last meetings:
 - humidity:
   	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
-- 2-D calcs:
-  	- Problem: need CDO installation (& python virtual machine)
-  	- fehlende Abhängigkeiten: Python Core & win32api paket benötigt...
-  	- use grid file from http://icon-downloads.mpimet.mpg.de/dwd_grids.xml#grid45 for first try (still miss ICON grid-file for the native model grid (in this case R2B9 for the dpp0016 simulation) and also one dpp0016 	data file...):
-  	  	numberOfGridUsed: 45	Centre	78
-		Subcentre	255
-		Type	hrz_regional
-   	  like: https://wiki.mpimet.mpg.de/doku.php?id=analysis:postprocessing_icon:regridding:shell:start
-  	- could also use docker like: https://github.com/DeutscherWetterdienst/regrid  (some standard grid-files available, but only up to 2km res and need to install docker...)
- 
-   	- 
-  	- or (problems with old py version...) https://docs.dkrz.de/doc/visualization/sw/pyngl/source_code/dkrz-pyngl-example-regridding-with-xesmf.html  
-  	- kann auch Christian Posch fragen! arbeitet mit CET(?) (schneller) oder für command line aufruf in PY
-  	- find extent of CAP: look at 2m temperature => get overview of valley in models
+
+
+To Do:
+- PCGP evaluation:
+  	didn't interpolate roughness length param. from ICON model => egal
+  	only from height (+ICON slope angle)
+  	where LU dataset for models? 
 - compute VHD: for spatial extent
-  PCGP evaluation: didn't interpolate roughness length param. from ICON model...
+  
+  
+- find extent of CAP: look at 2m temperature => get overview of valley in models
+  
 - heat budget calc:
 	- find extent: look at 2m temperature => get overview of valley res.
 - Preliminary work:
