@@ -152,10 +152,8 @@ water_vapor_mixing_ratio):
 coordinates:
 - time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00, read in only 1h steps!
 - height: 1.0 ... 90.0 (90 is at the ground)
-- height_2: 1.0 ... 91.0
-- height_3: 1.0 ... 91.0ic
-- vertices ?
-- ncells_2 ?
+- height_2: 1.0 ... 91.0 (91 at ground)
+- height_3: 1.0 ... 91.0
 
 calculated vars:
 pressure -> hPa
@@ -177,70 +175,21 @@ with vars:
 - `tke` - Turbulent kinetic energy (unit: J kg^-1)
 - `sh` - Specific humidity (unit: g kg^-1)
 
-3D Variables:
-
-- `clon_bnds` - No long name available (Units not specified)
-- `clat_bnds` - No long name available (Units not specified)
-- `elon_bnds` - No long name available (Units not specified)
-- `elat_bnds` - No long name available (Units not specified)
-- `height_bnds` - No long name available (Units not specified)
-- `height_3_bnds` - No long name available (Units not specified)
-- `depth_2_bnds` - No long name available (Units not specified)
-- `u` - Zonal wind (Units: m s^-1)
-- `v` - Meridional wind (Units: m s^-1)
-- `w` - Vertical velocity (Units: m s^-1)
-- `temp` - Temperature (Units: K)
-- `pres` - Pressure (Units: Pa)
-- `qv` - Specific humidity (Units: kg kg^-1)
-- `qc` - Specific cloud water content (Units: kg kg^-1)
-- `qi` - Specific cloud ice content (Units: kg kg^-1)
-- `qr` - Specific rain content (Units: kg kg^-1)
-- `qs` - Specific snow content (Units: kg kg^-1)
-- `qg` - Specific graupel content (Units: kg kg^-1)
-- `clc` - Cloud cover (Units: %)
-- `tke` - Turbulent kinetic energy (Units: m^2 s^-2)
-- `slope_angle` - Slope angle (Units: rad)
-- `z_ifc` - Geometric height at half level center (Units: m)
-- `pres_msl` - Mean sea level pressure (Units: Pa)
-- `pres_sfc` - Surface pressure (Units: Pa)
-- `rh_2m` - Relative humidity at 2m (Units: %)
-- `qv_s` - Specific humidity at the surface (Units: kg kg^-1)
-- `t_2m` - Temperature at 2m (Units: K)
-- `tmin_2m` - Minimum temperature at 2m (Units: K)
-- `td_2m` - Dew-point temperature at 2m (Units: K)
-- `t_g` - Weighted surface temperature (Units: K)
-- `u_10m` - Zonal wind at 10m (Units: m s^-1)
-- `v_10m` - Meridional wind at 10m (Units: m s^-1)
-- `w_i` - Weighted water content of interception water (Units: kg m^-2)
-- `t_so` - Weighted soil temperature (main level) (Units: K)
-- `w_so` - Total water content (ice + liquid water) in soil (Units: kg m^-2)
-- `w_so_ice` - Ice content in soil (Units: kg m^-2)
-- `smi` - Soil moisture index (Units not specified)
-- `vn` - Velocity normal to edge (Units: m s^-1)
-- `rho` - Density (Units: kg m^-3)
-- `theta_v` - Virtual potential temperature (Units: K)
-- `fr_land` - Fraction of land (Units not specified)
-- `gz0` - Roughness length (Units: m)
-- `t_ice` - Sea/lake-ice temperature (Units: K)
-- `h_ice` - Sea/lake-ice depth (Units: m)
-- `alb_si` - Sea ice albedo (diffuse) (Units: %)
-- `t_mnw_lk` - Mean temperature of the water column (Units: K)
-- `t_wml_lk` - Mixed-layer temperature (Units: K)
-- `h_ml_lk` - Mixed-layer thickness (Units: m)
-- `t_bot_lk` - Temperature at the water-bottom sediment interface (Units: K)
-- `c_t_lk` - Shape factor (temperature profile in lake thermocline) (Units not specified)
-- `fr_seaice` - Fraction of sea ice (Units: 1)
-- `t_sk` - Skin temperature (Units: K)
-- `t_seasfc` - Sea surface temperature (Units: K)
-- `hsnow_max` - Maximum snow depth (Units: m)
-- `snow_age` - Duration of snow cover (Units: d)
-- `plantevap` - Time-integrated plant evaporation (Units: kg m^-2)
-- `t_snow` - Weighted temperature of the snow surface (Units: K)
-- `w_snow` - Water equivalent of snow (unit: kg m^-2)
-- `rho_snow` - Snow density (unit: kg m^-3)
-- `h_snow` - Snow depth (unit: m)
-- `freshsnow` - Age of snow in top of snow layer (unit: 1)
-- `snowfrac_lc` - Snow-cover fraction (unit: %)
+regridded to latlon variables, longname, coordinates:
+- height_bnds, Kein long_name vorhanden, ['height']
+- height_3_bnds, Kein long_name vorhanden, ['height_3']
+- u, Zonal wind, ['time', 'lon', 'lat', 'height']
+- v, Meridional wind, ['time', 'lon', 'lat', 'height']
+- w, Vertical velocity, ['time', 'lon', 'lat', 'height_2']
+- temp, Temperature, ['time', 'lon', 'lat', 'height']
+- pres, Pressure, ['time', 'lon', 'lat', 'height']
+- qv, Specific humidity, ['time', 'lon', 'lat', 'height']
+- clc, cloud cover, ['time', 'lon', 'lat', 'height']
+- tke, turbulent kinetic energy, ['time', 'lon', 'lat', 'height_2']
+- slope_angle, Slpe angle, ['lon', 'lat']
+- z_ifc, geometric height at half level center, ['lon', 'lat', 'height_3']
+- rho, density, ['time', 'lon', 'lat', 'height']
+- theta_v, virtual potential temperature, ['time', 'lon', 'lat', 'height']
 
 attrs from netcdf file:
 {'CDI': 'Climate Data Interface version 1.8.3rc (http://mpimet.mpg.de/cdi)',
@@ -365,3 +314,69 @@ Meteogram:
 - `w` - Z-wind component (Units: m s^-1)
 - `z` - Geometric height (Units: m)
 - `zs` - Depths of centers of soil layers (Units: m)
+
+OLD stuff:
+ICON:
+original HEXA 3D Variables:
+- `clon_bnds` - No long name available (Units not specified)
+- `clat_bnds` - No long name available (Units not specified)
+- `elon_bnds` - No long name available (Units not specified)
+- `elat_bnds` - No long name available (Units not specified)
+- `height_bnds` - No long name available (Units not specified)
+- `height_3_bnds` - No long name available (Units not specified)
+- `depth_2_bnds` - No long name available (Units not specified)
+- `u` - Zonal wind (Units: m s^-1)
+- `v` - Meridional wind (Units: m s^-1)
+- `w` - Vertical velocity (Units: m s^-1)
+- `temp` - Temperature (Units: K)
+- `pres` - Pressure (Units: Pa)
+- `qv` - Specific humidity (Units: kg kg^-1)
+- `qc` - Specific cloud water content (Units: kg kg^-1)
+- `qi` - Specific cloud ice content (Units: kg kg^-1)
+- `qr` - Specific rain content (Units: kg kg^-1)
+- `qs` - Specific snow content (Units: kg kg^-1)
+- `qg` - Specific graupel content (Units: kg kg^-1)
+- `clc` - Cloud cover (Units: %)
+- `tke` - Turbulent kinetic energy (Units: m^2 s^-2)
+- `slope_angle` - Slope angle (Units: rad)
+- `z_ifc` - Geometric height at half level center (Units: m)
+- `pres_msl` - Mean sea level pressure (Units: Pa)
+- `pres_sfc` - Surface pressure (Units: Pa)
+- `rh_2m` - Relative humidity at 2m (Units: %)
+- `qv_s` - Specific humidity at the surface (Units: kg kg^-1)
+- `t_2m` - Temperature at 2m (Units: K)
+- `tmin_2m` - Minimum temperature at 2m (Units: K)
+- `td_2m` - Dew-point temperature at 2m (Units: K)
+- `t_g` - Weighted surface temperature (Units: K)
+- `u_10m` - Zonal wind at 10m (Units: m s^-1)
+- `v_10m` - Meridional wind at 10m (Units: m s^-1)
+- `w_i` - Weighted water content of interception water (Units: kg m^-2)
+- `t_so` - Weighted soil temperature (main level) (Units: K)
+- `w_so` - Total water content (ice + liquid water) in soil (Units: kg m^-2)
+- `w_so_ice` - Ice content in soil (Units: kg m^-2)
+- `smi` - Soil moisture index (Units not specified)
+- `vn` - Velocity normal to edge (Units: m s^-1)
+- `rho` - Density (Units: kg m^-3)
+- `theta_v` - Virtual potential temperature (Units: K)
+- `fr_land` - Fraction of land (Units not specified)
+- `gz0` - Roughness length (Units: m)
+- `t_ice` - Sea/lake-ice temperature (Units: K)
+- `h_ice` - Sea/lake-ice depth (Units: m)
+- `alb_si` - Sea ice albedo (diffuse) (Units: %)
+- `t_mnw_lk` - Mean temperature of the water column (Units: K)
+- `t_wml_lk` - Mixed-layer temperature (Units: K)
+- `h_ml_lk` - Mixed-layer thickness (Units: m)
+- `t_bot_lk` - Temperature at the water-bottom sediment interface (Units: K)
+- `c_t_lk` - Shape factor (temperature profile in lake thermocline) (Units not specified)
+- `fr_seaice` - Fraction of sea ice (Units: 1)
+- `t_sk` - Skin temperature (Units: K)
+- `t_seasfc` - Sea surface temperature (Units: K)
+- `hsnow_max` - Maximum snow depth (Units: m)
+- `snow_age` - Duration of snow cover (Units: d)
+- `plantevap` - Time-integrated plant evaporation (Units: kg m^-2)
+- `t_snow` - Weighted temperature of the snow surface (Units: K)
+- `w_snow` - Water equivalent of snow (unit: kg m^-2)
+- `rho_snow` - Snow density (unit: kg m^-3)
+- `h_snow` - Snow depth (unit: m)
+- `freshsnow` - Age of snow in top of snow layer (unit: 1)
+- `snowfrac_lc` - Snow-cover fraction (unit: %)
