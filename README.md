@@ -10,11 +10,11 @@ Questions for next meeting:
     Slope aspect (γ): The orientation of the slope.
     Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
     Albedo (α): The reflectivity of the surface.
-  + LU dataset? -> In ICON I had "fraction of land cover" + "roughness lenght" - didn't interpolate that to lat/lon!
-  -> Problem?
-	-> 
+  I don't have albedo measured, and LU spec is secondary. But I should use slope angle & aspect ratio
+  -> calc that for all points!
 
-- dokumente als PDF speichern & unterschreiben
+- maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
+- netcdf file chunking: how to find saved chunks?
 
 ToDo till next meeting:
 - formular digital mit bild unterschreiben => kein stress
