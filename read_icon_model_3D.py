@@ -36,10 +36,10 @@ def convert_calc_variables(ds):
     """
 
     # Convert pressure from Pa to hPa
-    ds['pressure'] = (ds['pres'] / 100.0) * units.hPa
+    ds['p'] = (ds['pres'] / 100.0) * units.hPa
 
     # calc pot temp
-    ds["th"] = mpcalc.potential_temperature(ds['pressure'], ds["temp"] * units.kelvin)
+    ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
 
     # convert temp to °C
     ds["temp"]  = (ds["temp"] - 273.15) * units.degC
@@ -64,16 +64,18 @@ def create_ds_geopot_height_as_z_coordinate(ds):
     :return:
     :ds_new: new dataset with geopotential height as vertical coordinate
     """
-    geopot_height = ds.z_ifc
+    geopot_height = ds.z
     # ds.z_ifc.isel(height_3=slice(1, 91))
 
     ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
         data_vars=dict(
             th=(["time", "height"], ds.th.values),
             temp=(["time", "height"], ds.temp.values),
+            p=(["time", "height"], ds.p.values),
+            rho=(["time", "height"], ds.rho.values),
         ),
         coords=dict(
-            height=("height", ds.z_ifc.isel(height_3=slice(1, 91)).values),
+            height=("height", ds.z.isel(height_3=slice(1, 91)).values),
             # skip most upper level, different height coordinates => just trust in hannes' notes...
             time=("time", ds.time.values)
         ),
@@ -104,27 +106,30 @@ def find_min_index(ds_icon, lon, lat):
 
 def read_icon_fixed_point(lat, lon, variant="ICON"):
     if variant == "ICON":
-        icon_full = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc",
-                                    chunks={'time': 10, 'height': 10})
-    elif variant == "ICON_2TE":
-        icon_full = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_20171015_latlon.nc",
-                                    chunks={'time': 10, 'height': 10})
+        icon_full = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc", chunks="auto")  # , chunks={lat': 10, 'lon': 10}
+
+    elif variant == "ICON2TE":
+        icon_full = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_20171015_latlon.nc", chunks={'lat': 10, 'lon': 10})
 
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
-    icon_point = icon_point.compute()
     icon_point = convert_calc_variables(icon_point)
+    icon_point = icon_point.rename({"z_ifc": "z"})
+    icon_point = icon_point.compute()
     return icon_point
 
 def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON"):
     if variant == "ICON":
-        icon_full = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc",
-                                    chunks={'lat': 10, 'lon': 10})
+        icon_full = xr.open_dataset(confg.icon_folder_3D + "/ICON_latlon_subset_tirol.nc",
+                                    chunks={'time': 12})
     elif variant == "ICON_2TE":
-        icon_full = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_20171015_latlon.nc",
-                                    chunks={'lat': 10, 'lon': 10})
+        icon_full = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_latlon_subset_tirol.nc",
+                                    chunks={'time': 12})
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
-    icon_point = icon_full.sel(time=timestamp, method="nearest")
-    return icon_point
+    icon = icon_full.sel(time=timestamp, height=90, height_3=91, method="nearest")
+    icon = convert_calc_variables(icon)
+    icon = icon.rename({"z_ifc": "z"})
+    icon = icon.compute()
+    return icon
 
 def read_icon_fixed_point_and_time_hexa(day, hour, lon, lat, variant="ICON"):
     """
@@ -273,16 +278,19 @@ if __name__ == '__main__':
     lat_ibk = 47.259998
     lon_ibk = 11.384167
 
+    model = "ICON"  # either "ICON" or "ICON2TE"
     # testing cdo generates nc files:
-    # icon_selvars = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015Tall_selvars.nc")
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
-    icon_latlon = read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant="ICON")
-    # icon_latlon
 
+    icon_latlon = read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant=model)
+
+    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON")
+    # save lowest level as nc file for topo plotting
+    # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
 
     icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_latlon)
-    icon_path = Path(confg.model_folder + "/ICON/" + "ICON_latlon_temp_timeseries_ibk.nc")
-    # icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
+    icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")
+    icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
 
 
     # with this code the ICON model is read in, one specific latitude is extracted and saved as new dataset with geometric

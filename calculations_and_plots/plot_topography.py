@@ -103,12 +103,12 @@ def create_clipped_dem(data):
 def add_lat_lon_plot(ax, df, rotate=None):
     """add description of longitude and latutide to plot"""
     # Define the xticks for longitude
-    ax.set_xticks(np.arange(np.round(df["longitude"].min()), df["longitude"].max(), 0.5), crs=ccrs.PlateCarree())
+    ax.set_xticks(np.arange(np.round(df["lon"].min()), df["lon"].max(), 0.5), crs=ccrs.PlateCarree())
     lon_formatter = cticker.LongitudeFormatter()
     ax.xaxis.set_major_formatter(lon_formatter)
 
     # Define the yticks for latitude
-    ax.set_yticks(np.arange(np.round(df["latitude"].min()), df["latitude"].max(), 0.5), crs=ccrs.PlateCarree())
+    ax.set_yticks(np.arange(np.round(df["lat"].min()), df["lat"].max(), 0.5), crs=ccrs.PlateCarree())
     lat_formatter = cticker.LatitudeFormatter()
     ax.yaxis.set_major_formatter(lat_formatter)
 
@@ -140,7 +140,7 @@ def plot_stations_and_AROME_height(df, model_name, ext_lat, ext_lon):
     norm = plt.Normalize(vmin=df["z"].min(), vmax=df["z"].max())
 
     # Create contour lines with colors mapped from the terrain colormap
-    cs = ax.contour(df['longitude'], df['latitude'], df["z"], my_range,
+    cs = ax.contour(df['lon'], df['lat'], df["z"], my_range,
                     transform=ccrs.PlateCarree(),
                     colors=[terrain_cmap(norm(level)) for level in my_range])
 
@@ -206,9 +206,9 @@ def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_
     """plot model topography as filled imshow plot in the innvalley, and on top as scatter points all stations"""
     fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': ccrs.PlateCarree()})
 
-    cs = ax.contourf(df['longitude'], df['latitude'], df["z"], levels=levels_filled,
+    cs = ax.contourf(df['lon'], df['lat'], df["z"], levels=levels_filled,
                     transform=ccrs.PlateCarree(), cmap = pal.cmap())
-    ax.contour(df['longitude'], df['latitude'], df["z"], levels=levels_contour_lines,
+    ax.contour(df['lon'], df['lat'], df["z"], levels=levels_contour_lines,
                     transform=ccrs.PlateCarree(), color = "grey", linewidths=0.2)
     rect = Rectangle((ext_lon_small.start, ext_lat_small.start), ext_lon_small.stop - ext_lon_small.start, ext_lat_small.stop -ext_lat_small.start,
                      linewidth=1, edgecolor='black', facecolor='gray', alpha=0.3)
@@ -271,11 +271,11 @@ def plot_stations_detail(df, model_name, ext_lat, ext_lon):
     fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={'projection': ccrs.PlateCarree()})
     # plt.rc('text', usetex=True)
 
-    cs = ax.contourf(df['longitude'], df['latitude'], df["z"], levels=levels_filled,
+    cs = ax.contourf(df['lon'], df['lat'], df["z"], levels=levels_filled,
                      transform=ccrs.PlateCarree(), cmap=pal.cmap())
-    ax.contour(df['longitude'], df['latitude'], df["z"], levels=levels_contour_lines,
+    ax.contour(df['lon'], df['lat'], df["z"], levels=levels_contour_lines,
                transform=ccrs.PlateCarree(), color=gray_hcl, linewidths=0.2)
-    thick_contours = ax.contour(df['longitude'], df['latitude'], df["z"], levels=levels_thick_contour_lines,
+    thick_contours = ax.contour(df['lon'], df['lat'], df["z"], levels=levels_thick_contour_lines,
                transform=ccrs.PlateCarree(), color=gray_hcl, linewidths=0.5)
     ax.clabel(thick_contours, inline=True, fontsize=10, fmt='%d')
 
@@ -536,7 +536,7 @@ def select_extent_around_LOWI(ds, lat_degree, lon_degree):
     """function to select the extent that should be plotted around Innsbruck airport"""
     extent_lat = slice(station_files_zamg["IAO"]["lat"] - lat_degree, station_files_zamg["IAO"]["lat"] + lat_degree)
     extent_lon = slice(station_files_zamg["IAO"]["lon"] - lon_degree, station_files_zamg["IAO"]["lon"] + lon_degree)
-    return ds.sel(latitude=extent_lat, longitude=extent_lon), extent_lat, extent_lon  # nz=90,  (for hannes' topo .nc file)
+    return ds.sel(lat=extent_lat, lon=extent_lon), extent_lat, extent_lon  # nz=90,  (for hannes' topo .nc file)
 
 
 import math
@@ -585,8 +585,8 @@ if __name__ == '__main__':
     lat_ibk = 47.259998  # only for maßstab
     fontprops = fm.FontProperties(size=10)
 
-    lon = calculate_lon_extent_for_km(lat_ibk, 1)
-    lon2 = calculate_lon_extent_for_km(lat_ibk, 1.5)
+    # lon = calculate_lon_extent_for_km(lat_ibk, 1)
+    # lon2 = calculate_lon_extent_for_km(lat_ibk, 1.5)
 
     pal = sequential_hcl("Terrain")  # palettes for terrain topo
     pal2 = qualitative_hcl("Dark 3")
@@ -606,17 +606,18 @@ if __name__ == '__main__':
     # height_hannes = xr.open_dataset(filepath_arome_height)  # open AROME MODEL Height
     # height_hannes = height_hannes.isel(time=0)
 
-    height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME MODEL Height lowest level
+    # height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME MODEL Height lowest level
+    height_lowest = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc") # open ICON MODEL Height lowest level
 
     ds_small_extent, extent_lat_small, extent_lon_small = select_extent_around_LOWI(height_lowest, lat_degree=0.08, lon_degree=0.08)
     ds_small_extent2, extent_lat_small2, extent_lon_small2 = select_extent_around_LOWI(height_lowest, lat_degree=0.1, lon_degree=0.1)
     ds_large_extent, extent_lat_large, extent_lon_large = select_extent_around_LOWI(height_lowest, lat_degree=0.4, lon_degree=0.4)
 
     # Plot stations as points, underneath as contour the AROME Model height
-    plot_stations_and_AROME_height_filled(ds_large_extent, "AROME", ext_lat=extent_lat_large, ext_lon=extent_lon_large,
+    plot_stations_and_AROME_height_filled(ds_large_extent, "ICON", ext_lat=extent_lat_large, ext_lon=extent_lon_large,
                                           ext_lat_small = extent_lat_small, ext_lon_small = extent_lon_small)
 
-    plot_stations_detail(ds_small_extent2, "AROME", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
+    plot_stations_detail(ds_small_extent2, "ICON", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
 
     # Plot the LOWI station point in center, and grid heights around it with real heights of DEM in the background
     # plot_height_diff_LOWI(ds_large_extent, "AROME")
