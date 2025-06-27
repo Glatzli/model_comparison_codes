@@ -78,18 +78,6 @@ def plot_temp_time_contours(temp, model="AROME"):
     :param model:
     :return:
     """
-    """
-    match model:
-        case "AROME":
-            "time"="time"; "height" = "height"
-        case ("ICON" | "ICON2TE"):  # same for ICON2TE
-            "time"="time"; "height" = "height"
-        case "UKMO":
-            "time"="time"; "height" = "height"
-        case "WRF":
-            "time"="time"; "height" = "height"
-        case "HATPRO":
-            "time" = "time"; "height" = "height" """
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -158,9 +146,9 @@ def plot_icon2te():
     icon2te = xr.concat([icon15_2te[variables], icon16_2te[variables]], dim="time")
     icon2te_pot_temp = icon2te.th.isel(height=np.arange(40, 90))"""
 
-    icon_2te = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON_2TE_temp_timeseries_ibk.nc")
+    icon_2te = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON_2TE_latlon_temp_timeseries_ibk.nc")
     icon_2te_pot_temp = icon_2te.th.where(icon_2te["height"] <= interface_height, drop=True)
-    plot_pot_temp_time_contours(pot_temp=icon_2te_pot_temp, model="ICON2TE")
+    plot_pot_temp_time_contours(pot_temp=icon_2te_pot_temp, model="ICON2TE_latlon")
 
 def plot_ukmo():
     um = xr.open_dataset(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
@@ -192,17 +180,17 @@ def plot_hatpro():
 if __name__ == '__main__':
     lat_ibk = 47.259998
     lon_ibk = 11.384167
-    interface_height = 4000  # what is max height that should be plotted?
+    interface_height = 2500  # what is max height that should be plotted?
     pal1 = diverging_hcl(palette="Blue-Red 2")
 
     matplotlib.use('Qt5Agg')  # Use the Qt5Agg backend for interactive plotting
 
-    plot_arome()
+    #plot_arome()
 
     plot_icon()
     plot_icon2te()
 
-    plot_ukmo()
-    plot_wrf()
-    plot_hatpro()
+    #plot_ukmo()
+    #plot_wrf()
+    #plot_hatpro()
     plt.show()

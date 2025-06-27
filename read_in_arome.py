@@ -227,7 +227,7 @@ def read_in_arome_fixed_time(time="2017-10-15T14:00:00", variables=["p", "th", "
     ds = read_in_arome(variables)
     ds = ds.sel(time=time)  # select just needed timestep
 
-    # ds = convert_calc_variables(ds)
+    ds = convert_calc_variables(ds)
     return ds
 
 
@@ -296,16 +296,10 @@ if __name__ == '__main__':
 
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
     # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
-    arome = arome3d_new.isel(height=0).compute()
-    arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+
+    # arome = arome3d_new.isel(height=0).compute()
+    # arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+
     # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
     # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
-"""
-    try:
-        if arome_path.exists():
-            os.chmod(arome_path, 0o666)
-
-    except PermissionError:
-        print("Permission denied: unable to save AROME data to the specified directory.")
-"""
 
