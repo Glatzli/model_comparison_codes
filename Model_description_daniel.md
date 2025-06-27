@@ -165,6 +165,21 @@ regridded to latlon variables, longname, coordinates:
 - rho, density, kg m-3, ['time', 'lon', 'lat', 'height']
 - theta_v, virtual potential temperature, K, ['time', 'lon', 'lat', 'height']
 
+chunk chosen with "auto":
+    height_bnds    (height, bnds) float64 1kB dask.array<chunksize=(90, 2), meta=np.ndarray>
+    height_3_bnds  (height_3, bnds) float64 1kB dask.array<chunksize=(91, 2), meta=np.ndarray>
+    u              (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    v              (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    w              (time, height_2, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    temp           (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    ...             ...
+    clc            (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    tke            (time, height_2, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    slope_angle    (lat, lon) float32 3MB dask.array<chunksize=(712, 1097), meta=np.ndarray>
+    z_ifc          (height_3, lat, lon) float32 284MB dask.array<chunksize=(70, 557, 858), meta=np.ndarray>
+    rho            (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+    theta_v        (time, height, lat, lon) float32 14GB dask.array<chunksize=(15, 28, 226, 350), meta=np.ndarray>
+
  REGRIDDING:
 - deleted original ICON files from D: to have space (had errors...) (if drive isn't working from WSL: sudo mount -t drvfs H: /mnt/h)
 select variables and create new .nc file: CDO merges timestamps together. => only 1 gigantic ICON file w all timesteps!
