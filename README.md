@@ -37,19 +37,21 @@ To Do:
 	would need:
 	Slope angle (β): The steepness of the terrain.
 	Slope aspect (γ): The orientation of the slope.
-	Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
-	Albedo (α): The reflectivity of the surface.
+	(Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
+	Albedo (α): The reflectivity of the surface.)
 
 	+ LU dataset? -> not that significant! Topo params more important
 
 	only from geopot height (+ICON slope angle) possible?
   	-> just compare height, slope angle & slope aspect from 8 model grid points with real, DEM one
-  	-> need DEM info!
+  	calculate angle & aspect maybe use: https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
+  	or: https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
+  	-> is that somehow possible with an xarray dataset, not only with tiff?
+  	or is saving geopot height of each model as .tiff the easiest?
 
     
 - compute VHD: for spatial extent
   
-
 - find extent of CAP: look at 2m temperature => get overview of valley in models
   
 - heat budget calc:
