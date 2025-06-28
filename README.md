@@ -40,11 +40,11 @@ To Do:
 	Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
 	Albedo (α): The reflectivity of the surface.
 
-	+ LU dataset? -> In ICON I had "fraction of land cover" + "roughness lenght" - didn't interpolate that to lat/lon!
-	-> Problem?
+	+ LU dataset? -> not that significant! Topo params more important
 
 	only from geopot height (+ICON slope angle) possible?
-  	-> just compare height from models 8 grid points with real one...
+  	-> just compare height, slope angle & slope aspect from 8 model grid points with real, DEM one
+  	-> need DEM info!
 
     
 - compute VHD: for spatial extent
