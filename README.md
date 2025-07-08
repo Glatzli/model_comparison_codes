@@ -49,6 +49,9 @@ To Do:
   	-> is that somehow possible with an xarray dataset, not only with tiff?
   	or is saving geopot height of each model as .tiff the easiest?
 
+  	Use xDEM: Problem:
+  	ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
+  	-> would need same resolution in x and y!
     
 - compute VHD: for spatial extent
   
