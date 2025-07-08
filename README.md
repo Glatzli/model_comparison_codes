@@ -33,6 +33,7 @@ Input from presentation/last meetings:
 
 
 To Do:
+- create one file "general_calculations"? for slope angels and future stuff?
 - PCGP evaluation:
 	would need:
 	Slope angle (β): The steepness of the terrain.
@@ -52,8 +53,9 @@ To Do:
     		- RichDEM: failed installation, probably same as xDEM
   		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
 
-  	Try numpy!
-
+  	Numpy:
+	works! calculate PCGP now!
+	tried to save .tif DEM-file with lat&lon instead x&y but didn't work...
 
     
 - compute VHD: for spatial extent
