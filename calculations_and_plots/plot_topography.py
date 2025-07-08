@@ -3,17 +3,18 @@ Plot also the locations of the stations
 """
 
 import json
-
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.mpl.ticker as cticker
 import geopandas
 import geopandas as gpd
+import math
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import matplotlib.ticker as mticker
 import matplotlib.font_manager as fm
 from matplotlib.legend import Legend
+from matplotlib.pyplot import ylabel
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import numpy as np
 import pycrs
@@ -52,6 +53,13 @@ def read_plot_clip_tirol():
     fig.colorbar(image_hidden, ax=ax)
     show(dem, cmap="Greys_r", ax=ax)
 
+    return dem
+
+
+def read_dem_xarray(file_name = TIROL_DEMFILE):
+
+    dem = xr.open_dataset(file_name, engine="rasterio")
+    dem = dem.rename({"x": "lon", "y": "lat", "band_data":"height"})  # rename the coordinates to lon and lat
     return dem
 
 
@@ -539,8 +547,6 @@ def select_extent_around_LOWI(ds, lat_degree, lon_degree):
     return ds.sel(lat=extent_lat, lon=extent_lon), extent_lat, extent_lon  # nz=90,  (for hannes' topo .nc file)
 
 
-import math
-
 
 def calculate_lon_extent_for_km(latitude, km):
     """
@@ -603,8 +609,7 @@ if __name__ == '__main__':
     # create_clipped_dem(data)  # create DEM90 digital elevation model
     hobo = xr.open_dataset(confg.data_folder + "201707_hobo.nc")
 
-    # height_hannes = xr.open_dataset(filepath_arome_height)  # open AROME MODEL Height
-    # height_hannes = height_hannes.isel(time=0)
+    # read_plot_clip_tirol()  # read & plot DEM of tirol
 
     # height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME MODEL Height lowest level
     height_lowest = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc") # open ICON MODEL Height lowest level

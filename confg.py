@@ -15,7 +15,7 @@ dir_PLOTS = "D:/MSc_Arbeit/plots/"
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
-TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"
+TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"  # changed dem file: indexed and renamed coords
 filepath_arome_height = f"{model_folder}/AROME/AROME_TEAMx_CAP_3D_fields/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_z.nc"
 dem_file_hobos_extent = f"{data_folder}/Height/dem_cut_hobos.tif"  # created DEM (in model_topography) to see real heights with HOBOS
 
