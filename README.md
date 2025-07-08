@@ -43,11 +43,19 @@ To Do:
 	+ LU dataset? -> not that significant! Topo params more important
 
 	only from geopot height (+ICON slope angle) possible?
-  	-> just compare height, slope angle & slope aspect from 8 model grid points with real, DEM one
-  	calculate angle & aspect maybe use: https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
-  	or: https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
-  	-> is that somehow possible with an xarray dataset, not only with tiff?
-  	or is saving geopot height of each model as .tiff the easiest?
+  	-> just compare slope angle & slope aspect from 8 model grid points with real, DEM one
+  	calculate angle & aspect options:
+  		- numpy: only slope angle: easy!
+  		- xDEM: false Layout of weather models, not equal distance in lat-lon in DEM (only on 8th digit or so...)
+  		(saving geopot height of each model as .tiff) https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
+    		- RichDEM: failed installation, probably same as xDEM
+  		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
+
+  	Try numpy!
+
+  	
+  	or: 
+  	or is  the easiest?
 
   	Use xDEM: Problem:
   	ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
