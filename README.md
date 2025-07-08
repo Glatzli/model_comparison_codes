@@ -46,20 +46,15 @@ To Do:
   	-> just compare slope angle & slope aspect from 8 model grid points with real, DEM one
   	calculate angle & aspect options:
   		- numpy: only slope angle: easy!
-  		- xDEM: false Layout of weather models, not equal distance in lat-lon in DEM (only on 8th digit or so...)
+  		- xDEM: false Layout of weather models, not equal distance in lat-lon in DEM:
+  		ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
   		(saving geopot height of each model as .tiff) https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
     		- RichDEM: failed installation, probably same as xDEM
   		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
 
   	Try numpy!
 
-  	
-  	or: 
-  	or is  the easiest?
 
-  	Use xDEM: Problem:
-  	ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
-  	-> would need same resolution in x and y!
     
 - compute VHD: for spatial extent
   
