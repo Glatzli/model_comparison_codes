@@ -249,6 +249,12 @@ ToDo:
 - I don't have geopotential height! Only geometric height or (best) terrain height... but miss this for other vars!
 read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are south_north & west_east 
 -> impossible to find lat/lon!
+Solution:
+- xWRF? https://xarray.dev/blog/introducing-xwrf
+
+Info:
+from loading wrf-files directily w XARRAY: Map Proj char: Lambert Conformal
+OUTPUT FROM WRF V4.4.1 model
 
 coordinates:
 - Time (renamed time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00
