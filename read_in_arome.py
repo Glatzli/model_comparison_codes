@@ -53,10 +53,11 @@ def convert_calc_variables(ds):
     #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
     #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
     ds = ds.metpy.dequantify()
-    # convert temp to °C
-    ds["temperature"] = ds["temperature"] - 273.15
+    if "th" in ds:
+        # convert temp to °C
+        ds["temperature"] = ds["temperature"] - 273.15
 
-    return ds.compute()
+    return ds
 
 
 def create_ds_geopot_height_as_z_coordinate(ds):
@@ -289,7 +290,6 @@ if __name__ == '__main__':
     lon_ibk = 11.384167
     # arome = read_timeSeries_AROME(location)
 
-
     # arome3d = read_3D_variables_AROME(variables=["z"], method="sel")
     # arome = read_in_arome_fixed_point(variables=["p", "th", "z"])
     arome3d_new = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])
@@ -297,8 +297,9 @@ if __name__ == '__main__':
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
     # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
-    # arome = arome3d_new.isel(height=0).compute()
-    # arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    arome = arome3d_new.isel(height=0).compute()
+    arome = arome.rename({"latitude": "lat", "longitude": "lon"})  # rename to uniform z coordinate
+    arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
 
     # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
     # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)

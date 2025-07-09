@@ -115,15 +115,30 @@ if __name__ == '__main__':
 
     dem = read_dem_xarray()  # read DEM
     # dem_elevation = dem.isel(band=0).height.compute().values  # index to have only 2 coordinates: lat, lon
+    slope_dem = read_topo_calc_slope(dem.sel(band=1).height)  # calculate slope from DEM
+    dem["slope"] = (("lat", "lon"), slope_dem)  # add slope to dem dataset
 
-    model_topo = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc")
-    icon_topo_array = model_topo.z # icon topography as DataArray
-    slope = read_topo_calc_slope(icon_topo_array)
-    model_topo["slope"] = (("lat", "lon"), slope)
+    # read ICON and calc slope
+    # model_topo = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc")
+    # slope_model = read_topo_calc_slope(model_topo.z)  # calculate slope from model topography, needs DataArray as input
+    # model_topo["slope"] = (("lat", "lon"), slope_model)  # add slope to model_topo dataset
 
+    # read AROME and calc slope
+    model_topo = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")
+    slope_model = read_topo_calc_slope(model_topo.z)  # calculate slope from model topography, needs DataArray as input
+    model_topo["slope"] = (("lat", "lon"), slope_model)  # add slope to model_topo dataset
 
-    gpe = choose_gpe(ds=model_topo, lat_ngp=lat_ibk, lon_ngp=lon_ibk)
+    # choose physically consistent grid point (pcgp) from model topography according to Simonet et al. (2025)
+    # https://doi.org/10.21203/rs.3.rs-6050730/v1
+    # but only with slope angle, LU is not that important and aspect ratio is too complicated...
+    gpe_dem = choose_gpe(ds=dem, lat_ngp=lat_ibk, lon_ngp=lon_ibk)  # choose GPE around NGP from DEM -> real values
+    gpe_model = choose_gpe(ds=model_topo, lat_ngp=lat_ibk, lon_ngp=lon_ibk)
+
+    ad_slope = np.abs(gpe_model.slope.values - gpe_dem.slope.values)  # calculate AD_beta
+    ad_slope_n = ad_slope / ad_slope.max()  # AD_beta,n
+    # min_idx = ad_slope_n.argmin()
+    gpe_model["slope_n"] = (("lat", "lon"), ad_slope_n)  # add AD_beta,n to gpe_model dataset
+    pcgp_model = gpe_model.where(gpe_model.slope_n == gpe_model.slope_n.min(), drop=True)  # select pcgp from model topography
 
     icon_ibk_ngp = xr.open_dataset(confg.icon_folder_3D + "/ICON_temp_p_rho_timeseries_ibk.nc")
     calc_vhd_single_point(icon_ibk_ngp)
-

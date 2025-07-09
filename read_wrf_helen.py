@@ -18,6 +18,7 @@ import xarray as xr
 from fsspec.compression import compr
 from matplotlib import pyplot as plt
 from salem import wrftools
+import salem
 from shapely.geometry import Point, Polygon
 from wrf import combine_dims
 from xarray.backends.netCDF4_ import NetCDF4DataStore
@@ -367,28 +368,25 @@ def read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, m
     return ds
 
 if __name__ == '__main__':
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+
     lat_ibk = 47.259998
     lon_ibk = 11.384167
-    wrf = read_wrf_fixed_point(lat=lat_ibk, lon=lon_ibk)
+    #wrf = read_wrf_fixed_point(lat=lat_ibk, lon=lon_ibk)
+    #wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
+    #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
+    #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
-    wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
-    wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
-    wrf_plotting
+    wrf = read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=9.2, max_lon=13, min_lat=46.5, max_lat=48.2)
+    wrf
 
-    #wrf.rh.isel(time=0).plot(y="height")
-
-    # wrf = read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=12, max_lon=13, min_lat=49, max_lat=50)
+    wrf.z.isel(height=0).salem.quick_map(cmap='topo')
 
     #df = read_wrf_fixed_point_and_time(day=16, hour=3, latitude=confg.station_files_zamg["IAO"]["lat"],
     #                               longitude=confg.station_files_zamg["IAO"]["lon"], minute=0)
 
 
-
-    # print(df)
-    #print(read_wrf_fixed_point(longitude=11.3857,
-    #                           latitude=47.2640, lowest_level=True))
-
     #salem_example_plots(ds)
     #plt.show()
-    wrf
+
