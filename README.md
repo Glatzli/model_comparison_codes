@@ -64,6 +64,7 @@ To Do:
   
 - heat budget calc:
 	- find extent: look at 2m temperature => get overview of valley res.
+- model topogrpahy: files: AROME_geopot_height_3dlowest_level.nc saved with "lat" & "lon"
 - Preliminary work:
   	- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
   	- 2nd research question: in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
