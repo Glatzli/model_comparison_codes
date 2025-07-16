@@ -51,6 +51,7 @@ To Do:
   		ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
   		(saving geopot height of each model as .tiff) https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
 			=> calculate slope with numpy and aspect with xDEM? would work...
+  			compute everything in "calculate_slope"-function. Problems with different file/data layout... (before nc file, now tif file for aspect w xDEM...)
   			
     		- RichDEM: failed installation, probably same as xDEM
   		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
