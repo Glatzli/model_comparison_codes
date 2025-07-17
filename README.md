@@ -11,13 +11,12 @@ Questions for next meeting:
     Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
     Albedo (α): The reflectivity of the surface.
   I don't have albedo measured, and LU spec is secondary. But I should use slope angle & aspect ratio
-  -> calc that for all points!
+  -> calc slope angle with numpy and aspect with xDEM due to strange errors in slope calc xDEM...
 
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
-- netcdf file chunking: how to find saved chunks?
+- netcdf file chunking: how to find saved chunks? used chunks="auto", works o.k.
 
 ToDo till next meeting:
-- formular digital mit bild unterschreiben => kein stress
 - check if regridded is nearly equal to normal grid (pot temp plot ibk): looks good!
 - calc VHD
 
