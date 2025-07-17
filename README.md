@@ -2,8 +2,8 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
-- Do I have to interpolate the WRF-model?
-- complete PCGP calc for Arome & ICON
+- Do I have to interpolate the WRF-model? UM?
+- complete PCGP calc for Arome & ICON: works now, right? test again!
 
 
 Questions for next meeting: 
