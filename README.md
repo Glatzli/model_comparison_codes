@@ -3,7 +3,7 @@ model intercomparison study
 
 ToDo:
 - Do I have to interpolate the WRF-model?
-- complete PCGP calc for Arome & ICOn
+- complete PCGP calc for Arome & ICON
 
 
 Questions for next meeting: 
@@ -13,11 +13,13 @@ Questions for next meeting:
     Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
     Albedo (α): The reflectivity of the surface.
   I don't have albedo measured, and LU spec is secondary. But I should use slope angle & aspect ratio
-  -> calc slope angle with numpy and aspect with xDEM due to strange errors in slope calc xDEM...
+  -> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
+  rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
+  This was required by: ['slope'].)
   works for AROME & ICON data,
 
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
-- netcdf file chunking: how to find saved chunks? used chunks="auto", works o.k.
+   -> would need to rewrite read in routines...
 
 ToDo till next meeting:
 - check if regridded is nearly equal to normal grid (pot temp plot ibk): looks good!
@@ -87,6 +89,7 @@ now pot temp timeseries for ibk for all models incl HATPRO
 
 
 general notes:
+- netcdf file chunking: how to find saved chunks? used chunks="auto", works o.k.
 - model topography: probably in 2D variables (?) hannes used geopotential height! how best? (model topo or real DEM?): Rachoecker hat auch schiachen overview-plot: mache Ausschnitt v AROME topo etw größer, hau Stadtnamen rein u slope profiles? Inn-Valley Beschriftung & passt scho?
 search grid cells & plot temp along the cells to get along-valley cross section -> Hannes made topo plot from geopot height, hgt variable is only tuned to 2m!
 HOBO dataset: https://zenodo.org/records/4672313
@@ -98,7 +101,6 @@ grid file must be read in together with the data file." (Icon tutorial 2023)
 look at 2D files (WRF), land cover (forest, etc)
 AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 -> make own overview plot till concept presentation?
-
 
 
 - rather look at 3D data, not extrapolation to surface! all models extrapolate differently... probably extrapolate by myself to have it consistent -> later
