@@ -2,6 +2,8 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
+- Do I have to interpolate the WRF-model?
+- complete PCGP calc for Arome & ICOn
 
 
 Questions for next meeting: 
@@ -12,6 +14,7 @@ Questions for next meeting:
     Albedo (α): The reflectivity of the surface.
   I don't have albedo measured, and LU spec is secondary. But I should use slope angle & aspect ratio
   -> calc slope angle with numpy and aspect with xDEM due to strange errors in slope calc xDEM...
+  works for AROME & ICON data,
 
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
 - netcdf file chunking: how to find saved chunks? used chunks="auto", works o.k.
