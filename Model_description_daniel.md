@@ -37,6 +37,11 @@ with vars:
 - th = pot temp [K]
 - p = pressure [hPa]
 
+for PCGP created .tif files as ICON_geometric_height_3dlowest_level_w_crs.tif:
+- x, y instead of lat, lon
+- band_data instead of z
+- added crs info (WGS84)
+
 2D AROME (`AROME_TEAMx_CAP_2D_fields`):
 
 - are tuned, in the night the temperature is not taken from 2m but from 0.5 m (lower temperature)
