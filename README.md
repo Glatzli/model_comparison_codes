@@ -5,7 +5,7 @@ ToDo:
 - Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
    Is ICON data now on a regular lat/lon grid or in WGS84?
    to have a uniform grid interpolate all to lat lon as ICON
-   or use python crs
+   tried to use rotated pole grid to have least error near Ibk
    UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
    WRF: scipy 2d interpolation
 - complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
