@@ -2,8 +2,8 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
-- Do I have to interpolate the WRF-model? UM?
-- complete PCGP calc for Arome & ICON: works now, right? test again!
+- Do I have to interpolate WRF-model? UM? How to find out in which projection it is now?
+- complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
 
 
 Questions for next meeting: 
