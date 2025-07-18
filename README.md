@@ -13,6 +13,7 @@ ToDo:
 - complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
   Is resolution of DEM and models comparable?
   DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
+  -> should use DEM with same resolution as models: first complete model transformation/interpolation...
 
 
 Questions for next meeting: 
