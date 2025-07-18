@@ -7,19 +7,21 @@ ToDo:
 
 
 Questions for next meeting: 
-- ICON variables?!: for PCGP LU dataset I would need:
+- for PCGP LU dataset I would need:
     Slope angle (β): The steepness of the terrain.
     Slope aspect (γ): The orientation of the slope.
     Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
     Albedo (α): The reflectivity of the surface.
-  I don't have albedo measured, and LU spec is secondary. But I should use slope angle & aspect ratio
+  I don't have albedo measured, and LU spec is secondary.
+  => Use only slope angle & aspect ratio:
   -> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
   rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
   This was required by: ['slope'].)
-  works for AROME & ICON data,
+  works for AROME & ICON data
 
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
    -> would need to rewrite read in routines...
+   UM & WRF is anyway not working for extent with lat/lon...
 
 ToDo till next meeting:
 - check if regridded is nearly equal to normal grid (pot temp plot ibk): looks good!
