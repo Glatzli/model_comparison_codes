@@ -268,13 +268,16 @@ if __name__ == '__main__':
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
-    # um = read_ukmo_fixed_time(time="2017-10-15T14:00:00")
-    um_geopot = create_ds_geopot_height_as_z_coordinate(um)
+    # um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
+    um = read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
+    # um_geopot = create_ds_geopot_height_as_z_coordinate(um)
 
-    um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
-    um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
+    # save um for plotting temp timeseries with geopot height as z coord
+    # um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
+    # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     um
+
+
     # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
     # um
 

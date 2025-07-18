@@ -301,6 +301,12 @@ if __name__ == '__main__':
     arome = arome.rename({"latitude": "lat", "longitude": "lon"})  # rename to uniform z coordinate
     arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
 
+    # round coords due to strange error during slope calc..
+    arome["lat"] = arome["lat"].round(4)
+    arome["lon"] = arome["lon"].round(4)
+    # rename coords for xdem/rasterio compatibility, for slope and aspect calculation
+    arome.rename({"lat":"y", "lon":"x"}).rio.to_raster(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.tif")
+
     # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
     # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
 

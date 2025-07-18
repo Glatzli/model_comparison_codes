@@ -106,9 +106,9 @@ def find_min_index(ds_icon, lon, lat):
 def read_full_icon(variant="ICON"):
     """Read the full ICON 3D model dataset for a given variant. ~8GB"""
     if variant == "ICON":
-        ds_path = confg.icon_folder_3D + "/ICON_20171015_latlon.nc"
+        ds_path = confg.icon_folder_3D + "/ICON_latlon_subset_tirol.nc"
     elif variant == "ICON2TE":
-        ds_path = confg.icon2TE_folder_3D + "/ICON2TE_20171015_latlon.nc"
+        ds_path = confg.icon2TE_folder_3D + "/ICON2TE_latlon_subset_tirol.nc"
     else:
         raise ValueError("wrong variant")
     icon_full = xr.open_dataset(ds_path, chunks="auto", engine="netcdf4")
@@ -291,6 +291,12 @@ if __name__ == '__main__':
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
 
     icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON")
+    # save height info as .tif file for pcgp computation i.e. calc of slope & aspect need crs info
+    icon_tif = icon_extent.rename({"lat": "y", "lon": "x", "z":"band_data"})  # rename
+    icon_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
+    icon_tif.band_data.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
+
+
     # save lowest level as nc file for topo plotting
     icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
     icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file

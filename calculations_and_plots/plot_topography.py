@@ -57,7 +57,6 @@ def read_plot_clip_tirol():
 
 
 def read_dem_xarray(file_name = TIROL_DEMFILE):
-
     dem = xr.open_dataset(file_name, engine="rasterio")
     dem = dem.rename({"x": "lon", "y": "lat", "band_data":"height"})  # rename the coordinates to lon and lat
     return dem
@@ -274,6 +273,7 @@ def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_
     plt.tight_layout()
     plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_filled.svg")
 
+
 def plot_stations_detail(df, model_name, ext_lat, ext_lon):
     """plot model topography as filled imshow plot in the innvalley, and on top as scatter points all stations"""
     fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={'projection': ccrs.PlateCarree()})
@@ -364,6 +364,7 @@ def plot_stations_detail(df, model_name, ext_lat, ext_lon):
     #  labels=["EC station", "LIDAR", "Radiosonde", "AWS", "T/RH Logger", ""]
     plt.tight_layout()
     plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_detail.svg")
+
 
 def plot_lidar_and_Modelgrid_points(dataset, model_name, ext_lat, ext_lon):
     """Function to plot lidar station points and Model grid points"""
@@ -545,7 +546,6 @@ def select_extent_around_LOWI(ds, lat_degree, lon_degree):
     extent_lat = slice(station_files_zamg["IAO"]["lat"] - lat_degree, station_files_zamg["IAO"]["lat"] + lat_degree)
     extent_lon = slice(station_files_zamg["IAO"]["lon"] - lon_degree, station_files_zamg["IAO"]["lon"] + lon_degree)
     return ds.sel(lat=extent_lat, lon=extent_lon), extent_lat, extent_lon  # nz=90,  (for hannes' topo .nc file)
-
 
 
 def calculate_lon_extent_for_km(latitude, km):
