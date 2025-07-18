@@ -3,6 +3,7 @@ model intercomparison study
 
 ToDo:
 - Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+   Is ICON data now on a regular lat/lon grid or in WGS84?
 - complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
 
 
