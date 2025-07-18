@@ -8,7 +8,11 @@ ToDo:
    tried to use rotated pole grid to have least error near Ibk
    UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
    WRF: scipy 2d interpolation
+  
+
 - complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
+  Is resolution of DEM and models comparable?
+  DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
 
 
 Questions for next meeting: 
