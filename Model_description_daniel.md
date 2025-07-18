@@ -240,7 +240,7 @@ calculated variables with MetPy:
 - pressure [hPa]
 - temperature [°C]
 
-## WRF_ACINN (ETH not used cause start of simulation is midnight!)
+## WRF_ACINN (WRF_ETH not used cause start of simulation is midnight!)
 already improved: 
 	+ work uniformly with xarrray datasets, no pandas! 
 	+ read_wrf_fixed_time much faster (w. read_mfdataset)
@@ -257,7 +257,7 @@ read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are 
 Solution:
 - xWRF? https://xarray.dev/blog/introducing-xwrf
 
-Info:
+Projection Info:
 from loading wrf-files directily w XARRAY: Map Proj char: Lambert Conformal
 OUTPUT FROM WRF V4.4.1 model
 
