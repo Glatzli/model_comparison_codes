@@ -24,7 +24,7 @@ Questions for next meeting:
    UM & WRF is anyway not working for extent with lat/lon...
 
 ToDo till next meeting:
-- check if regridded is nearly equal to normal grid (pot temp plot ibk): looks good!
+
 - calc VHD
 
 
@@ -86,7 +86,7 @@ general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
 HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
 now pot temp timeseries for ibk for all models incl HATPRO
-
+- regridded ICON equal to normal grid (pot temp plot ibk): looks good!
 
 
 
