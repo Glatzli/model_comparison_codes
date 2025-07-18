@@ -7,6 +7,7 @@ ToDo:
    to have a uniform grid interpolate all to lat lon as ICON
    or use python crs
    UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
+   WRF: scipy 2d interpolation
 - complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
 
 
