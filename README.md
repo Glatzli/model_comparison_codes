@@ -34,21 +34,8 @@ Questions for next meeting:
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
    -> would need to rewrite read in routines...
    UM & WRF is anyway not working for extent with lat/lon...
-
-ToDo till next meeting:
-
+  
 - calc VHD
-
-
-Input from presentation/last meetings:
-- temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
-	=> maybe compute comparison...
-	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
-	created new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
-- humidity:
-  	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
-- (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
-
 
 To Do:
 - create one file "general_calculations"? for slope angels and future stuff?
@@ -77,9 +64,6 @@ To Do:
   	Numpy:
 	works! calculate PCGP now!
 	tried to save .tif DEM-file with lat&lon instead x&y but didn't work...
-
-    
-- compute VHD: for spatial extent
   
 - find extent of CAP: look at 2m temperature => get overview of valley in models
   
@@ -90,9 +74,16 @@ To Do:
   	- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
   	- 2nd research question: in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
  
-Feedback presentation:
+Input from presentation/last meetings:
 - introduce first models, then show results and not else!
 - Understand all variables written in a figure (f.e. Hz = vertical comp of heat flux...)
+- temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
+	=> maybe compute comparison...
+	not that important for 2-d plot like that, more important for calc of advection f.e.: real values!
+	created new dataset with geopot heigt as variable in z, take 20th timestep (16.10. at 06:30 UTC) for geopot. height
+- humidity:
+  	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
+- (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
 
 general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
