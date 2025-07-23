@@ -32,7 +32,8 @@ Questions for next meeting:
 To Do:
 - create one file "general_calculations"? for slope angels and future stuff?
 - PCGP evaluation:
- 	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+  - Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+  - Would need uniform resolution of DEM and model... => rearrange DEM or use different one...
    Is ICON data now on a regular lat/lon grid or in WGS84?
    to have a uniform grid interpolate all to lat lon as ICON
    tried to use rotated pole grid to have least error near Ibk
