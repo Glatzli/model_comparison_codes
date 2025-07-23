@@ -2,15 +2,7 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo:
-- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
-   Is ICON data now on a regular lat/lon grid or in WGS84?
-   to have a uniform grid interpolate all to lat lon as ICON
-   tried to use rotated pole grid to have least error near Ibk
-   UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
-   WRF: scipy 2d interpolation
-  
-
-- complete PCGP calc for Arome & ICON: works now, need to implement calculation of AD_gamma (calc aspect ratio)
+- complete PCGP calc for Arome & ICON: works now
   Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
   
   Is resolution of DEM and models comparable? No!
@@ -40,30 +32,30 @@ Questions for next meeting:
 To Do:
 - create one file "general_calculations"? for slope angels and future stuff?
 - PCGP evaluation:
+ 	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+   Is ICON data now on a regular lat/lon grid or in WGS84?
+   to have a uniform grid interpolate all to lat lon as ICON
+   tried to use rotated pole grid to have least error near Ibk
+   UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
+   WRF: scipy 2d interpolation
+
 	would need:
 	Slope angle (β): The steepness of the terrain.
 	Slope aspect (γ): The orientation of the slope.
-	(Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
-	Albedo (α): The reflectivity of the surface.)
 
-	+ LU dataset? -> not that significant! Topo params more important
-
-	only from geopot height (+ICON slope angle) possible?
+	+ LU dataset? -> not that significant and LU info not possible, no measurements!
   	-> just compare slope angle & slope aspect from 8 model grid points with real, DEM one
   	calculate angle (numpy) & aspect ratio (xDEM) options:
-  		- xDEM: created .tif file from topography data with rioxarray, added EPSG42 projection attribute.
-  		false Layout of weather models, not equal distance in lat-lon in DEM:
+  		- xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. wrong?
+  
+  		(false Layout of weather models, not equal distance in lat-lon in DEM:
   		ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
   		(saving geopot height of each model as .tiff) https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
 			=> calculate slope with numpy and aspect with xDEM? would work...
   			compute everything in "calculate_slope"-function. Problems with different file/data layout... (before nc file, now tif file for aspect w xDEM...)
-  			
+  	
     		- RichDEM: failed installation, probably same as xDEM
-  		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python
-
-  	Numpy:
-	works! calculate PCGP now!
-	tried to save .tif DEM-file with lat&lon instead x&y but didn't work...
+  		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python)
   
 - find extent of CAP: look at 2m temperature => get overview of valley in models
   
