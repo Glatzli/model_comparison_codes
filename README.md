@@ -3,7 +3,7 @@ model intercomparison study
 
 ToDo:
 - complete PCGP calc for Arome & ICON: works now
-  Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
+  
   
   Is resolution of DEM and models comparable? No!
   DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
@@ -57,6 +57,7 @@ To Do:
   	
     		- RichDEM: failed installation, probably same as xDEM
   		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python)
+    - Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
   
 - find extent of CAP: look at 2m temperature => get overview of valley in models
   
