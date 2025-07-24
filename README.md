@@ -3,25 +3,27 @@ model intercomparison study
 
 ToDo:
 - complete PCGP calc for Arome & ICON: works now
-  
-  
-  Is resolution of DEM and models comparable? No!
-  DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
-  -> should use DEM with same resolution as models: first complete model transformation/interpolation...
+	Resolution of DEM & model not equal!
+ 	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
+  	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
+
+ 	- for PCGP LU dataset I would need:
+    		Slope angle (β): The steepness of the terrain.
+    		Slope aspect (γ): The orientation of the slope.
+    		Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
+    		Albedo (α): The reflectivity of the surface.
+  	I don't have albedo & LU measured. => only us slope angle & aspect
+	-> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
+  	rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
+ 	This was required by: ['slope'].)
+  	works for AROME & ICON data
+	
+
 
 
 Questions for next meeting: 
-- for PCGP LU dataset I would need:
-    Slope angle (β): The steepness of the terrain.
-    Slope aspect (γ): The orientation of the slope.
-    Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
-    Albedo (α): The reflectivity of the surface.
-  I don't have albedo measured, and LU spec is secondary.
-  => Use only slope angle & aspect ratio:
-  -> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
-  rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
-  This was required by: ['slope'].)
-  works for AROME & ICON data
+
+  -
 
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
    -> would need to rewrite read in routines...
