@@ -16,53 +16,29 @@ ToDo:
 	-> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
   	rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
  	This was required by: ['slope'].)
-  	works for AROME & ICON data
+		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
+
+  	-> works for AROME & ICON data
+	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+	Is ICON data now on a regular lat/lon grid or in WGS84?
+  	to have a uniform grid interpolate all to lat lon as ICON
+   	tried to use rotated pole grid to have least error near Ibk
+   	UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
+  	WRF: scipy 2d interpolation
+     	calculate angle (numpy) & aspect ratio (xDEM) options:
+   	- Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
+  		
 	
-
-
-
-Questions for next meeting: 
-
-  -
-
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
    -> would need to rewrite read in routines...
    UM & WRF is anyway not working for extent with lat/lon...
-  
+- create one file "general_calculations"? for slope angels and future stuff?
 - calc VHD
 
+Questions for next meeting: 
+
+
 To Do:
-- create one file "general_calculations"? for slope angels and future stuff?
-- PCGP evaluation:
-  - Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
-  - Would need uniform resolution of DEM and model... => rearrange DEM or use different one...
-   Is ICON data now on a regular lat/lon grid or in WGS84?
-   to have a uniform grid interpolate all to lat lon as ICON
-   tried to use rotated pole grid to have least error near Ibk
-   UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
-   WRF: scipy 2d interpolation
-
-	would need:
-	Slope angle (β): The steepness of the terrain.
-	Slope aspect (γ): The orientation of the slope.
-
-	+ LU dataset? -> not that significant and LU info not possible, no measurements!
-  	-> just compare slope angle & slope aspect from 8 model grid points with real, DEM one
-  	calculate angle (numpy) & aspect ratio (xDEM) options:
-  		- xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. wrong?
-  
-  		(false Layout of weather models, not equal distance in lat-lon in DEM:
-  		ValueError: Surface fit and rugosity require the same X and Y resolution ((0.004166666666666668, 0.004166666666666669) was given). This was required by: ['slope']
-  		(saving geopot height of each model as .tiff) https://richdem.readthedocs.io/en/latest/python_api.html#richdem.TerrainAttribute
-			=> calculate slope with numpy and aspect with xDEM? would work...
-  			compute everything in "calculate_slope"-function. Problems with different file/data layout... (before nc file, now tif file for aspect w xDEM...)
-  	
-    		- RichDEM: failed installation, probably same as xDEM
-  		- Google earth engine: complicated ...  https://developers.google.com/earth-engine/apidocs/ee-terrain-aspect#colab-python)
-    - Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
-  
-- find extent of CAP: look at 2m temperature => get overview of valley in models
-  
 - heat budget calc:
 	- find extent: look at 2m temperature => get overview of valley res.
 - model topogrpahy: files: AROME_geopot_height_3dlowest_level.nc saved with "lat" & "lon"
@@ -80,6 +56,7 @@ Input from presentation/last meetings:
 - humidity:
   	- rather use specific humidity for comparing between models cause rel. humidity is largely temp dependent! 
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
+- find extent of CAP: look at 2m temperature => get overview of valley in models
 
 general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
