@@ -19,7 +19,8 @@ ToDo:
 		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
 
   	-> works for AROME & ICON data
-	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal? UM (which projection)?
+	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal?
+   	- UM (which projection)?
 	Is ICON data now on a regular lat/lon grid or in WGS84?
   	to have a uniform grid interpolate all to lat lon as ICON
    	tried to use rotated pole grid to have least error near Ibk
