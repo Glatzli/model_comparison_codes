@@ -16,9 +16,8 @@ Questions:
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
    	
-	pyproj: 
-   	UM: subtract rotated_latitude_longitude from coords to have regular grid?
-  	WRF: scipy 2d interpolation? or rather pyproj with smth like:
+   	- UM: subtract rotated_latitude_longitude from coords to have regular grid? or use pyproj?
+  	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
   		pyproj.Proj(proj="lcc",
                            lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
                            lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
