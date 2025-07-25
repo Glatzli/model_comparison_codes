@@ -19,13 +19,6 @@ ToDo:
 		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
 
   	-> works for AROME & ICON data
-	- Do I have to interpolate WRF-model in attrs of netCDF file: lambertian conformal?
-   	- UM (which projection)?
-	Is ICON data now on a regular lat/lon grid or in WGS84?
-  	to have a uniform grid interpolate all to lat lon as ICON
-   	tried to use rotated pole grid to have least error near Ibk
-   	UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
-  	WRF: scipy 2d interpolation
      	calculate angle (numpy) & aspect ratio (xDEM) options:
    	- Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
   		
@@ -36,8 +29,16 @@ ToDo:
 - create one file "general_calculations"? for slope angels and future stuff?
 - calc VHD
 
-Questions for next meeting: 
 
+Questions for next meeting: 
+- Projections:
+  	- Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
+   	- UM: rotated pole projection was used (to have least error near Ibk)
+  	ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
+	pyproj: 
+
+   	UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
+  	WRF: scipy 2d interpolation
 
 To Do:
 - heat budget calc:
