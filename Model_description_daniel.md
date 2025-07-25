@@ -112,7 +112,7 @@ staggered/unstaggered grid: google!
 evtl use package: https://psyplot.github.io/psy-view/index.html -> only plot of one distinct level possible!
 -> plot temp w z_ifc not possible 
 
-DOMAIN subset with CDO to:
+DOMAIN subset with CDO sellonlatbox to:
 lat: 46.5 - 48.2° N
 lon: 9.2° - 13° E
 
