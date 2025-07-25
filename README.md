@@ -1,6 +1,29 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
+Questions: 
+- Projections:
+	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
+	- UM: rotated pole projection was used (to have least error near Ibk)
+       		grid_mapping_name:            rotated_latitude_longitude
+     		longitude_of_prime_meridian:  0.0
+    		earth_radius:                 6371229.0
+     		grid_north_pole_latitude:     42.70000076293945
+     		grid_north_pole_longitude:    191.39999389648438
+     		north_pole_grid_longitude:    0.0
+  	- WRF: Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
+  	  '+proj=lcc +lat_0=47.3000068664551 +lon_0=11.3999996185303 +lat_1=44 +lat_2=60 +x_0=0 +y_0=0 +R=6370000 +units=m +no_defs'
+
+  	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
+   	
+	pyproj: 
+   	UM: subtract rotated_latitude_longitude from coords to have regular grid?
+  	WRF: scipy 2d interpolation? or rather pyproj with smth like:
+  		pyproj.Proj(proj="lcc",
+                           lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
+                           lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
+                           a=6370000, b=6370000)
+
 ToDo:
 - complete PCGP calc for Arome & ICON: works now
 	Resolution of DEM & model not equal!
@@ -31,14 +54,7 @@ ToDo:
 
 
 Questions for next meeting: 
-- Projections:
-  	- Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
-   	- UM: rotated pole projection was used (to have least error near Ibk)
-  	ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
-	pyproj: 
 
-   	UM: rotated north pole: subtract rotated_latitude_longitude from coords to have regular grid
-  	WRF: scipy 2d interpolation
 
 To Do:
 - heat budget calc:
