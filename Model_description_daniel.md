@@ -253,7 +253,9 @@ topography plot still doesn't work, I don't know why...
 ToDo:
 - I don't have geopotential height! Only geometric height or (best) terrain height... but miss this for other vars!
 read_wrf_fixed_time: possible to read in only box of lat, lon -> dimensions are south_north & west_east 
--> impossible to find lat/lon!
+-> impossible to find lat/lon! -> change projection with pyproj?
+	I have to define goal projection => subset it first with CDO?
+  
 Solution:
 - xWRF? https://xarray.dev/blog/introducing-xwrf
 
