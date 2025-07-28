@@ -18,8 +18,11 @@ Questions:
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
   	-> plotting with defining a projection in cartopy is easy.
-  	-> how interpolating/transforming? Pyproj documentation states that Area of use is important. Is not defined.
-  	Maybe I have to set Area of use somehow to get transformation with pyproj working?
+  	-> how interpolating/transforming?
+  		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
+  		Maybe I have to set Area of use somehow to get transformation with pyproj working?
+  		- xESMF: not for windows
+  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> insanely slow!
    	
    	- UM: subtract rotated_latitude_longitude from coords to have regular grid? or use pyproj?
   	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
