@@ -17,6 +17,9 @@ Questions:
 		that you could also calculate differences between the simulations.
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
+  	-> plotting with defining a projection in cartopy is easy.
+  	-> how interpolating/transforming? Pyproj documentation states that Area of use is important. Is not defined.
+  	Maybe I have to set Area of use somehow to get transformation with pyproj working?
    	
    	- UM: subtract rotated_latitude_longitude from coords to have regular grid? or use pyproj?
   	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
