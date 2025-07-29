@@ -10,6 +10,10 @@ import pandas as pd
 import xarray as xr
 from metpy.calc import dewpoint_from_specific_humidity, relative_humidity_from_dewpoint
 from metpy.units import units
+import pyproj
+import matplotlib
+import matplotlib.pyplot as plt
+from pyproj import Transformer, CRS
 # from rasterio.env import local
 from scipy.interpolate import interp1d
 from pathlib import Path
@@ -264,6 +268,7 @@ def get_ukmo_height_of_city_name(city_name):
 
 
 if __name__ == '__main__':
+    matplotlib.use('Qt5Agg')
     # get values on lowest level
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
@@ -275,7 +280,22 @@ if __name__ == '__main__':
     # save um for plotting temp timeseries with geopot height as z coord
     # um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
     # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
-    um
+    # um
+
+    # are these the correct lats&lons of the UM model?
+    lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude
+    lon = (um.grid_longitude - 360) + um.rotated_latitude_longitude.grid_north_pole_longitude
+
+
+    # try to tranform the rotated pole coord to wgs84 regular lat/lon using cartopy
+    um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
+                     pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
+    wgs84_crs = ccrs.epsg(4326)  # WGS84
+
+
+    crs_orig = pyproj.CRS.from_proj4(um.attrs["pyproj_srs"])   # get CRS info from original WRF dataset
+    crs_proj = pyproj.CRS.from_epsg(4326)
+    proj = pyproj.Transformer.from_crs(crs_orig, crs_orig)
 
 
     # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")

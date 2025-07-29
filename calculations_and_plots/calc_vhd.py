@@ -140,6 +140,14 @@ def read_dem_xarray(filename):
 
 
 def calc_vhd_single_point(ds_point):
+    """
+    calculates the valley heat deficit (VHD) for a single point in a dataset, e.g. for Innsbruck.
+    Problem: for ICON I have density rho, for AROME f.e. not. need to implement hydrostatic approx. to get VHD for
+    other models...
+
+    :param ds_point:
+    :return: vhd_point: xarray.DataArray with valley heat deficit at the point with time as coord.
+    """
     ds_below_hafelekar = ds_point.where(ds_point.height <= hafelekar_height, drop=True)
     th_hafelekar = ds_below_hafelekar.isel(height=0).th
     vhd_point = c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")  # pot temp deficit
@@ -149,16 +157,19 @@ def calc_vhd_single_point(ds_point):
 
 def calculate_select_pcgp(gpe_model, gpe_dem):
     """
-    computes and selects the physically consistent grid point (PCGP) from a model grid point ensemble (GPE) and DEM-ensemble
+    computes and selects the physically consistent grid point (PCGP) from a model grid point ensemble (GPE) and
+    DEM-ensemble and returns the PCGP as a xarray dataset with x as lon and y as lat coord.
+
     An ensemble consists of 1 nearest grid point in the middle and it's 8 surrounding points
-    more details can be found in Simonet et al. (2025)  https://doi.org/10.21203/rs.3.rs-6050730/v1
-    here only implemented with slope angle & aspect ratio calculated from model/dem height,
+    More details can be found in Simonet et al. (2025)  https://doi.org/10.21203/rs.3.rs-6050730/v1
+    here only implemented with slope angle & aspect ratio calculated from the model/dem height,
     implementation of land use is not possible due to missing measurements at the sites & variables in my model runs
     all variables are named in small letters for easier writing...
 
     :param gpe_model: grid point ensemble from a model (arome, icon, ...)
     :param gpe_dem: grid point ensemble from DEM
     :return:
+    pcgp: xarray dataset with the physically consistent grid point (PCGP) from the model x as lon and y as lat coord.
     """
     # calc AD slope:
     ad_slope = np.abs(gpe_model.slope.values - gpe_dem.slope.values)  # calculate AD_beta i.e. slope
@@ -181,24 +192,16 @@ def calculate_select_pcgp(gpe_model, gpe_dem):
 
     ad = (ad_slope + ad_aspect) / 2  # average of both AD values, AD_beta,gamma i.e. AD_slope,aspect
     min_idx = ad.argmin()  # get flattened index of min AD value (index of pcgp)
-    gpe_model["ad"] = (("lat", "lon"), ad)  # add AD_beta,n to gpe_model dataset
+    gpe_model["ad"] = (("x", "y"), ad)  # add AD_beta,n to gpe_model dataset
     # Now finished AD calculation, but how can I select PCGP where AD is minimal to find lat/lon coordinates of pcgp?
     # tried with new dataset, but pfusch...
 
-    pcgp = xr.Dataset(
-        data_vars=dict(
-            band_data=(("lat", "lon", "ad"), gpe_model.band_data.values),
-        ),
-        coords=dict(
-        x = ("x", gpe_model.x.values),
-        y = ("y", gpe_model.y.values),
-        ad = ("ad", ad),
-    ),
-    attrs=dict(decription="GPE of model with ad as coordinate to enable indexing by ad"),
-    )
-    pcgp_model = gpe_model.where(gpe_model.ad == gpe_model.ad.min(),
-                                 drop=True)  # select pcgp from model topography
-    return pcgp_model
+    # search for index where AD is minimal and index dataset to get dataset only for the PCGP
+    min_idx_flat = gpe_model.ad.values.argmin()
+    min_idx = np.unravel_index(min_idx_flat, gpe_model.ad.shape)
+    pcgp = gpe_model.isel(band=0).sel(x=gpe_model.x.values[min_idx[1]], y=gpe_model.y.values[min_idx[0]]).compute()
+
+    return pcgp
 
 
 if __name__ == '__main__':
@@ -235,9 +238,19 @@ if __name__ == '__main__':
     pcgp_arome = calculate_select_pcgp(gpe_model=gpe_arome, gpe_dem=gpe_icon)
     pcgp_icon = calculate_select_pcgp(gpe_model=gpe_icon, gpe_dem=gpe_icon)
 
-    icon_ibk_ngp = xr.open_dataset(confg.icon_folder_3D + "/ICON_temp_p_rho_timeseries_ibk.nc")
-    vhd_continue = calc_vhd_single_point(icon_ibk_ngp)
-    icon_ibk_ngp
+    # old step with saved icon gridpoint series
+    # icon_ibk_ngp = xr.open_dataset(confg.icon_folder_3D + "/ICON_temp_p_rho_timeseries_ibk.nc")
+    # vhd_continue = calc_vhd_single_point(icon_ibk_ngp)
+
+    # read models at that point
+    arome_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+                                                               variables=["p", "th", "z"])
+    icon_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values, variant="ICON")
+
+    # calc VHD for model data for PCGP
+    # vhd_arome = calc_vhd_single_point(arome_timeseries)
+    vhd_icon = calc_vhd_single_point(icon_timeseries)
+    vhd_icon
 
 
     # old stuff

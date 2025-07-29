@@ -28,6 +28,7 @@ from shapely.geometry import box
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
 
 import confg
+import read_ukmo
 from AROME.profile_radiosonde import station_files_zamg
 from confg import JSON_TIROL, TIROL_DEMFILE, cities, stations_ibox, MOMMA_stations_PM, dir_PLOTS, \
     ec_station_names, filepath_arome_height, dem_file_hobos_extent, data_folder
@@ -605,12 +606,26 @@ if __name__ == '__main__':
     black_hcl = sequential_hcl(palette="Grays").colors()[0]
     gray_hcl = sequential_hcl(palette="Grays").colors()[3]
 
+    # read and plot topography of UM model, easy with cartopy!
+    um = read_ukmo.read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
+    um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
+                     pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
+    um_lowest = um.isel(height=0)
+    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': um_orig_crs})
+
+    cs = ax.contourf(um_lowest['grid_longitude'], um_lowest['grid_latitude'], um_lowest["z"],
+                    transform=um_orig_crs, cmap = pal.cmap())
+    plt.show()
+    #ax.contour(df['lon'], df['lat'], df["z"], levels=levels_contour_lines,
+    #                transform=um_orig_crs, color = "grey", linewidths=0.2)
+
+
     #data = read_plot_clip_tirol()  # show whole Tyrol map
     # create_clipped_dem(data)  # create DEM90 digital elevation model
     hobo = xr.open_dataset(confg.data_folder + "201707_hobo.nc")
 
     # read_plot_clip_tirol()  # read & plot DEM of tirol
-
+    """
     # height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME MODEL Height lowest level
     height_lowest = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc") # open ICON MODEL Height lowest level
 
@@ -631,6 +646,6 @@ if __name__ == '__main__':
     # plot the locations of Lidar
     #plot_lidar_and_Modelgrid_points(ds_small_extent, "AROME", ext_lat=extent_lat_small,
     #                                ext_lon=extent_lon_small)  # mit dist_degree = 0.05
-    plt.show()
+    plt.show()"""
 
 
