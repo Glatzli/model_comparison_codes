@@ -17,14 +17,14 @@ Questions:
 		that you could also calculate differences between the simulations.
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
-  	-> plotting with defining a projection in cartopy is easy.
+  	-> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
   	-> how interpolating/transforming?
   		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
-  		Maybe I have to set Area of use somehow to get transformation with pyproj working?
-  		- xESMF: not for windows
-  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> insanely slow!
+  		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
+  		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
+  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!
    	
-   	- UM: subtract rotated_latitude_longitude from coords to have regular grid? or use pyproj?
+   	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
   	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
   		pyproj.Proj(proj="lcc",
                            lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
