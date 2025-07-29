@@ -25,6 +25,7 @@ Questions:
   		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!
    	
    	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
+   	  tried with pyproj but isn't correct, check calcs again!
   	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
   		pyproj.Proj(proj="lcc",
                            lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
