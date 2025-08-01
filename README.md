@@ -23,6 +23,8 @@ Questions:
   		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
   		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
   		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!
+  		-> having completely same grid is most important for cross sections
+  		can be calculated (interpolated) also later for 1 var if cross sect wanted. Just continue with AROME & ICON, maybe include others later 
    	
    	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
    	  tried with pyproj but isn't correct, check calcs again!
@@ -37,7 +39,8 @@ ToDo:
 	Resolution of DEM & model not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
   	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
-
+  	-> factor 2 is not that bad! maybe just smooth DEM to have nearly same resolution
+  
  	- for PCGP LU dataset I would need:
     		Slope angle (β): The steepness of the terrain.
     		Slope aspect (γ): The orientation of the slope.
