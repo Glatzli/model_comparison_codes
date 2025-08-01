@@ -18,8 +18,8 @@ Points:
 		that you could also calculate differences between the simulations.
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
-  	=> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
-  	=> how interpolating/transforming?
+  	-> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
+  	-> how interpolating/transforming?
   		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
   		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
   		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
@@ -34,14 +34,13 @@ Points:
     		-> for now: continue with AROME & ICON, maybe include others later 
   	  	having completely same grid is most important for cross sections: that one can compare completely the same points.
   		can be calculated (interpolated) also later for 1 var if cross sect wanted.
-- calc density from press and temp! just ideal gas law
 
 - PCGP calc for Arome & ICON: works now
 	Resolution of DEM & model not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
   	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
   	-> factor 2 is not that bad!
-  	just smooth DEM to have nearly same resolution
+  	just smooth DEM to have nearly same resolution, should be sufficient.
   
  	- for PCGP LU dataset I would need:
     		Slope angle (β): The steepness of the terrain.
@@ -55,21 +54,18 @@ Points:
 		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
 
   	-> works for AROME & ICON data
-     	calculate angle (numpy) & aspect ratio (xDEM) options:
-   	- Am I calculating it right? paper says: choose 4 GPs which least deviate from the meas. site. But I'm doing that with my AD calcs, right?
+     	calculate angle (numpy) & aspect ratio (xDEM) 
   		
 	
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
-   -> would need to rewrite read in routines...
-   UM & WRF is anyway not working for extent with lat/lon...
-- create one file "general_calculations"? for slope angels and future stuff?
-- calc VHD
+   TODO for AROME
+   UM & WRF not yet possible: missing lat/lon...
+- create one file "general_calculations"? for slope angles and future stuff?
+- calc VHD: calc density from press and temp! just ideal gas law!
 
 
-Questions for next meeting: 
 
-
-To Do:
+general notes/inputs:
 - heat budget calc:
 	- find extent: look at 2m temperature => get overview of valley res.
 - model topogrpahy: files: AROME_geopot_height_3dlowest_level.nc saved with "lat" & "lon"
@@ -77,7 +73,6 @@ To Do:
   	- Hannes only looked at SEB in AROME and WRF right? for UM no output -> manuela will ask peter for missing data
   	- 2nd research question: in Rauchoecker et al 2023 they looked at budget only for WRF model with this -> i don't have all these vars!
  
-Input from presentation/last meetings:
 - introduce first models, then show results and not else!
 - Understand all variables written in a figure (f.e. Hz = vertical comp of heat flux...)
 - temp timeseries 2d plot: uncertainty from standard atm. is equal to interp. of AROME (manuela)
@@ -89,7 +84,6 @@ Input from presentation/last meetings:
 - (rotach: compare radiation to know what's causing temp difference (not in model vars available!), compute from pot temp: makes no sense, zirkelschluss...)
 - find extent of CAP: look at 2m temperature => get overview of valley in models
 
-general notes:
 - first plot: temp timeseries 2d: (differences are calculated from 0.5 hourly timesteps and *2 to get K/hr)
 HATPRO: interpolated HATPRO data to AROME levels & used AROME pressure to calculate HATPRO pot temp
 now pot temp timeseries for ibk for all models incl HATPRO
@@ -97,7 +91,6 @@ now pot temp timeseries for ibk for all models incl HATPRO
 
 
 
-general notes:
 - netcdf file chunking: how to find saved chunks? used chunks="auto", works o.k.
 - model topography: probably in 2D variables (?) hannes used geopotential height! how best? (model topo or real DEM?): Rachoecker hat auch schiachen overview-plot: mache Ausschnitt v AROME topo etw größer, hau Stadtnamen rein u slope profiles? Inn-Valley Beschriftung & passt scho?
 search grid cells & plot temp along the cells to get along-valley cross section -> Hannes made topo plot from geopot height, hgt variable is only tuned to 2m!
