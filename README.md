@@ -33,8 +33,10 @@ Questions:
                            lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
                            lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
                            a=6370000, b=6370000)
+- calc density from press and temp! just ideal gas law
 
 ToDo:
+- send Manuela lats lons and grid des.
 - complete PCGP calc for Arome & ICON: works now
 	Resolution of DEM & model not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
