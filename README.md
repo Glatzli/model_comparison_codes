@@ -1,9 +1,10 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
-Questions: 
-- Projections:
-	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
+Points: 
+- Projections of Models:
+	- AROME:
+  	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
 	- UM: rotated pole projection was used (to have least error near Ibk)
        		grid_mapping_name:            rotated_latitude_longitude
      		longitude_of_prime_meridian:  0.0
@@ -17,15 +18,12 @@ Questions:
 		that you could also calculate differences between the simulations.
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
-  	-> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
-  	-> how interpolating/transforming?
+  	=> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
+  	=> how interpolating/transforming?
   		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
   		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
   		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
-  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!
-  		-> having completely same grid is most important for cross sections
-  		can be calculated (interpolated) also later for 1 var if cross sect wanted. Just continue with AROME & ICON, maybe include others later 
-   	
+  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!   	
    	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
    	  tried with pyproj but isn't correct, check calcs again!
   	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
@@ -33,15 +31,17 @@ Questions:
                            lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
                            lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
                            a=6370000, b=6370000)
+    		-> for now: continue with AROME & ICON, maybe include others later 
+  	  	having completely same grid is most important for cross sections: that one can compare completely the same points.
+  		can be calculated (interpolated) also later for 1 var if cross sect wanted.
 - calc density from press and temp! just ideal gas law
 
-ToDo:
-- send Manuela lats lons and grid des.
-- complete PCGP calc for Arome & ICON: works now
+- PCGP calc for Arome & ICON: works now
 	Resolution of DEM & model not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
   	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
-  	-> factor 2 is not that bad! maybe just smooth DEM to have nearly same resolution
+  	-> factor 2 is not that bad!
+  	just smooth DEM to have nearly same resolution
   
  	- for PCGP LU dataset I would need:
     		Slope angle (β): The steepness of the terrain.
