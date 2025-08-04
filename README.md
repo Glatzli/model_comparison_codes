@@ -62,6 +62,8 @@ Points:
    UM & WRF not yet possible: missing lat/lon...
 - create one file "general_calculations"? for slope angles and future stuff?
 - calc VHD: calc density from press and temp! just ideal gas law!
+  Problem for ICON: how did I flip the index height upside down? would like to have 1 at ground, with transpose or slices?!?
+  somehow there's a problem in VHD calc for one point...
 
 
 
@@ -202,6 +204,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
