@@ -14,7 +14,8 @@ Points:
      		north_pole_grid_longitude:    0.0
   	- WRF: Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
   	  '+proj=lcc +lat_0=47.3000068664551 +lon_0=11.3999996185303 +lat_1=44 +lat_2=60 +x_0=0 +y_0=0 +R=6370000 +units=m +no_defs'
-  		Manuela's input: For projecting the data into a new coordinate system (e.g., WGS84), you can use cartopy.crs (https://scitools.org.uk/cartopy/docs/latest/reference/crs.html). But even in WGS84, you will 		not have a regular grid. For a regular grid, you will need to interpolate the data. Interpolation always means some sort of loss, but on the other hand having all models on the same grid has the advantage
+  		Manuela's input: For projecting the data into a new coordinate system (e.g., WGS84), you can use cartopy.crs (https://scitools.org.uk/cartopy/docs/latest/reference/crs.html). But even in WGS84, you will
+		not have a regular grid. For a regular grid, you will need to interpolate the data. Interpolation always means some sort of loss, but on the other hand having all models on the same grid has the advantage
 		that you could also calculate differences between the simulations.
 
   	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
@@ -204,6 +205,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
