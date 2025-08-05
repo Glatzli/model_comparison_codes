@@ -65,9 +65,11 @@ Points:
 - calc VHD: calc density from press and temp! just ideal gas law!
   Problem for ICON: how did I flip the index height upside down? would like to have 1 at ground, with transpose or slices?!?
   somehow there's a problem in VHD calc for one point...
-- slightly drifted away: Read in's: I would like to read as little data as possible (fast & effective), but if f.e. "temp" is wanted
-  for AROME it needs to be calculated, for ICON not because we have it given there...
-  => is thinking it for every model through worth it?!
+  
+	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
+	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> maybe o.k. but check units!
+	- and ICON calc has a problem...
+  
 
 
 
@@ -128,7 +130,7 @@ erledigt:
 - hannes' code funktioniert nun auch bei mir
 - cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
 - all metpy calculations now much faster
-- create uniform time & height coordinates! (rename them) -> done
+- create uniform time & height coordinates! (rename them) -> works now perfectly! also for regridded data...
 - ...
 
 erledigt:
@@ -208,6 +210,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
