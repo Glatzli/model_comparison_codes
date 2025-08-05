@@ -137,11 +137,15 @@ date = np.char.decode(ds_met.date)`
 Meteogram (nvars=0 temperature (K), nvars=1 u_wind, nvars=2 v_wind, nvars=3 w_wind, nvars=4 tke, nvars=5
 water_vapor_mixing_ratio):
 
-coordinates:
+original coordinates:
 - time: half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00, read in only 1h steps!
-- height: 1.0 ... 90.0 (90 is at the ground)
-- height_2: 1.0 ... 91.0 (91 at ground)
-- height_3: 1.0 ... 91.0
+- height: 1.0 ... 90.0 (orig 90 is at the ground) -> inversed to have 1 at ground
+- height_2: 1.0 ... 91.0 (91 at ground) -> inversed, 1 at ground
+- height_3: 1.0 ... 91.0 -> inversed, 1 at ground
+
+renamed:
+- pres -> p
+- z_ifc -> z
 
 calculated vars:
 - p = pressure [hPa]
