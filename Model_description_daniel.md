@@ -71,6 +71,11 @@ for PCGP created .tif files as ICON_geometric_height_3dlowest_level_w_crs.tif:
 - w = vertical wind velocity (ms-1)
 - z = geopotential height (m)
 
+calculated vars and for that needed vars:
+- temp: need p & th
+- rh: need th & temp & p & q
+- rho: need p & th & temp
+
 Missing Vars:
 
 - lcv (Land cover)
