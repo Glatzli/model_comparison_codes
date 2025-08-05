@@ -18,22 +18,19 @@ import xarray as xr
 from fsspec.compression import compr
 from matplotlib import pyplot as plt
 from salem import wrftools
-import salem
+
 from shapely.geometry import Point, Polygon
-from wrf import combine_dims
+# from wrf import combine_dims
 from xarray.backends.netCDF4_ import NetCDF4DataStore
-import warnings
 import confg
 from metpy.units import units
-# import xesmf as xe
 import cartopy.crs as ccrs
 import pyproj
 # from pyproj import Proj, Transformer
 import numpy as np
-# warnings.filterwarnings("ignore", message="numpy.dtype size changed")
-import matplotlib
-from pathlib import Path
-matplotlib.use('Qt5Agg')
+#import matplotlib
+#from pathlib import Path
+#matplotlib.use('Qt5Agg')
 
 def __open_wrf_dataset_my_version(file, **kwargs):
     """Updated Function from salem, the problem is that our time has no units (so i had to remove the check in the original function)
@@ -361,6 +358,33 @@ def read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, m
     time = pd.to_datetime(my_time)
 
     filepath = (confg.wrf_folder + f"/WRF_ACINN_201710{time.day:02d}/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710"
+                                   f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z.nc")
+
+    ds = __open_wrf_dataset_my_version(filepath)
+    ds["Time"] = ds.time  # add correct Time value to coord
+    ds = ds.drop_vars(["time"])
+    ds = ds.rename({"Time": "time", "bottom_top": "height"}) # rename dimensions to uniform names
+    ds = ds.salem.subset(geometry=box_polygon, crs='epsg:4236')  # .isel(Time=0)
+
+    ds = convert_calc_variables(ds)
+    return ds
+
+def read_wrf_fixed_time_wsl(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, min_lat=47, max_lat=48, variable_list=["time","u", "v", "z", "th", "p", "alb", "q_mixingratio"]):  #,lowest_level=False
+    """Read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
+    It is also possible to define the lowest_level = True, selects only lowest level
+
+    :param my_time: selected time
+    :param min_lon, max_lon, min_lat, max_lat: minimum and maximum latitude and longitude of Box
+    :param lowest_level: Default False, but if True then select only lowest level
+    :param variable_list: a variable list to keep only certain variables, if it is NONE, then preselection is done
+
+    """
+    box_polygon = Polygon(
+        [(min_lon, min_lat), (min_lon, max_lat), (max_lon, max_lat), (max_lon, min_lat), (min_lon, min_lat)])
+
+    time = pd.to_datetime(my_time)
+
+    filepath = ("/mnt/d/MSc_Arbeit/WRF_ACINN" + f"/WRF_ACINN_201710{time.day:02d}/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710"
                                    f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z.nc")
 
     ds = __open_wrf_dataset_my_version(filepath)

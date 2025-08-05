@@ -12,9 +12,9 @@ import importlib
 import read_in_arome
 import read_icon_model_3D
 import read_ukmo
-# importlib.reload(read_icon_model_3D)
+importlib.reload(read_icon_model_3D)
 import read_wrf_helen
-# importlib.reload(read_in_arome)
+importlib.reload(read_in_arome)
 import confg
 import xarray as xr
 import numpy as np
@@ -142,18 +142,27 @@ def read_dem_xarray(filename):
 def calc_vhd_single_point(ds_point):
     """
     calculates the valley heat deficit (VHD) for a single point in a dataset, e.g. for Innsbruck.
-    Problem: for ICON I have density rho, for AROME f.e. not. need to implement hydrostatic approx. to get VHD for
-    other models...
 
-    :param ds_point:
+    calc density from pressure and temperature using metpy/ ideal gas law: rho = p / (R * T) with R_dryair = 287.05
+
+    param ds_point:
     :return: vhd_point: xarray.DataArray with valley heat deficit at the point with time as coord.
     """
-    ds_below_hafelekar = ds_point.where(ds_point.height <= hafelekar_height, drop=True)
-    th_hafelekar = ds_below_hafelekar.isel(height=0).th
+    # select full dataset below Hafelekar
+    ds_below_hafelekar = ds_point.where(ds_point.z <= hafelekar_height, drop=True)
+    th_hafelekar = ds_below_hafelekar.isel(height=0).th  #
     vhd_point = c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")  # pot temp deficit
 
-    # th_deficit[th_deficit == th_deficit.max()]  # max pot temp deficit at 01UTC in icon model
     return vhd_point
+
+def calc_vhd_full_domain(ds_extent):
+    """
+    should calculate the VHD for the full domain which is in the dataset given.
+
+
+    :param ds_extent:
+    :return:
+    """
 
 def calculate_select_pcgp(gpe_model, gpe_dem):
     """
@@ -166,6 +175,8 @@ def calculate_select_pcgp(gpe_model, gpe_dem):
     implementation of land use is not possible due to missing measurements at the sites & variables in my model runs
     all variables are named in small letters for easier writing...
 
+    for testing it would be indeed better to write smaller functions...
+
     :param gpe_model: grid point ensemble from a model (arome, icon, ...)
     :param gpe_dem: grid point ensemble from DEM
     :return:
@@ -173,7 +184,8 @@ def calculate_select_pcgp(gpe_model, gpe_dem):
     """
     # calc AD slope:
     ad_slope = np.abs(gpe_model.slope.values - gpe_dem.slope.values)  # calculate AD_beta i.e. slope
-    ad_slope_n = ad_slope / ad_slope.max()  # AD_beta,n
+    # ad_slope_n = ad_slope / ad_slope.max()  # AD_beta,n probably not needed!
+
     # calc AD aspect, use circular deviation Simonet et al. (2025) on p.20 (Equation 7)
     # diff > 180 degrees:
     aspect_identifier_big = np.abs(gpe_model.aspect.values - gpe_dem.aspect.values) > 180  # identifies which formula to use
@@ -191,7 +203,7 @@ def calculate_select_pcgp(gpe_model, gpe_dem):
     ad_aspect = ad_aspect_big + ad_aspect_small  # add both aspect differences together to have 1 array with AD_aspect values
 
     ad = (ad_slope + ad_aspect) / 2  # average of both AD values, AD_beta,gamma i.e. AD_slope,aspect
-    min_idx = ad.argmin()  # get flattened index of min AD value (index of pcgp)
+    # min_idx = ad.argmin()  # get flattened index of min AD value (index of pcgp)
     gpe_model["ad"] = (("x", "y"), ad)  # add AD_beta,n to gpe_model dataset
     # Now finished AD calculation, but how can I select PCGP where AD is minimal to find lat/lon coordinates of pcgp?
     # tried with new dataset, but pfusch...
@@ -209,48 +221,72 @@ if __name__ == '__main__':
     pal = sequential_hcl("Terrain")
     lat_ibk = 47.259998
     lon_ibk = 11.384167
-    lat_nordkette = 47.3
+    # lat_nordkette = 47.3
     hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset
     c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure
     # icon_ibk_ngp = read_icon_model_3D.read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant="ICON")  # ngp = nearest grid point
 
-    # read DEM and calc slope
+    # read DEM and calc slope, save them as netcdf files
+    """
     slope_dem, aspect_dem, dem = calculate_slope(confg.TIROL_DEMFILE)
     # plot_height_slope_aspect(height_da=dem.isel(band=0).band_data, slope=slope_dem, aspect_raster=aspect_dem,
     #                         modeltype="dem", title_height="Height", title_slope="Slope", title_aspect="Aspect")
+    dem["slope"] = (("y", "x"), slope_dem)
+    dem["aspect"] = (("y", "x"), aspect_dem.data.data)  # falls aspect_dem ein Raster-Objekt ist
+    dem.to_netcdf(f"{confg.data_folder}/Height/" + "dem_with_slope_aspect.nc")
 
     # read AROME and calc slope
     slope_arome, aspect_arome, arome = calculate_slope(confg.dir_AROME + "AROME_geopot_height_3dlowest_level_w_crs.tif")
     # plot_height_slope_aspect(height_da=arome.isel(band=0).band_data, slope=slope_arome, aspect_raster=aspect_arome,
     #                         modeltype="model", title_height="Height", title_slope="Slope", title_aspect="Aspect")
+    arome["slope"] = (("y", "x"), slope_arome)
+    arome["aspect"] = (("y", "x"), aspect_arome.data.data)
+    arome.to_netcdf(confg.data_folder + "/Height/arome_topo_with_slope_aspect.nc")
 
     # read ICON, calc & plot slope + aspect, somehow ICON extent looks much bigger as what I cutted...
     slope_icon, aspect_icon, icon = calculate_slope(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
     # plot_height_slope_aspect(height_da=icon.isel(band=0).band_data, slope=slope_icon, aspect_raster=aspect_icon,
     #                         modeltype="model", title_height="Height", title_slope="Slope", title_aspect="Aspect")
+    icon["slope"] = (("y", "x"), slope_icon)
+    icon["aspect"] = (("y", "x"), aspect_icon.data.data)
+    icon.to_netcdf(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
+    """
+
+    # read DEM, AROME and ICON topography ds with calc slope&aspect
+    dem = xr.open_dataset(confg.data_folder + "/Height/dem_with_slope_aspect.nc")
+    arome = xr.open_dataset(confg.data_folder + "/Height/arome_topo_with_slope_aspect.nc")
+    icon = xr.open_dataset(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
 
     # choose physically consistent grid point (pcgp) from model topography according to
     #
-    gpe_dem = choose_gpe(ds=dem, lat_ngp=lat_nordkette, lon_ngp=lon_ibk)  # choose GPE around NGP from DEM -> real values
-    gpe_arome = choose_gpe(ds=arome, lat_ngp=lat_nordkette, lon_ngp=lon_ibk)
-    gpe_icon = choose_gpe(ds=icon, lat_ngp=lat_nordkette, lon_ngp=lon_ibk)
+    gpe_dem = choose_gpe(ds=dem, lat_ngp=lat_ibk, lon_ngp=lon_ibk)  # choose GPE around NGP from DEM -> real values
+    gpe_arome = choose_gpe(ds=arome, lat_ngp=lat_ibk, lon_ngp=lon_ibk)
+    gpe_icon = choose_gpe(ds=icon, lat_ngp=lat_ibk, lon_ngp=lon_ibk)
 
-    pcgp_arome = calculate_select_pcgp(gpe_model=gpe_arome, gpe_dem=gpe_icon)
-    pcgp_icon = calculate_select_pcgp(gpe_model=gpe_icon, gpe_dem=gpe_icon)
+    pcgp_arome = calculate_select_pcgp(gpe_model=gpe_arome, gpe_dem=gpe_dem)
+    pcgp_icon = calculate_select_pcgp(gpe_model=gpe_icon, gpe_dem=gpe_dem)
 
     # old step with saved icon gridpoint series
     # icon_ibk_ngp = xr.open_dataset(confg.icon_folder_3D + "/ICON_temp_p_rho_timeseries_ibk.nc")
     # vhd_continue = calc_vhd_single_point(icon_ibk_ngp)
 
     # read models at that point
-    arome_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
-                                                               variables=["p", "th", "z"])
-    icon_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values, variant="ICON")
 
+    # arome_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+    #                                                            variables=["p", "th", "temp", "rho", "z"])
+    icon_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
+                                                               variant="ICON", variables=["p", "temp", "th", "z", "rho"])
+    # arome_timeseries.to_netcdf(confg.dir_AROME + f"/arome_lat{pcgp_arome.y.values:.2f}_lon{pcgp_arome.x.values:.2f}_timeseries.nc")
+    icon_timeseries.to_netcdf(
+        confg.icon_folder_3D + f"/icon_lat{pcgp_icon.y.values:.2f}_lon{pcgp_icon.x.values:.2f}_timeseries.nc")
+
+    # saved timeseries for ibk gridpoint defined above
+    arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_lat47.25_lon11.39_timeseries.nc")  # read saved AROME timeseries
+    icon_timeseries = xr.open_dataset(confg.icon_folder_3D + f"/icon_lat47.26_lon11.38_timeseries.nc")  # read saved ICON timeseries
     # calc VHD for model data for PCGP
-    # vhd_arome = calc_vhd_single_point(arome_timeseries)
+    vhd_arome = calc_vhd_single_point(arome_timeseries)
     vhd_icon = calc_vhd_single_point(icon_timeseries)
-    vhd_icon
+    vhd_arome
 
 
     # old stuff

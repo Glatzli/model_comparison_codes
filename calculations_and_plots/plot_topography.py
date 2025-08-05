@@ -1,4 +1,5 @@
-"""Script to compare and plot the heights of the AROME model and the real world (DEM)
+"""
+Script to compare and plot the heights of the AROME model and the real world (DEM)
 Plot also the locations of the stations
 """
 
@@ -32,11 +33,13 @@ import read_ukmo
 from AROME.profile_radiosonde import station_files_zamg
 from confg import JSON_TIROL, TIROL_DEMFILE, cities, stations_ibox, MOMMA_stations_PM, dir_PLOTS, \
     ec_station_names, filepath_arome_height, dem_file_hobos_extent, data_folder
+import read_wrf_helen
 import confg as cfg
 
 
 def read_plot_clip_tirol():
-    """Plot the digital elevation data and coordinates of boundaries of Tirol
+    """
+    Plot the digital elevation data and coordinates of boundaries of Tirol
     """
     # Using geopandas for that
     AUT = geopandas.read_file(JSON_TIROL)
@@ -211,7 +214,10 @@ def plot_stations_and_AROME_height(df, model_name, ext_lat, ext_lon):
     plt.savefig(f"{dir_PLOTS}/contour_stations_with_AROME_height/contour_{model_name}_zoom.png")
 
 def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_lat_small, ext_lon_small):
-    """plot model topography as filled imshow plot in the innvalley, and on top as scatter points all stations"""
+    """
+    plot AROME model topography as filled imshow plot in the innvalley, and on top as scatter points all stations
+    :param df: xarray datarray with only the AROME model topography (selected lowes model level at a timestep and saved it)
+    """
     fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': ccrs.PlateCarree()})
 
     cs = ax.contourf(df['lon'], df['lat'], df["z"], levels=levels_filled,
@@ -276,7 +282,9 @@ def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_
 
 
 def plot_stations_detail(df, model_name, ext_lat, ext_lon):
-    """plot model topography as filled imshow plot in the innvalley, and on top as scatter points all stations"""
+    """
+    plot model topography as filled imshow plot in the innvalley, and on top as scatter points all stations
+    """
     fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={'projection': ccrs.PlateCarree()})
     # plt.rc('text', usetex=True)
 
@@ -368,8 +376,10 @@ def plot_stations_detail(df, model_name, ext_lat, ext_lon):
 
 
 def plot_lidar_and_Modelgrid_points(dataset, model_name, ext_lat, ext_lon):
-    """Function to plot lidar station points and Model grid points"""
-    """plot model topography as contour plot in the innvalley"""
+    """
+    Function to plot lidar station points and Model grid points
+    plot model topography as contour plot in the innvalley
+    """
     fig, ax = plt.subplots(figsize=(16, 12), subplot_kw={'projection': ccrs.PlateCarree()})
 
     ax.coastlines()
@@ -462,7 +472,9 @@ def plot_lidar_and_Modelgrid_points(dataset, model_name, ext_lat, ext_lon):
 
 
 def plot_height_diff_LOWI(ds, model_name):
-    """Plot the real height from a DEM in the background, and the model height as text on the gridpoints"""
+    """
+    Plot the real height from a DEM in the background, and the model height as text on the gridpoints
+    """
     # Assuming 'ds' is your xarray dataset and 'out_file' is the path to your DEM file
     fig, ax = plt.subplots(figsize=(10, 6), subplot_kw={'projection': ccrs.PlateCarree()})
     ax.set_title(f'{model_name} Latitude-Longitude Grid with the airport in the center')
@@ -583,6 +595,37 @@ def calculate_km_for_lon_extent(latitude, lon_extent_deg):
     lon_km = math.cos(math.radians(latitude)) * earth_circumference / 360
     return lon_extent_deg * lon_km
 
+def plot_topo_um_cartopy():
+    # read and plot topography of UM model, easy with cartopy!
+    um = read_ukmo.read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
+    um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
+                     pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
+    um_lowest = um.isel(height=0)
+    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': um_orig_crs})
+
+    cs = ax.contourf(um_lowest['grid_longitude'], um_lowest['grid_latitude'], um_lowest["z"],
+                    transform=um_orig_crs, cmap = pal.cmap())
+    plt.show()
+
+
+def plot_topo_wrf():
+    """
+    try to plot WRF topography with cartopy
+    :return:
+    """
+    wrf = read_wrf_helen.read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=min_lon_subset, max_lon=max_lon_subset,
+                              min_lat=min_lat_subset, max_lat=max_lat_subset)  #
+    wrf_proj_cartopy = ccrs.LambertConformal(central_longitude=wrf.attrs["STAND_LON"],
+                          central_latitude=wrf.attrs["MOAD_CEN_LAT"],
+                          false_easting=0, false_northing=0,
+                          standard_parallels=(wrf.attrs["TRUELAT1"], wrf.attrs["TRUELAT2"]),
+                          cutoff=0)
+    wrf_lowest = wrf.isel(height=0)
+    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': wrf_proj_cartopy})
+
+    cs = ax.contourf(wrf_lowest['lon'].values[0], wrf_lowest['lat'].values[0], wrf_lowest["z"].values,
+                    transform=wrf_lowest, cmap = pal.cmap())
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -606,27 +649,19 @@ if __name__ == '__main__':
     black_hcl = sequential_hcl(palette="Grays").colors()[0]
     gray_hcl = sequential_hcl(palette="Grays").colors()[3]
 
-    # read and plot topography of UM model, easy with cartopy!
-    um = read_ukmo.read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
-    um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
-                     pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
-    um_lowest = um.isel(height=0)
-    fig, ax = plt.subplots(figsize=(10, 8), subplot_kw={'projection': um_orig_crs})
+    min_lon_subset, max_lon_subset = 9.2, 13
+    min_lat_subset, max_lat_subset = 46.5, 48.2
 
-    cs = ax.contourf(um_lowest['grid_longitude'], um_lowest['grid_latitude'], um_lowest["z"],
-                    transform=um_orig_crs, cmap = pal.cmap())
-    plt.show()
-    #ax.contour(df['lon'], df['lat'], df["z"], levels=levels_contour_lines,
-    #                transform=um_orig_crs, color = "grey", linewidths=0.2)
-
+    plot_topo_um_cartopy()
+    plot_topo_wrf()
 
     #data = read_plot_clip_tirol()  # show whole Tyrol map
     # create_clipped_dem(data)  # create DEM90 digital elevation model
     hobo = xr.open_dataset(confg.data_folder + "201707_hobo.nc")
 
     # read_plot_clip_tirol()  # read & plot DEM of tirol
-    """
-    # height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME MODEL Height lowest level
+
+    # height_lowest = xr.open_dataset(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc")  # open AROME dataset lowest height
     height_lowest = xr.open_dataset(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc") # open ICON MODEL Height lowest level
 
     ds_small_extent, extent_lat_small, extent_lon_small = select_extent_around_LOWI(height_lowest, lat_degree=0.08, lon_degree=0.08)
@@ -646,6 +681,6 @@ if __name__ == '__main__':
     # plot the locations of Lidar
     #plot_lidar_and_Modelgrid_points(ds_small_extent, "AROME", ext_lat=extent_lat_small,
     #                                ext_lon=extent_lon_small)  # mit dist_degree = 0.05
-    plt.show()"""
+    plt.show()
 
 

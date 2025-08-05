@@ -1,5 +1,7 @@
 """Read in the 3D ICON Model, re-written by Daniel
 
+
+
 functions used from outside:
 - read_icon_fixed_point() need dask to read it in, a lot of RAM used
 - read_icon_fixed_point_and_time()
@@ -22,7 +24,7 @@ from pathlib import Path
 
 
 # 3 Mal ", dims=["height"] entfernt"
-def convert_calc_variables(ds):
+def convert_calc_variables(ds, variables):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
 
@@ -35,14 +37,17 @@ def convert_calc_variables(ds):
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
 
-    # Convert pressure from Pa to hPa
-    ds['p'] = (ds['pres'] / 100.0) * units.hPa
+    if "p" in variables:
+        # Convert pressure from Pa to hPa
+        ds['p'] = (ds['p'] / 100.0) * units.hPa
 
-    # calc pot temp
-    ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
+    if "th" in variables:
+        # calc pot temp
+        ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
 
-    # convert temp to °C
-    ds["temp"]  = (ds["temp"] - 273.15) * units.degC
+    if "temp" in variables:
+        # convert temp to °C
+        ds["temp"]  = (ds["temp"] - 273.15) * units.degC
 
     # ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
 
@@ -103,8 +108,12 @@ def find_min_index(ds_icon, lon, lat):
     min_idx = squared_distances.argmin()
     return min_idx.values
 
+
 def read_full_icon(variant="ICON"):
-    """Read the full ICON 3D model dataset for a given variant. ~8GB"""
+    """
+    (lazy) Read the regridded, full ICON 3D model dataset for a given variant. ~8GB
+
+    """
     if variant == "ICON":
         ds_path = confg.icon_folder_3D + "/ICON_latlon_subset_tirol.nc"
     elif variant == "ICON2TE":
@@ -114,30 +123,72 @@ def read_full_icon(variant="ICON"):
     icon_full = xr.open_dataset(ds_path, chunks="auto", engine="netcdf4")
     return icon_full
 
-def rename_icon_variables(ds):
 
-    ds = ds.rename({"z_ifc": "z"})
+def rename_icon_variables(ds):
+    """
+    renames all variables to have a consistent names for all models
+    :param ds: ds with original variable names f.e. z_ifc -> z, pres -> p...
+    :return: renamed dataset with consistent variable names
+    """
+    ds = ds.rename({"z_ifc": "z", "pres":"p"})
     return ds
 
-def read_icon_fixed_point(lat, lon, variant="ICON"):
-    """ Read ICON 3D model at a fixed point & compute variables"""
+
+def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
+    """
+    Read ICON 3D model at a fixed point, edit for consistent names etc:
+    1. read full icon ds, 2. select given point, 3. rename vars so that given var string are the consistent names with
+    the other models, 4. compute the calc variables like temp, pressure, compute the ds, 5 subset the ds (select wanted
+    vars), 6. reverse the height indices to have 1 at bottom (consistent with other models)
+
+    :param lat: latitude of the point
+    :param lon: longitude of the point
+    :param variant: model variant, either "ICON" or "ICON2TE"
+    :param variables: list of variables to select from the dataset with the consistent names-> document in github readme
+    """
     icon_full = read_full_icon(variant=variant)
-
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
-    icon_point = convert_calc_variables(icon_point)
-    icon = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
-    icon_point = icon_point.compute()
-    return icon_point
+    icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
+    icon_point = convert_calc_variables(icon_point, variables= variables)
+    if "th" in variables:  # a bit messy but can't subset calc
+        variables.remove("th")
+    icon_selected = icon_point[variables]  # select only the variables wanted
 
-def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON"):
+    icon_selected = icon_selected.compute()
+    # icon_selected = reverse_height_indices(ds = icon_selected)
+    return icon_selected
+
+
+def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
     icon_full = read_full_icon(variant=variant)
 
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
-    icon = icon_full.sel(time=timestamp, height=90, height_3=91, method="nearest")
-    icon = convert_calc_variables(icon)
+    icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
     icon = rename_icon_variables(ds=icon)  # rename z_ifc to z
-    icon = icon.compute()
-    return icon
+    icon = convert_calc_variables(icon, variables= variables)
+    if "th" in variables:
+        variables.remove("th")
+    icon_selected = icon[variables]  # select only the variables wanted
+
+    icon_selected = icon_selected.compute()
+    icon_selected = reverse_height_indices(ds = icon_selected)
+    return icon_selected
+
+
+def reverse_height_indices(ds):
+    """
+    turn height cordinate(s) upside down to have 1 at bottom (consistent with other models)
+    :param ds: ds with orig height coords
+    :return: ds with reversed height coordinates
+    """
+    if "height" in ds:
+        ds = ds.assign_coords(height=ds.height.values[::-1])
+    if "height_2" in ds:
+        ds = ds.assign_coords(height_2=ds.height_2.values[::-1])
+    if "height_3" in ds:
+        ds = ds.assign_coords(height_3=ds.height_3.values[::-1])
+    return ds
+
 
 def read_icon_fixed_point_and_time_hexa(day, hour, lon, lat, variant="ICON"):
     """
@@ -290,26 +341,28 @@ if __name__ == '__main__':
     # testing cdo generates nc files:
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
 
-    icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON")
+    icon = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON")
     # save height info as .tif file for pcgp computation i.e. calc of slope & aspect need crs info
-    icon_tif = icon_extent.rename({"lat": "y", "lon": "x", "z":"band_data"})  # rename
-    icon_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
-    icon_tif.band_data.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
+    # icon_tif = icon_extent.rename({"lat": "y", "lon": "x", "z":"band_data"})  # rename
+    # icon_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
+    # icon_tif.band_data.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
 
 
     # save lowest level as nc file for topo plotting
-    icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
-    icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
+    # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
 
-    # icon_latlon = read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant=model)
-    #icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_latlon)
+    # icon_point = read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant=model, variables=["p", "temp", "th", "rho"])
+    icon
+    icon
+    # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     #icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")
     #icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
 
 
     # with this code the ICON model is read in, one specific latitude is extracted and saved as new dataset with geometric
     # height as vert coord
-    """
+    """ deprecated due to regridding...
     icon15 = read_icon_fixed_point_multiple_hours(day=15, hours=np.arange(12, 24), lon=lon_ibk, lat=lat_ibk, variant="ICON")
     icon16 = read_icon_fixed_point_multiple_hours(day=16, hours=np.arange(0, 13), lon=lon_ibk, lat=lat_ibk, variant="ICON")
     variables = ["th", "temp", "z_ifc"]  # "temp", "pres", "u", "v", "w",

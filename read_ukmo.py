@@ -134,7 +134,8 @@ def create_ds_geopot_height_as_z_coordinate(ds):
 
 def rename_variables(ds):
     """rename variables to have a consistent naming convention"""
-    ds = ds.rename({"model_level_number": "height", "air_potential_temperature": "th", "air_pressure": "p",
+    ds = ds.rename({"model_level_number": "height",  # "grid_latitude": "lat", "grid_longitude": "lon",
+                    "air_potential_temperature": "th", "air_pressure": "p",
                     "specific_humidity": "q", "geopotential_height": "z"})
     return ds
 
@@ -160,6 +161,7 @@ def read_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
     # dat = convert_variables(dat, multiple_levels=False)
     return dat
 
+
 def read_ukmo_fixed_point(city_name=None, lat=None, lon=None, variable_list=["u", "v", "w", "z", "th", "q", "p"]):
     """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
@@ -178,8 +180,14 @@ def read_ukmo_fixed_point(city_name=None, lat=None, lon=None, variable_list=["u"
     data = convert_variables(data, multiple_levels=True)
     return data
 
+
 def read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["u", "v", "w", "z", "th", "q", "p"]):
-    """read full domain of UKMO Model at a fixed time"""
+    """
+    read full domain of UKMO Model at a fixed time
+    converts the lat/lon vars from rotated pole to regular lat/lon
+    :param time: str, time to select from dataset
+    :param variable_list: list of variables to read in
+    """
 
     ukmo_files = [confg.ukmo_folder + f"/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc" for var in variable_list]
     data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
@@ -267,6 +275,14 @@ def get_ukmo_height_of_city_name(city_name):
     return get_ukmo_height_of_specific_lat_lon(lat=lat, lon=lon)
 
 
+def save_um_topography(ds):
+    """
+    save the lowest level of geopot height as netcdf and .tif file (for PCGP calc)
+    """
+    um.isel(height=0)
+
+
+
 if __name__ == '__main__':
     matplotlib.use('Qt5Agg')
     # get values on lowest level
@@ -275,6 +291,16 @@ if __name__ == '__main__':
 
     # um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
     um = read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
+
+    # are these the correct lats&lons of the UM model? just thought by myself, not sure if this is correct
+    lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude
+    lon = (um.grid_longitude - 360) + um.rotated_latitude_longitude.grid_north_pole_longitude
+    #um["grid_latitude"] = lat
+    #um["grid_longitude"] = lon
+
+
+    # save_um_topography(ds=um)
+    # um
     # um_geopot = create_ds_geopot_height_as_z_coordinate(um)
 
     # save um for plotting temp timeseries with geopot height as z coord
@@ -282,21 +308,21 @@ if __name__ == '__main__':
     # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     # um
 
-    # are these the correct lats&lons of the UM model?
-    lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude
-    lon = (um.grid_longitude - 360) + um.rotated_latitude_longitude.grid_north_pole_longitude
 
-
+    # some maybe useless code? for projecting...
     # try to tranform the rotated pole coord to wgs84 regular lat/lon using cartopy
-    um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
-                     pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
-    wgs84_crs = ccrs.epsg(4326)  # WGS84
+    # um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
+    #                  pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
+    # wgs84_crs = ccrs.epsg(4326)  # WGS84
+    pole_lon = um.rotated_latitude_longitude.grid_north_pole_longitude
+    pole_lat = um.rotated_latitude_longitude.grid_north_pole_latitude
+    rotated_crs = pyproj.CRS.from_proj4(
+        f"+proj=ob_tran +o_proj=latlon +o_lon_p={pole_lon} +o_lat_p={pole_lat} +lon_0=0")
+    wgs84_crs = pyproj.CRS.from_epsg(4326)  # WGS84 CRS
 
-
-    crs_orig = pyproj.CRS.from_proj4(um.attrs["pyproj_srs"])   # get CRS info from original WRF dataset
-    crs_proj = pyproj.CRS.from_epsg(4326)
-    proj = pyproj.Transformer.from_crs(crs_orig, crs_orig)
-
+    proj = pyproj.Transformer.from_crs(rotated_crs, wgs84_crs, always_xy=True)
+    lat, lon = proj.transform(um["grid_latitude"].values, um["grid_longitude"].values)
+    print(lon, lat)
 
     # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
     # um

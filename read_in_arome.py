@@ -25,38 +25,40 @@ matplotlib.use('Qt5Agg')
 
 
 
-def convert_calc_variables(ds):
+def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
     by Daniel
-    Idea: calculate only variables which are possible with read ds
+    cal
+    Idea: calculate variables which are wanted with the vars_to_calc list...
 
-    Parameters:
-    - df: A xarray Dataset containing the columns 'p' for pressure in Pa
-          and 'th' for potential temperature in Kelvin.
-
-    Returns:
-    - A xarray Dataset with the original data and new columns:
-      'pressure' in hPa and 'temperature' in degrees Celsius.
+    :param ds: arome dataset
+    :param vars_to_calc: list of variables to calculate, possible are: ["temp", "rh", "rho", "qv"], attention:
+        there is no check if all needed vars are there for the calculation!
+    return:
+    :ds: xarray Dataset with the calculated variables: p, temp [°C], rH [%] ...
     """
     if "p" in ds:
         # Convert pressure from Pa to hPa
-        ds['pressure'] = (ds['p'] / 100.0) * units.hPa
-        if "th" in ds:
+        ds['p'] = (ds['p'] / 100.0) * units.hPa
+        if "temp" in vars_to_calc:
             # calc temp
-            ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["pressure"], ds["th"] * units("K"))
-            if "q" in ds:
-                # calculate relative humidity only if it's loaded in the dataset
-                ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temperature"], ds['q']* units("kg/kg")) * 100  # for percent
+            ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
+
+            if "rho" in vars_to_calc:  # using ideal gas law: rho = p / (R * T) with R_dryair = 287.05 J/kgK
+                ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
+        if "rh" in vars_to_calc:
+            # calculate relative humidity only if it's loaded in the dataset
+            ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q']* units("kg/kg")) * 100  # for percent
+
 
     # calculate dewpoint
     #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
     #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
     ds = ds.metpy.dequantify()
-    if "th" in ds:
+    if "temp" in vars_to_calc:
         # convert temp to °C
-        ds["temperature"] = ds["temperature"] - 273.15
-
+        ds["temp"] = ds["temp"] - 273.15
     return ds
 
 
@@ -133,8 +135,10 @@ def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"],
 
     return xr.merge(datasets, join="exact")
 
+
 def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, level=None, time=None):
     """
+    ancient from hannes
     Merge datasets for a list of variables at a specific location and time.
     The (lat, lon, time) parameters can also be arrays, e.g., [10, 12, 13].
 
@@ -150,9 +154,10 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
     datasets = []  # List to hold datasets for each variable
 
     for i, var in enumerate(variables):
-        # Construct the file path and open the dataset
-        file_path = os.path.join(confg.dir_3D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc")
-        ds = xr.open_dataset(file_path)
+        if var != "rho":
+            # Construct the file path and open the dataset except for rho, which is calculated later
+            file_path = os.path.join(confg.dir_3D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc")
+            ds = xr.open_dataset(file_path)
 
         if time is None:  # if no time is given, read full timerange
             time_start = pd.to_datetime('2017-10-15 12:00:00',
@@ -185,18 +190,40 @@ def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, le
 
 def read_in_arome(variables=["p", "th", "z"]):
     """
-    doesn't work due to dask issues when calculating the variables... use rather original read_3D variables func...
-    reads in all arome data (fast) by Daniel
-    :param variables: list of variables to read in, max possible: ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
-    :return: ds with all raw arome data (~40GB!)
+    reads in all arome data, all vars that are given that are not saved as files are calculated later
+
+    (fast) by Daniel
+    exception for "rho", which is calculated later
+    :param variables: list of variables to read in, possible are: ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
+        and ["rho", "temp"]
+    :return: ds with all variables in the list
     """
+    data_vars = ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]  # saved file vars
+    vars_to_calculate = set(variables) - set(data_vars)
+    # vars_to_read = set(variables) & set(data_vars)
+    """if {"temp", "q"} & vars_to_calculate and "th" not in vars_to_read:
+        variables.append("th")
+    if "p" in vars_to_read:
+        
+    if "rh" in vars_to_calculate and "q" not in vars_to_read:
+        variables.append("q")"""
+
     arome_paths = [confg.dir_3D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc" for var in
-                   variables]
+                   variables if var in data_vars]  # only read in variables that are saved as files, others need to be calc.
     ds = xr.open_mfdataset(arome_paths, combine="by_coords", data_vars='minimal',
                            coords='minimal', compat='override', decode_timedelta=True)
-    ds = ds.rename({"nz": "height"})  # rename to uniform height coordinate
-    ds = ds.isel(height=slice(None, None, -1))  # reverse height axis to have uniform 0 at ground level!
-    return ds
+    return ds, vars_to_calculate
+
+def rename_vars(data):
+    """
+    Rename the 'nz' coordinate to 'height' and reverse the height axis to have uniform 0 at ground level.
+    :param ds: arome dataset
+    :return: edited arome ds
+    """
+    data = data.rename({"nz": "height"})  # rename to uniform height coordinate
+    data = data.assign_coords(height=data.height.values[::-1])
+    return data
+
 
 def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"]):  # , variable_list=
     """
@@ -206,16 +233,19 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     :param lat: Latitude of the fixed point.
     :param lon: Longitude of the fixed point.
     :param method: Selection method of point ('sel' or 'interp').
-    :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
+    :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z", "rho"]
+        if "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables"
     :return: Merged xarray Dataset
     """
-    ds = read_in_arome(variables)
+    ds, vars_to_calculate = read_in_arome(variables=variables)
     if method == "interp":  # interpolate to point, uses numpy/scipy interp routines...
         ds = ds.interp(latitude=lat, longitude=lon)
     elif method == "sel":   # selects nearest point
         ds = ds.sel(latitude=lat, longitude=lon, method="nearest")
 
-    ds = convert_calc_variables(ds)
+    ds = rename_vars(data=ds)
+    ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
+    ds = ds.compute()
     return ds
 
 def read_in_arome_fixed_time(time="2017-10-15T14:00:00", variables=["p", "th", "z"]):
@@ -225,79 +255,21 @@ def read_in_arome_fixed_time(time="2017-10-15T14:00:00", variables=["p", "th", "
     :return:
     ds of arome data with only wanted timestamp (~2GB)
     """
-    ds = read_in_arome(variables)
+    ds, vars_to_calculate = read_in_arome(variables=variables)
     ds = ds.sel(time=time)  # select just needed timestep
 
-    ds = convert_calc_variables(ds)
+    ds = rename_vars(data=ds)
+    ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
     return ds
 
 
-def read_in_arome_radiosonde(time, method, lon, lat):
+def save_arome_topography(arome3d):
     """
-    from hannes' plotting routines...
-    read the MODEL output of AROME as it would be a Radiosonde with geopot height as vertical coordinate"""
-    my_variable_list = ["p", "q", "th", "u", "v", "z"]
-
-    if (method == "sel") | (method == "interp"):
-        print(f"Your selected method is {method}")
-    else:
-        raise AttributeError(
-            "You have to define a method (sel or interp) how the point near the LOWI should be selected")
-
-    df_final = read_3D_variables_AROME(variables=my_variable_list, method=method, lon=lon, lat=lat, time=time)
-
-    # print(df_final["p"].metpy.unit_array.magnitude) Extract values
-
-    df_final["windspeed"] = metpy.calc.wind_speed(df_final["u"], df_final["v"])
-    df_final["wind direction"] = metpy.calc.wind_direction(df_final["u"], df_final["v"], convention='from')
-    df_final["temperature"] = metpy.calc.temperature_from_potential_temperature(df_final["p"], df_final["th"])
-    df_final["dewpoint"] = metpy.calc.dewpoint_from_specific_humidity(pressure=df_final["p"],
-                                                                      temperature=df_final["temperature"],
-                                                                      specific_humidity=df_final["q"])
-
-    p = df_final["p"].metpy.unit_array.to(units.hPa)  # Metadata is removed
-    T = df_final["temperature"].metpy.unit_array.to(units.degC)
-
-    Td = df_final["dewpoint"].metpy.unit_array
-    wind_speed = df_final["windspeed"].metpy.unit_array.to(units.knots)
-    wind_dir = df_final['wind direction']
-    u, v = metpy.calc.wind_components(wind_speed, wind_dir)  # orig mpcalc
-
-    ds = xr.Dataset()
-
-    # Add variables to the dataset
-    ds['u_wind'] = xr.DataArray(u.magnitude, dims=('height',),
-                                coords={'height': df_final["z"].values},
-                                attrs={'units': str(u.units)})
-    ds['v_wind'] = xr.DataArray(v.magnitude, dims=('height',),
-                                coords={'height': df_final["z"].values},
-                                attrs={'units': str(v.units)})
-    ds['pressure'] = xr.DataArray(p.magnitude, dims=('height',),
-                                  coords={'height': df_final["z"].values},
-                                  attrs={'units': str(p.units)})
-    ds['temperature'] = xr.DataArray(T.magnitude, dims=('height',),
-                                     coords={'height': df_final["z"].values},
-                                     attrs={'units': str(T.units)})
-    ds['dewpoint'] = xr.DataArray(Td.magnitude, dims=('height',),
-                                  coords={'height': df_final["z"].values},
-                                  attrs={'units': str(Td.units)})
-
-    return ds.metpy.quantify()
-
-
-if __name__ == '__main__':
-    lat_ibk = 47.259998
-    lon_ibk = 11.384167
-    # arome = read_timeSeries_AROME(location)
-
-    # arome3d = read_3D_variables_AROME(variables=["z"], method="sel")
-    # arome = read_in_arome_fixed_point(variables=["p", "th", "z"])
-    arome3d_new = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])
-
-    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
-    # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
-
-    arome = arome3d_new.isel(height=0).compute()
+    saves the geopotential height of the lowest level of AROME as a 2D .netcdf file for topography plotting and as .tif
+    file for aspect calculation with xdem (for PCGP)...
+    :return:
+    """
+    arome = arome3d.isel(height=0).compute()
     arome = arome.rename({"latitude": "lat", "longitude": "lon"})  # rename to uniform z coordinate
     arome.to_netcdf(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.nc", mode="w", format="NETCDF4")
 
@@ -306,6 +278,23 @@ if __name__ == '__main__':
     arome["lon"] = arome["lon"].round(4)
     # rename coords for xdem/rasterio compatibility, for slope and aspect calculation
     arome.rename({"lat":"y", "lon":"x"}).rio.to_raster(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.tif")
+
+
+if __name__ == '__main__':
+    lat_ibk = 47.259998
+    lon_ibk = 11.384167
+    # arome = read_timeSeries_AROME(location)
+
+    # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
+
+    arome = read_in_arome_fixed_point(lon= lon_ibk, lat= lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
+    # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
+    # arome = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["temp", "th", "p", "rho"])
+    arome = arome.compute()
+    arome
+
+    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
+    # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
     # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
     # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
