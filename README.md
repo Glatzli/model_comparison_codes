@@ -65,6 +65,9 @@ Points:
 - calc VHD: calc density from press and temp! just ideal gas law!
   Problem for ICON: how did I flip the index height upside down? would like to have 1 at ground, with transpose or slices?!?
   somehow there's a problem in VHD calc for one point...
+- slightly drifted away: Read in's: I would like to read as little data as possible (fast & effective), but if f.e. "temp" is wanted
+  for AROME it needs to be calculated, for ICON not because we have it given there...
+  => is thinking it for every model through worth it?!
 
 
 
@@ -205,6 +208,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
