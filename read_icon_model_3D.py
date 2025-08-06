@@ -150,12 +150,10 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
     icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
     icon_point = convert_calc_variables(icon_point, variables= variables)
-    if "th" in variables:  # a bit messy but can't subset calc
-        variables.remove("th")
     icon_selected = icon_point[variables]  # select only the variables wanted
 
     icon_selected = icon_selected.compute()
-    # icon_selected = reverse_height_indices(ds = icon_selected)
+    icon_selected = reverse_height_indices(ds = icon_selected)
     return icon_selected
 
 
@@ -166,8 +164,6 @@ def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p",
     icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
     icon = rename_icon_variables(ds=icon)  # rename z_ifc to z
     icon = convert_calc_variables(icon, variables= variables)
-    if "th" in variables:
-        variables.remove("th")
     icon_selected = icon[variables]  # select only the variables wanted
 
     icon_selected = icon_selected.compute()
@@ -334,14 +330,11 @@ def read_icon_fixed_point_hexa(nearest_grid_cell, day=16, variant="ICON"):
 
 
 if __name__ == '__main__':
-    lat_ibk = 47.259998
-    lon_ibk = 11.384167
-
     model = "ICON"  # either "ICON" or "ICON2TE"
     # testing cdo generates nc files:
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
 
-    icon = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON")
+    icon = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"])
     # save height info as .tif file for pcgp computation i.e. calc of slope & aspect need crs info
     # icon_tif = icon_extent.rename({"lat": "y", "lon": "x", "z":"band_data"})  # rename
     # icon_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
@@ -352,9 +345,9 @@ if __name__ == '__main__':
     # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
 
-    # icon_point = read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant=model, variables=["p", "temp", "th", "rho"])
-    icon
-    icon
+    icon_point = read_icon_fixed_point(lat=confg.lat_ibk, lon=confg.lon_ibk, variant=model, variables=["p", "temp", "th", "z", "rho"])
+    icon_point
+
     # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     #icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")
     #icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")

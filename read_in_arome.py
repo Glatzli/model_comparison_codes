@@ -18,7 +18,6 @@ import tarfile
 import matplotlib.pyplot as plt
 import matplotlib
 from pathlib import Path
-
 from confg import variables_units_2D_AROME
 
 matplotlib.use('Qt5Agg')
@@ -45,7 +44,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
             # calc temp
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
 
-            if "rho" in vars_to_calc:  # using ideal gas law: rho = p / (R * T) with R_dryair = 287.05 J/kgK
+            if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
                 ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
         if "rh" in vars_to_calc:
             # calculate relative humidity only if it's loaded in the dataset
@@ -134,7 +133,6 @@ def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"],
         datasets.append(ds_quantified)
 
     return xr.merge(datasets, join="exact")
-
 
 def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, level=None, time=None):
     """
@@ -281,18 +279,18 @@ def save_arome_topography(arome3d):
 
 
 if __name__ == '__main__':
-    lat_ibk = 47.259998
-    lon_ibk = 11.384167
+
     # arome = read_timeSeries_AROME(location)
 
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
 
-    arome = read_in_arome_fixed_point(lon= lon_ibk, lat= lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
+    # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    # arome = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["temp", "th", "p", "rho"])
-    arome = arome.compute()
-    arome
+    arome_z = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])
+    # maybe subset w python?! arome.sel(latitude=slice(46.5, 48.2), longitude=slice(9.2, 13)).to_netcdf(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
 
+    arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
+    arome_z
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
     # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 

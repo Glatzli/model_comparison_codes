@@ -10,6 +10,13 @@ data_folder = "D:/MSc_Arbeit/data/"
 model_folder = "D:/MSc_Arbeit/"
 # Plot directory (where to save the plots)
 dir_PLOTS = "D:/MSc_Arbeit/plots/"
+
+# -------------------------------------------constants needed for calculations---------------------------------
+hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset, used for VHD calc
+c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for VHD calc
+
+lat_ibk = 47.259998  # the exact same lat & lon of Ibk cosma already used
+lon_ibk = 11.384167
 # -------------------------------------------------------------------------------------------------------------
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
