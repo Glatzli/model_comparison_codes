@@ -25,6 +25,9 @@ ToDo:
 er definiert für diesen plot read-in-arome nochmal neu & berechnet zeugs mit metpy => schiach!
 dann erst erstellt er dataset mit den berechneten variablen, vorher ist es dataframe...)
 
+skipped domain subset with CDO because: sellonlatbox (Warning): Unsupported grid type: generic...
+and it works anyway!
+
 - Resolution: 1 kilometer
 - Time (renamed: time): half an hour steps from 2017.10.15 12:00:00 to 2017.10.16 12:00:00 
 - Longitude extend from: 7.405 to 15.395 degrees (0.1 degrees) in total 800 steps
