@@ -66,10 +66,9 @@ Points:
   equal. (z difference between levels ~50m at hafelekar) -> how to treat best?
   
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
-	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> maybe o.k. but check units!
-	- and ICON calc has a problem...
+	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD a bit larger as for cosma
+ - calced VHD for ICON for all points over full timespan, saved it and started to plot as small multiples
   
-
 
 
 general notes/inputs:
@@ -210,6 +209,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
