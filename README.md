@@ -61,10 +61,9 @@ Points:
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
    TODO for AROME
    UM & WRF not yet possible: missing lat/lon...
-- create one file "general_calculations"? for slope angles and future stuff?
-- calc VHD: calc density from press and temp! just ideal gas law!
-  Problem for ICON: how did I flip the index height upside down? would like to have 1 at ground, with transpose or slices?!?
-  somehow there's a problem in VHD calc for one point...
+- calc VHD: 
+  Problem for ICON: different height coords for z and th etc (staggerd & unstaggered), i just set them
+  equal. (z difference between levels ~50m at hafelekar) -> how to treat best?
   
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
 	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> maybe o.k. but check units!
@@ -122,6 +121,7 @@ AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
+- create one file "general_calculations"? for slope angles and future stuff?
 - maybe overthink read in function setup again (to have enough functions with 1 task...)
 - Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
 
@@ -210,6 +210,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
