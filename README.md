@@ -5,7 +5,7 @@ Points:
 - writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
 - create file with plots and notes! Note what I did and already found!
 - Projections of Models:
-	- AROME: maybe us pickle for make read in faster? binary data formats. only if it doesn't work now properly.
+	- AROME: 
   	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
 	- UM: rotated pole projection was used (to have least error near Ibk)
        		grid_mapping_name:            rotated_latitude_longitude
@@ -59,15 +59,18 @@ Points:
   	-> works for AROME & ICON data
      	calculate angle (numpy) & aspect ratio (xDEM) 
   	
-
-- maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
-   TODO for AROME: unknown grid info, with python very slow...
+- maybe subset all models to have smaller datafiles? 
+   AROME: in read in routine, works quite fine!
+   ICON: once before w CDO
    UM & WRF not yet possible: missing lat/lon...
+
 - calc VHD:
   in ICON2TE looks like CAP persists longer, would be more consistent with AROME and ground measurements.
   in ground meas. minimum is at 06UTC, in spatial plots it looks like it would be earlier! It's important to
   document exactly what I've done. Probably there is not too much difference...
-  compare with HATPRO data (spatial plot) and radiosonde (point plot)
+  AROME: completely different. much stronger VHD, even after sunrise of the next day. Flat region in GER not that pronounced.
+  	Also much bigger values! Up to 0.5 MJ/m^2 (where?) But evolving from lower valley looks the same...
+  compare with HATPRO data (spatial plot) and radiosonde (point plot)!
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that, but ) 
   Problem for ICON: different height coords for z and th etc (staggerd & unstaggered), i just set them
@@ -131,6 +134,7 @@ AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
+- maybe us pickle for make read in faster? binary data formats. But it works for now.
 - create one file "general_calculations"? for slope angles and future stuff?
 - maybe overthink read in function setup again (to have enough functions with 1 task...)
 - Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
@@ -220,6 +224,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
