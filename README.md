@@ -2,8 +2,10 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 Points: 
+- writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
+- create file with plots and notes! Note what I did and already found!
 - Projections of Models:
-	- AROME:
+	- AROME: maybe us pickle for make read in faster? binary data formats. only if it doesn't work now properly.
   	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
 	- UM: rotated pole projection was used (to have least error near Ibk)
        		grid_mapping_name:            rotated_latitude_longitude
@@ -48,7 +50,7 @@ Points:
     		Slope aspect (γ): The orientation of the slope.
     		Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
     		Albedo (α): The reflectivity of the surface.
-  	I don't have albedo & LU measured. => only us slope angle & aspect
+  	I don't have albedo & LU measured. => only use slope angle & aspect
 	-> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
   	rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
  	This was required by: ['slope'].)
@@ -56,19 +58,28 @@ Points:
 
   	-> works for AROME & ICON data
      	calculate angle (numpy) & aspect ratio (xDEM) 
-  		
-	
+  	
+
 - maybe subset all models to have smaller datafiles? would save time each read in! Easy w. CDO
-   TODO for AROME
+   TODO for AROME: unknown grid info, with python very slow...
    UM & WRF not yet possible: missing lat/lon...
-- calc VHD: 
+- calc VHD:
+  in ICON2TE looks like CAP persists longer, would be more consistent with AROME and ground measurements.
+  in ground meas. minimum is at 06UTC, in spatial plots it looks like it would be earlier! It's important to
+  document exactly what I've done. Probably there is not too much difference...
+  compare with HATPRO data (spatial plot) and radiosonde (point plot)
+  
+  can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that, but ) 
   Problem for ICON: different height coords for z and th etc (staggerd & unstaggered), i just set them
-  equal. (z difference between levels ~50m at hafelekar) -> how to treat best?
-  
+  equal. (z difference between levels ~50m at hafelekar) topography is also different! Has probably same error...
+  	general notes for calc:
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
-	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD a bit larger as for cosma
- - calced VHD for ICON for all points over full timespan, saved it and started to plot as small multiples
-  
+	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD larger as for cosma
+ - calced VHD for ICON for all points over full timespan, saved it and started to plot as small multiples :)
+ - zmax: how to find stable layers/inversion: plot pot temp profiles for mult stations, maybe take same threshold as
+   lukas umek in his paper? in vert. profiles it looked pretty shallow. Man braucht irgendein Maß für stärke und dicke des
+   CAPs. zB Inversionshöhe & VHD. Maybe search for profiles at my plots? Warum zB ist mein VHD größer am Taleingang-> profil!
+
 
 
 general notes/inputs:
@@ -209,6 +220,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
