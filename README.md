@@ -45,7 +45,7 @@ Points:
   	-> factor 2 is not that bad!
   	just smooth DEM to have nearly same resolution, should be sufficient.
   
- 	- for PCGP LU dataset I would need:
+ 	- for PCGP LU dataset I would need (see latex):
     		Slope angle (β): The steepness of the terrain.
     		Slope aspect (γ): The orientation of the slope.
     		Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
@@ -65,17 +65,12 @@ Points:
    UM & WRF not yet possible: missing lat/lon...
 
 - calc VHD:
-  in ICON2TE looks like CAP persists longer, would be more consistent with AROME and ground measurements.
-  in ground meas. minimum is at 06UTC, in spatial plots it looks like it would be earlier! It's important to
-  document exactly what I've done. Probably there is not too much difference...
-  AROME: completely different. much stronger VHD, even after sunrise of the next day. Flat region in GER not that pronounced.
-  	Also much bigger values! Up to 0.5 MJ/m^2 (where?) But evolving from lower valley looks the same...
   compare with HATPRO data (spatial plot) and radiosonde (point plot)!
   
-  can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that, but ) 
-  Problem for ICON: different height coords for z and th etc (staggerd & unstaggered), i just set them
-  equal. (z difference between levels ~50m at hafelekar) topography is also different! Has probably same error...
-  	general notes for calc:
+  can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
+  different calc with reference at Hafelekar and not at max temp.)
+  
+  general notes for calc:
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
 	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD larger as for cosma
  - calced VHD for ICON for all points over full timespan, saved it and started to plot as small multiples :)
@@ -224,6 +219,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
