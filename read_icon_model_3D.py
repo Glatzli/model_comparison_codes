@@ -15,6 +15,7 @@ sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import confg
 import xarray as xr
 import numpy as np
+import pandas as pd
 from functools import partial
 import metpy.calc as mpcalc
 from metpy.units import units
@@ -167,6 +168,30 @@ def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p",
     icon_selected = icon[variables]  # select only the variables wanted
 
     icon_selected = icon_selected.compute()
+    icon_selected = reverse_height_indices(ds = icon_selected)
+    return icon_selected
+
+
+def read_icon_full_domain_mutliple_hours(daterange=pd.date_range("2017-10-15 13:00:00", periods=24, freq="h"),
+                                         variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
+    """
+    probably won't be finished...
+    function to read full domain over given timespan (espc needed for vhd-full-domain plot)
+    :param daterange:
+    :param variant:
+    :param variables:
+    :return:
+    """
+    icon_full = read_full_icon(variant=variant)
+    datasets = []  # list to store datasets for each time step
+    for timestamp in daterange:
+        icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
+        icon = rename_icon_variables(ds=icon)  # rename z_ifc to z
+        icon = convert_calc_variables(icon, variables= variables)
+        icon_selected = icon[variables]  # select only the variables wanted
+        icon_selected.compute()
+        datasets.append(icon_selected)
+    icon_full_domain = xr.concat(datasets, dim="time")
     icon_selected = reverse_height_indices(ds = icon_selected)
     return icon_selected
 
@@ -345,8 +370,11 @@ if __name__ == '__main__':
     # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
 
-    icon_point = read_icon_fixed_point(lat=confg.lat_ibk, lon=confg.lon_ibk, variant=model, variables=["p", "temp", "th", "z", "rho"])
-    icon_point
+    # icon_point = read_icon_fixed_point(lat=confg.lat_ibk, lon=confg.lon_ibk, variant=model, variables=["p", "temp", "th", "z", "rho"])
+    # icon_point
+
+    icon_full_domain = read_icon_full_domain_mutliple_hours()
+    icon_full_domain
 
     # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     #icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")

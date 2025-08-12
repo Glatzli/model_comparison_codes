@@ -1,5 +1,5 @@
 """
-In this script some functions should be defined that calculate the valley heat deficit (VHD) from the potential temperature
+In this script some functions are defined that calculate the valley heat deficit (VHD) from the potential temperature
 for each model. VHD will be calc between lowest model level & Hafelekar at 2279 m, at the highest HOBO from
 https://zenodo.org/records/4672313 hobo dataset
 for point values of the VHD PCGP selection is used to find the physically consistent grid point (PCGP) from a model grid point ensemble (GPE)
@@ -145,7 +145,15 @@ def read_dem_xarray(filename):
 
 
 def define_ds_below_hafelekar(ds, model="AROME"):
-    if model == "ICON":
+    """
+    indexes the dataset below Hafelekar height (2279 m) for the given model. Because the handling/height coords are
+    slightly different for each model, each needs to be handeled differently...
+
+    :param ds:
+    :param model:
+    :return:
+    """
+    if model in ["ICON", "ICON2TE"]:
         # for ICON we have different height coordinates (staggered & unstaggered), therefore I chose the height level
         # of Hafelekar with the height var of z (orig z_ifc, which is unstaggered or staggered?!?) and indexed with it
         # the "height" coord which is the coord for the other variables like th, rho, p etc
@@ -153,7 +161,7 @@ def define_ds_below_hafelekar(ds, model="AROME"):
         # (which is ~ 10% error for AROME, just took hafelekar height +50m and looked at VHD...)
         ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height_3.values)
     else:
-        ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True) # select full dataset below Hafelekar
+        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height.values) # select full dataset below Hafelekar
     return ds_below_hafelekar
 
 
@@ -175,14 +183,15 @@ def calc_vhd_single_point(ds_point, model="AROME"):
 
 def calc_vhd_full_domain(ds_extent, model="AROME"):
     """
-    should calculate the VHD for the full domain which is in the dataset given.
+    should calculate the VHD for the full domain which is in the dataset given. for indexing the full dataset below
+    hafelekar, another function is used (due to different handling for all models...)
 
     large data, espc for AROME because I didn't subset it yet, CDO gives error... maybe subset in python first?
     :param ds_extent:
     :return:
     """
     ds_below_hafelekar = define_ds_below_hafelekar(ds=ds_extent, model=model)
-    th_hafelekar = ds_below_hafelekar.isel(height=0).th  #
+    th_hafelekar = ds_below_hafelekar.isel(height=0).th
     vhd_full_domain = confg.c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")
     return vhd_full_domain
 
@@ -270,60 +279,110 @@ def read_topos_calc_slope_aspect():
     icon.to_netcdf(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
 
 
-def read_dems_calc_pcgp_calc_vhd():
+def read_dems_calc_pcgp(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni",
+                                        variables=["p", "th", "temp", "rho", "z"]):
     """
-    reads topo files w calc slope & aspect, calls fct for PCGP selection & calcs VHD for a single point
-    was orig in main...
+    reads model topos & DEM, calls choose gpe fct, calls calc & select pcgp fct and
+    saves timeseries with all needed vars at the PCGP
+    filepaths to which timeseries are saved are f.e. confg.dir_AROME + f"/arome_{point_name}_timeseries.nc" for AROME
 
+    uncomment block for original way w. calculating the VHD extra for the chosen PCGP point. I already calculated VHD
+    for all points, therefore I just use that and select PCGP from that in the fct now!
+
+    :param lat: latitude of wanted NGP
+    :param lon: longitude of wanted NGP
+    :param point_name: name of point, only for file-saving
     :return:
+    :param pcgp_arome: dataset only at chosen PCGP of AROME-model
     """
     # read DEM, AROME and ICON topography ds with calc slope&aspect
     dem = xr.open_dataset(confg.data_folder + "/Height/dem_with_slope_aspect.nc")
     arome = xr.open_dataset(confg.data_folder + "/Height/arome_topo_with_slope_aspect.nc")
     icon = xr.open_dataset(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
 
-    # choose physically consistent grid point (pcgp) from model topography according to
-    #
-    gpe_dem = choose_gpe(ds=dem, lat_ngp=confg.lat_ibk, lon_ngp=confg.lon_ibk)  # choose GPE around NGP from DEM -> real values
-    gpe_arome = choose_gpe(ds=arome, lat_ngp=confg.lat_ibk, lon_ngp=confg.lon_ibk)
-    gpe_icon = choose_gpe(ds=icon, lat_ngp=confg.lat_ibk, lon_ngp=confg.lon_ibk)
+    # choose physically consistent grid point (pcgp) from model topography according to Simonet et al.
+    gpe_dem = choose_gpe(ds=dem, lat_ngp=lat, lon_ngp=lon)  # choose GPE around NGP from DEM -> real values
+    gpe_arome = choose_gpe(ds=arome, lat_ngp=lat, lon_ngp=lon)
+    gpe_icon = choose_gpe(ds=icon, lat_ngp=lat, lon_ngp=lon)
 
     pcgp_arome = calculate_select_pcgp(gpe_model=gpe_arome, gpe_dem=gpe_dem)
     pcgp_icon = calculate_select_pcgp(gpe_model=gpe_icon, gpe_dem=gpe_dem)
 
+    # uncomment for reading models at that point and save them as a timeseries
     # read models at that PCGP point (if not already saved)
     # arome_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
-    #                                                             variables=["p", "th", "temp", "rho", "z"])
+    #                                                            variables=variables)
     # icon_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
-    #                                                           variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
-    # arome_timeseries.to_netcdf(confg.dir_AROME + f"/arome_lat{pcgp_arome.y.values:.2f}_lon{pcgp_arome.x.values:.2f}_timeseries.nc")
+    #                                                           variant="ICON2TE", variables=variables)
+    # arome_timeseries.to_netcdf(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
     # icon_timeseries.to_netcdf(
-    #     confg.icon2TE_folder_3D + f"/icon_2te_lat{pcgp_icon.y.values:.2f}_lon{pcgp_icon.x.values:.2f}_timeseries.nc")
+    #     confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")
+    return pcgp_arome, pcgp_icon
+
+
+def calc_vhd_single_point_main(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
+    """
+    reads topo files w calc slope & aspect, calls fct for PCGP selection & calcs VHD for a single point
+    was orig in main...
+
+    :return:
+    """
+    # read_dems_calc_pcgp_save_timeseries(lat=lat, lon=lon, point_name=point_name,
+    #                                     variables=["p", "th", "temp", "rho", "z"])
 
     # read saved timeseries for ibk gridpoint defined above
-    arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_lat47.25_lon11.39_timeseries.nc")
-    icon_timeseries = xr.open_dataset(confg.icon_folder_3D + f"/icon_lat47.26_lon11.38_timeseries.nc")# read saved AROME timeseries
-    icon2te_timeseries = xr.open_dataset(confg.icon2TE_folder_3D + f"/icon_2te_lat47.26_lon11.38_timeseries.nc")  # read saved ICON timeseries
+    arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
+    icon_timeseries = xr.open_dataset(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc")# read saved AROME timeseries
+    icon2te_timeseries = xr.open_dataset(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")  # read saved ICON timeseries
     # calc VHD for model data for single PCGP
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
     vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
     vhd_icon2te = calc_vhd_single_point(icon2te_timeseries, model="ICON")
 
 
+def select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
+    """
+    opens already calculated VHD calculations of full domain and selects the PCGP for the given gridpoint from it
+    :return:
+    """
+    # read calculated vhds to select PCGP for single points from that:
+    vhd_arome = xr.open_dataset(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    vhd_icon = xr.open_dataset(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
+    vhd_icon2te = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
+
+    pcgp_arome, pcgp_icon = read_dems_calc_pcgp(lat=lat, lon=lon, point_name=point_name)
+    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item())
+    vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
+    vhd_icon2te_pcgp = vhd_icon2te.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
+    return vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp
+
+
 if __name__ == '__main__':
     matplotlib.use('Qt5Agg')
-    darkblue_hcl = sequential_hcl(palette="Blues 3").colors()[3]  # colors for slope profiles
-    darkred_hcl = sequential_hcl(palette="Reds 3").colors()[4]
-    black_hcl = sequential_hcl(palette="Grays").colors()[0]
     pal = sequential_hcl("Terrain")
 
-    # lat_nordkette = 47.3
-    # hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset, defined dir. in fct
-    # c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure
-    # icon_ibk_ngp = read_icon_model_3D.read_icon_fixed_point(lat=lat_ibk, lon=lon_ibk, variant="ICON")  # ngp = nearest grid point
+    # calc_vhd_single_point_main(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni")  # call main fct which calls
+    # all other fcts for calculating vhd for that point
 
-    arome = read_in_arome.read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["p", "temp", "th", "z", "rho"])
+    """
+    # read full domain of ICON and calc VHD for every hour. concatenate them into 1 dataset and write them to a .nc file
+    timerange = pd.date_range("2017-10-15 13:00:00", periods=24, freq="h")
+    vhd_datasets = []
+    for timestamp in timerange:
+        #icon = read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+        #                                               variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
+        #vhd_datasets.append(calc_vhd_full_domain(ds_extent=icon, model="ICON2TE"))
+        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variables=["p", "temp", "th", "z", "rho"])
+        vhd_datasets.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
 
-    vhd_arome = calc_vhd_full_domain(ds_extent=arome)
-    vhd_arome
-
+    vhd_icon = xr.concat(vhd_datasets, dim="time")
+    vhd_icon.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    """
+    vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni,
+                                                                      point_name="ibk_uni")
+    vhd_arome_pcgp
+    # vhd_arome = calc_vhd_full_domain(ds_extent=arome, model="AROME")
+    # vhd_icon = calc_vhd_full_domain(ds_extent=icon, model="ICON")
+    # vhd_arome
+    # vhd_icon

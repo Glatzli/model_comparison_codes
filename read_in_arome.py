@@ -17,6 +17,7 @@ import metpy.calc as mpcalc
 import tarfile
 import matplotlib.pyplot as plt
 import matplotlib
+import datetime
 from pathlib import Path
 from confg import variables_units_2D_AROME
 
@@ -212,13 +213,14 @@ def read_in_arome(variables=["p", "th", "z"]):
                            coords='minimal', compat='override', decode_timedelta=True)
     return ds, vars_to_calculate
 
+
 def rename_vars(data):
     """
     Rename the 'nz' coordinate to 'height' and reverse the height axis to have uniform 0 at ground level.
     :param ds: arome dataset
     :return: edited arome ds
     """
-    data = data.rename({"nz": "height"})  # rename to uniform height coordinate
+    data = data.rename({"nz": "height", "latitude": "lat", "longitude": "lon"})  # rename to uniform height coordinate
     data = data.assign_coords(height=data.height.values[::-1])
     return data
 
@@ -246,18 +248,23 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     ds = ds.compute()
     return ds
 
-def read_in_arome_fixed_time(time="2017-10-15T14:00:00", variables=["p", "th", "z"]):
+
+def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2, min_lon=9.2, max_lon=13):
     """
-    read arome data for a fixed time
+    read arome data for a fixed time,
+    by default indexes the data to the chosen box (icon)
     :param time: time as string f.e. "2017-10-15T12:00:00", you can use pd.to_datetime() to convert a string to a timestamp
     :return:
     ds of arome data with only wanted timestamp (~2GB)
     """
     ds, vars_to_calculate = read_in_arome(variables=variables)
-    ds = ds.sel(time=time)  # select just needed timestep
+    timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
+    ds = ds.sel(time=timestamp)  # select just needed timestep
+    ds = ds.sel(latitude=slice(min_lat, max_lat + 0.01), longitude=slice(min_lon, max_lon + 0.01))  # include lon=13.0° & lat=48.2°
 
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
+    ds = ds.compute()
     return ds
 
 
@@ -286,11 +293,12 @@ if __name__ == '__main__':
 
     # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome_z = read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])
+    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
+    arome
     # maybe subset w python?! arome.sel(latitude=slice(46.5, 48.2), longitude=slice(9.2, 13)).to_netcdf(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
 
-    arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
-    arome_z
+    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
+    # arome_z
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
     # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 

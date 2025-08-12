@@ -65,10 +65,12 @@ def merge_save_hatpro():
     # Merge the temp & humidity datasets
     hatpro = xr.merge([hatpro_temp, hatpro_humidity])
     hatpro = hatpro.rename({"height_level": "height"})  # rename coordinate name for uniform name
-    hatpro["temperature"] = hatpro["th"] - 273.15  # add temperature to have consistency with models
+    hatpro["temp"] = hatpro["th"] - 273.15  # add temperature to have consistency with models
+    hatpro = hatpro.drop_vars("th")  # drop "th" because that is pot temp in my naming!
 
     # Save the merged dataset to a NetCDF file
     hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_merged.nc")
+
 
 def interpolate_hatpro():
     """
@@ -93,7 +95,6 @@ def interpolate_hatpro():
 
     # hatpro_interp['pressure'] = (hatpro_interp['p'] / 100.0) * units.hPa
     # calc temp
-    hatpro_interp = hatpro_interp.drop("th")
     hatpro_interp["th"] = mpcalc.potential_temperature(hatpro_interp["pressure"] * units.hPa, hatpro_interp["temperature"] * units("degC"))
     hatpro_interp = hatpro_interp.metpy.dequantify()
     hatpro_interp.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
@@ -101,6 +102,7 @@ def interpolate_hatpro():
 
 if __name__ == '__main__':
     # merge_save_hatpro()
-
-    interpolate_hatpro()
+    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    hatpro
+    # interpolate_hatpro()
 

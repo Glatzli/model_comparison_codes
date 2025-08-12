@@ -596,7 +596,10 @@ def calculate_km_for_lon_extent(latitude, lon_extent_deg):
     return lon_extent_deg * lon_km
 
 def plot_topo_um_cartopy():
-    # read and plot topography of UM model, easy with cartopy!
+    """
+    read and plot topography of UM model, easy with cartopy!
+    :return:
+    """
     um = read_ukmo.read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["z", "th", "p", "q"])
     um_orig_crs = ccrs.RotatedPole(pole_longitude=um.rotated_latitude_longitude.grid_north_pole_longitude,
                      pole_latitude=um.rotated_latitude_longitude.grid_north_pole_latitude)
@@ -652,8 +655,8 @@ if __name__ == '__main__':
     min_lon_subset, max_lon_subset = 9.2, 13
     min_lat_subset, max_lat_subset = 46.5, 48.2
 
-    plot_topo_um_cartopy()
-    plot_topo_wrf()
+    # plot_topo_um_cartopy()
+    # plot_topo_wrf()
 
     #data = read_plot_clip_tirol()  # show whole Tyrol map
     # create_clipped_dem(data)  # create DEM90 digital elevation model
@@ -666,13 +669,13 @@ if __name__ == '__main__':
 
     ds_small_extent, extent_lat_small, extent_lon_small = select_extent_around_LOWI(height_lowest, lat_degree=0.08, lon_degree=0.08)
     ds_small_extent2, extent_lat_small2, extent_lon_small2 = select_extent_around_LOWI(height_lowest, lat_degree=0.1, lon_degree=0.1)
-    ds_large_extent, extent_lat_large, extent_lon_large = select_extent_around_LOWI(height_lowest, lat_degree=0.4, lon_degree=0.4)
+    ds_large_extent, extent_lat_large, extent_lon_large = select_extent_around_LOWI(height_lowest, lat_degree=20, lon_degree=20)  # orig 0.4 for topo overview plot
 
     # Plot stations as points, underneath as contour the AROME Model height
     plot_stations_and_AROME_height_filled(ds_large_extent, "ICON", ext_lat=extent_lat_large, ext_lon=extent_lon_large,
                                           ext_lat_small = extent_lat_small, ext_lon_small = extent_lon_small)
 
-    plot_stations_detail(ds_small_extent2, "ICON", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
+    # plot_stations_detail(ds_small_extent2, "ICON", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
 
     # Plot the LOWI station point in center, and grid heights around it with real heights of DEM in the background
     # plot_height_diff_LOWI(ds_large_extent, "AROME")
@@ -682,5 +685,3 @@ if __name__ == '__main__':
     #plot_lidar_and_Modelgrid_points(ds_small_extent, "AROME", ext_lat=extent_lat_small,
     #                                ext_lon=extent_lon_small)  # mit dist_degree = 0.05
     plt.show()
-
-

@@ -1,5 +1,6 @@
 """In this "confg-script" are all the data filepaths listed
 You have to change it!
+original by hannes, daniel adapted it a bit and added/edited some coords etc
 
 """
 
@@ -15,8 +16,13 @@ dir_PLOTS = "D:/MSc_Arbeit/plots/"
 hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset, used for VHD calc
 c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for VHD calc
 
-lat_ibk = 47.259998  # the exact same lat & lon of Ibk cosma already used
-lon_ibk = 11.384167
+# coordinates of points used for Daniels' Analysis
+lat_ibk, lon_ibk = 47.259998, 11.384167  # same lat & lon of Ibk cosma already used: which is for Ibk_Villa (2m temp recording)
+lat_uni, lon_uni = 47.264, 11.385  # hatpro coords rounded to 3 digits after comma
+lat_woergl, lon_woergl = 47.494, 12.059  # coords for wörgl, lower Inn valley
+
+lat_min, lat_max = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
+lon_min, lon_max = 10.8, 12  # 10.8, 12
 # -------------------------------------------------------------------------------------------------------------
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
