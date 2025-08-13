@@ -1,5 +1,5 @@
 """
-something is wrong in my calc for a single point taking the already calced VHD?!
+domain calc and point calculation both work now, but they are different! Why?
 
 This script should plot the timeseries of the VHD for all models and the change of spatial extent of a defined threshold
 in time.
@@ -7,12 +7,13 @@ in time.
 """
 import math
 import importlib
+from pathlib import Path
 
 from bokeh.util.logconfig import level
 import read_in_arome
 import read_icon_model_3D
 import read_ukmo
-from calc_vhd import calc_vhd_single_point, select_pcgp_vhd, calc_vhd_full_domain
+from calc_vhd import calc_vhd_single_point, select_pcgp_vhd, calc_vhd_full_domain, calc_vhd_single_point_main
 import read_wrf_helen
 import confg
 import xarray as xr
@@ -29,43 +30,53 @@ import matplotlib.colors as mcolors
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
 
 
-def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, point_name="ibk_uni"):
+def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, point_name=confg.ibk_uni["name"], vhd_origin="point"):
+    """
+    plots the VHD for a single point, which is already calced
+    :param vhd_arome:
+    :param vhd_icon:
+    :param vhd_icon2te:
+    :param point_name:
+    :param vhd_origin: should be either ["point", "domain"]; stands for how the VHD is calculated that is used for plotting.
+        either from full domain calculation or from reading single point timeseries...
+    :return:
+    """
     fig, ax = plt.subplots(figsize=(10, 6))
-    (vhd_arome / 10**6).plot(ax=ax, label="AROME")
-    (vhd_icon / 10**6).plot(ax=ax, label="ICON")
-    (vhd_icon2te / 10**6).plot(ax=ax, label="ICON2TE")
+    (vhd_arome.vhd / 10**6).plot(ax=ax, label="AROME")
+    (vhd_icon.vhd / 10**6).plot(ax=ax, label="ICON")
+    (vhd_icon2te.vhd / 10**6).plot(ax=ax, label="ICON2TE")
 
     # plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m %H:%M'))
     # plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
     plt.ylabel(r"valley heat deficit $[\frac{MJ}{m^2}]$")  # units are still pfusch...
-    plt.title(f"VHD timeline for {point_name}")
+    plt.title(f"VHD timeline for {point_name} via {vhd_origin} calc")
     plt.legend(loc='upper left')
-    plt.savefig(confg.dir_PLOTS + "vhd_plots/" + f"vhd_model_comp_{point_name}.svg")
+    plt.savefig(confg.dir_PLOTS + "vhd_plots/" + f"vhd_model_comp_{point_name}_{vhd_origin}.svg")
     plt.show()
 
 
-def calc_and_plot_vhds_point(lat= confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
+def read_vhd_full_domain_and_plot_vhds_point(lat= confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"]):
     """
-    selects pcgpg-vhd with function from calc_vhd and calls single point plotting fct
-    uncomment block for old computation with VHDs calculated for every single point
+    reads only functions for reading VHD full domain, calcing PCGP (fct in calc_vhd.py) and plotting the VHDs
+
+    Problem: calculation of VHD for single point with extra reading data & calcing gives a different VHD than precomputed
+    VHD for full domain and the selecting the PCGP?! -> why?
+
     :return:
     """
-    """
-    # first open already saved point-timeseries for ibk point
-    arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_lat47.25_lon11.39_timeseries.nc")
-    icon_timeseries = xr.open_dataset \
-        (confg.icon_folder_3D + f"/icon_lat47.26_lon11.38_timeseries.nc"  )# read saved AROME timeseries
-    icon2te_timeseries = xr.open_dataset \
-        (confg.icon2TE_folder_3D + f"/icon_2te_lat47.26_lon11.38_timeseries.nc")  # read saved ICON timeseries
-    # calc VHD for model data for PCGP
-    vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
-    vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
-    vhd_icon2te = calc_vhd_single_point(icon2te_timeseries, model="ICON")"""
     vhd_arome, vhd_icon, vhd_icon2te = select_pcgp_vhd(lat=lat, lon=lon, point_name=point_name)
-    plot_vhds_point(vhd_arome=vhd_arome.vhd, vhd_icon=vhd_icon.vhd, vhd_icon2te=vhd_icon2te.vhd, point_name=point_name)
+    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
+                    vhd_origin="domain")
 
 
 def plot_vhd_full_domain(ds_extent, time, model="ICON"):
+    """
+    not used right now
+    :param ds_extent:
+    :param time:
+    :param model:
+    :return:
+    """
     fig, axis = plt.subplots(figsize=(8, 5), subplot_kw={'projection': ccrs.Mercator()})  # , subplot_kw={'projection': ccrs.PlateCarree()}
     model_vhd = (ds_extent / 10**6).sel(lat=slice(confg.lat_min, confg.lat_max),
                   lon=slice(confg.lon_min, confg.lon_max)).plot(ax=axis, cmap=darkblue_hcl_rev,
@@ -87,6 +98,7 @@ def plot_vhd_full_domain(ds_extent, time, model="ICON"):
 def plot_vhd_small_multiples(ds_extent, times, model="ICON"):
     """
     written by ChatGPT, but modified
+    plots VHD as hourly data with small multiples, need revision because I now calced it 1/2 hourly
     :param ds_extent:
     :param times:
     :param model:
@@ -134,7 +146,21 @@ if __name__ == '__main__':
     # darkred_hcl = sequential_hcl(palette="Reds 3").colors()[4]
     # black_hcl = sequential_hcl(palette="Grays").colors()[0]
     # pal = sequential_hcl("Terrain")
-    calc_and_plot_vhds_point(lat= confg.lat_woergl, lon=confg.lon_woergl, point_name="woergl")  # plotting vhd for a preliminary saved gridpoint
+    # calc_and_plot_vhds_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"])  # old stuff, prob überflüssig
+
+    point_name, point_lat, point_lon = confg.woergl["name"], confg.woergl["lat"], confg.woergl["lon"]
+
+    # via single point VHD calculation
+    vhd_arome, vhd_icon, vhd_icon2te = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
+                                                                  point_name=point_name)  # call main fct which calls
+    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
+                    vhd_origin="point")
+
+    # via full domain VHD calculation
+    vhd_arome, vhd_icon, vhd_icon2te = select_pcgp_vhd(lat=point_lat, lon=point_lon, point_name=point_name)
+    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
+                    vhd_origin="domain")
+
 
     # arome = read_in_arome.read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])  # variables=["p", "temp", "th", "z", "rho"]
     """

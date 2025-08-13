@@ -10,6 +10,7 @@ Plotting the VHD (timeseries and spatial extent over time) is done in plot_vhd.p
 """
 
 import sys
+from pathlib import Path
 from read_icon_model_3D import read_icon_fixed_time
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import importlib
@@ -178,7 +179,7 @@ def calc_vhd_single_point(ds_point, model="AROME"):
     th_hafelekar = ds_below_hafelekar.isel(height=0).th
     vhd_point = confg.c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")
 
-    return vhd_point
+    return vhd_point.to_dataset(name="vhd")  # return as dataset with vhd as variable
 
 
 def calc_vhd_full_domain(ds_extent, model="AROME"):
@@ -279,15 +280,12 @@ def read_topos_calc_slope_aspect():
     icon.to_netcdf(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
 
 
-def read_dems_calc_pcgp(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni",
+def read_dems_calc_pcgp(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"],
                                         variables=["p", "th", "temp", "rho", "z"]):
     """
     reads model topos & DEM, calls choose gpe fct, calls calc & select pcgp fct and
     saves timeseries with all needed vars at the PCGP
     filepaths to which timeseries are saved are f.e. confg.dir_AROME + f"/arome_{point_name}_timeseries.nc" for AROME
-
-    uncomment block for original way w. calculating the VHD extra for the chosen PCGP point. I already calculated VHD
-    for all points, therefore I just use that and select PCGP from that in the fct now!
 
     :param lat: latitude of wanted NGP
     :param lon: longitude of wanted NGP
@@ -308,27 +306,43 @@ def read_dems_calc_pcgp(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_un
     pcgp_arome = calculate_select_pcgp(gpe_model=gpe_arome, gpe_dem=gpe_dem)
     pcgp_icon = calculate_select_pcgp(gpe_model=gpe_icon, gpe_dem=gpe_dem)
 
-    # uncomment for reading models at that point and save them as a timeseries
-    # read models at that PCGP point (if not already saved)
-    # arome_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
-    #                                                            variables=variables)
-    # icon_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
-    #                                                           variant="ICON2TE", variables=variables)
-    # arome_timeseries.to_netcdf(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
-    # icon_timeseries.to_netcdf(
-    #     confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")
     return pcgp_arome, pcgp_icon
 
 
-def calc_vhd_single_point_main(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
+def save_timeseries(pcgp_arome, pcgp_icon, point_name=confg.ibk_uni["name"], variables=["p", "th", "temp", "rho", "z"]):
     """
-    reads topo files w calc slope & aspect, calls fct for PCGP selection & calcs VHD for a single point
-    was orig in main...
-
+    This function should just read the timeseries of the models at the given point and save them as .nc files. Is used
+    for when PCGP is found, the timeseries is saved at that point.
     :return:
     """
-    # read_dems_calc_pcgp_save_timeseries(lat=lat, lon=lon, point_name=point_name,
-    #                                     variables=["p", "th", "temp", "rho", "z"])
+    model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+                                                               variables=variables)
+    model_timeseries.to_netcdf(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
+
+    model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
+                                                               variant="ICON", variables=variables)
+    model_timeseries.to_netcdf(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc")
+    model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
+                                                              variant="ICON2TE", variables=variables)
+    model_timeseries.to_netcdf(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")
+
+
+def calc_vhd_single_point_main(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"]):
+    """
+    checks if timeseries is not already saved for the given point, if not it reads the DEMs, calculates the PCGP and
+    then read & save the timeseries for the PCGP for the given point.
+
+    :return:
+    vhd_arome:
+    """
+    timeseries_paths = [Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),
+                        Path(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc"),
+                        Path(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")]
+    if [f.exists() for f in timeseries_paths].count(False) >= 1:  # check if timeseries were already saved for that point, if not read and save them!
+        print("vhds need to be calculated first for that point, please wait...")
+        pcgp_arome, pcgp_icon = read_dems_calc_pcgp(lat=lat, lon=lon, point_name=point_name,
+                                                    variables=["p", "th", "temp", "rho", "z"])
+        save_timeseries(pcgp_arome=pcgp_arome, pcgp_icon=pcgp_icon, point_name=point_name, variables=["p", "th", "temp", "rho", "z"])
 
     # read saved timeseries for ibk gridpoint defined above
     arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
@@ -338,9 +352,10 @@ def calc_vhd_single_point_main(lat=confg.lat_uni, lon=confg.lon_uni, point_name=
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
     vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
     vhd_icon2te = calc_vhd_single_point(icon2te_timeseries, model="ICON")
+    return vhd_arome, vhd_icon, vhd_icon2te
 
 
-def select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
+def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"]):
     """
     opens already calculated VHD calculations of full domain and selects the PCGP for the given gridpoint from it
     :return:
@@ -351,7 +366,9 @@ def select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
     vhd_icon2te = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
 
     pcgp_arome, pcgp_icon = read_dems_calc_pcgp(lat=lat, lon=lon, point_name=point_name)
-    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item())
+    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought method
+    # nearest isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
+    # difference is f.e. 12.064999 for vhd lon value and 12.065000 for pcgp lon value...
     vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
     vhd_icon2te_pcgp = vhd_icon2te.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
     return vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp
@@ -360,28 +377,35 @@ def select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni"):
 if __name__ == '__main__':
     matplotlib.use('Qt5Agg')
     pal = sequential_hcl("Terrain")
-
-    # calc_vhd_single_point_main(lat=confg.lat_uni, lon=confg.lon_uni, point_name="ibk_uni")  # call main fct which calls
+    # to calculate the PCGP for this point and save timeseries of the models at the PCGP
+    # read_dems_calc_pcgp(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], point_name=confg.ibk_villa["name"])
+    # if PCGP already saved as extra nc file:
+    vhd_arome, vhd_icon, vhd_icon2te = calc_vhd_single_point_main(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
+                                                                  point_name=confg.ibk_villa["name"])  # call main fct which calls
     # all other fcts for calculating vhd for that point
+    vhd_arome
 
     """
-    # read full domain of ICON and calc VHD for every hour. concatenate them into 1 dataset and write them to a .nc file
-    timerange = pd.date_range("2017-10-15 13:00:00", periods=24, freq="h")
+    # read full domain of model and calc VHD for every hour. concatenate them into 1 dataset and write them to a .nc file
+    timerange = pd.date_range("2017-10-15 13:00:00", periods=47, freq="30min")
     vhd_datasets = []
     for timestamp in timerange:
-        #icon = read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-        #                                               variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
-        #vhd_datasets.append(calc_vhd_full_domain(ds_extent=icon, model="ICON2TE"))
-        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                       variables=["p", "temp", "th", "z", "rho"])
-        vhd_datasets.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
+        # arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+        #                                                variables=["p", "temp", "th", "z", "rho"])
+        # vhd_datasets.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
+        icon = read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
+        vhd_datasets.append(calc_vhd_full_domain(ds_extent=icon, model="ICON2TE"))
 
-    vhd_icon = xr.concat(vhd_datasets, dim="time")
-    vhd_icon.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    vhd_full = xr.concat(vhd_datasets, dim="time")
+    # vhd_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    # vhd_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
+    vhd_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
     """
-    vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.lat_uni, lon=confg.lon_uni,
-                                                                      point_name="ibk_uni")
-    vhd_arome_pcgp
+
+    # vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    #                                                                   point_name=confg.ibk_uni["name"])
+    #vhd_arome_pcgp
     # vhd_arome = calc_vhd_full_domain(ds_extent=arome, model="AROME")
     # vhd_icon = calc_vhd_full_domain(ds_extent=icon, model="ICON")
     # vhd_arome

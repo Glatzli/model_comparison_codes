@@ -17,9 +17,11 @@ hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/46723
 c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for VHD calc
 
 # coordinates of points used for Daniels' Analysis
-lat_ibk, lon_ibk = 47.259998, 11.384167  # same lat & lon of Ibk cosma already used: which is for Ibk_Villa (2m temp recording)
-lat_uni, lon_uni = 47.264, 11.385  # hatpro coords rounded to 3 digits after comma
-lat_woergl, lon_woergl = 47.494, 12.059  # coords for wörgl, lower Inn valley
+ibk_villa = {"name": "ibk_villa", "lat": 47.259998, "lon": 11.384167}  # same lat & lon of Ibk cosma already used: which
+# is for Ibk_Villa (2m temp recording)
+ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385}  # hatpro, uni coords rounded to 3 digits after comma
+woergl = {"name": "woergl", "lat": 47.494, "lon": 12.059}  # coords for wörgl, lower Inn valley
+
 
 lat_min, lat_max = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
 lon_min, lon_max = 10.8, 12  # 10.8, 12
