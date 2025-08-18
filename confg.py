@@ -21,6 +21,7 @@ ibk_villa = {"name": "ibk_villa", "lat": 47.259998, "lon": 11.384167}  # same la
 # is for Ibk_Villa (2m temp recording)
 ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385}  # hatpro, uni coords rounded to 3 digits after comma
 woergl = {"name": "woergl", "lat": 47.494, "lon": 12.059}  # coords for wörgl, lower Inn valley
+kiefersfelden = {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2}  # coords for kiefersfelden, Germany, entrance Inn valley
 
 
 lat_min, lat_max = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting

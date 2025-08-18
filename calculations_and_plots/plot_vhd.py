@@ -48,11 +48,12 @@ def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, point_name=confg.ibk_uni["
 
     # plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m %H:%M'))
     # plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
+    plt.ylim(0.08, 0.35)
     plt.ylabel(r"valley heat deficit $[\frac{MJ}{m^2}]$")  # units are still pfusch...
     plt.title(f"VHD timeline for {point_name} via {vhd_origin} calc")
     plt.legend(loc='upper left')
     plt.savefig(confg.dir_PLOTS + "vhd_plots/" + f"vhd_model_comp_{point_name}_{vhd_origin}.svg")
-    plt.show()
+
 
 
 def read_vhd_full_domain_and_plot_vhds_point(lat= confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"]):
@@ -131,7 +132,6 @@ def plot_vhd_small_multiples(ds_extent, times, model="ICON"):
     fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=darkblue_hcl_rev), cax=cbar_ax,
                  label="valley heat deficit [$MJ/m^2$]", ticks=np.arange(0, 0.5, 0.05))
 
-
     #fig.colorbar(im, ax=axes, orientation='vertical', pad=0.02, fraction=0.02).set_label(
     #"valley heat deficit [$J/m^2$]", rotation=90, labelpad=15)
     # plt.tight_layout()
@@ -148,18 +148,19 @@ if __name__ == '__main__':
     # pal = sequential_hcl("Terrain")
     # calc_and_plot_vhds_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"])  # old stuff, prob überflüssig
 
-    point_name, point_lat, point_lon = confg.woergl["name"], confg.woergl["lat"], confg.woergl["lon"]
+    point_name, point_lat, point_lon = confg.kiefersfelden["name"], confg.kiefersfelden["lat"], confg.kiefersfelden["lon"]
 
     # via single point VHD calculation
-    vhd_arome, vhd_icon, vhd_icon2te = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
-                                                                  point_name=point_name)  # call main fct which calls
-    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
+    vhd_arome_single, vhd_icon_single, vhd_icon2te_single = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
+                                                                  point_name=point_name)  # call main fct which calls others
+    plot_vhds_point(vhd_arome=vhd_arome_single, vhd_icon=vhd_icon_single, vhd_icon2te=vhd_icon2te_single, point_name=point_name,
                     vhd_origin="point")
 
     # via full domain VHD calculation
-    vhd_arome, vhd_icon, vhd_icon2te = select_pcgp_vhd(lat=point_lat, lon=point_lon, point_name=point_name)
-    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
+    vhd_arome_domain, vhd_icon_domain, vhd_icon2te_domain = select_pcgp_vhd(lat=point_lat, lon=point_lon, point_name=point_name)
+    plot_vhds_point(vhd_arome=vhd_arome_domain, vhd_icon=vhd_icon_domain, vhd_icon2te=vhd_icon2te_domain, point_name=point_name,
                     vhd_origin="domain")
+    plt.show()
 
 
     # arome = read_in_arome.read_in_arome_fixed_time(time="2017-10-15T12:00:00", variables=["z"])  # variables=["p", "temp", "th", "z", "rho"]

@@ -161,23 +161,25 @@ def define_ds_below_hafelekar(ds, model="AROME"):
         # distance between vert. model levels is ~100m, so error is of max. 50m, which is acceptable
         # (which is ~ 10% error for AROME, just took hafelekar height +50m and looked at VHD...)
         ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height_3.values)
+    elif model == "HATPRO":
+        ds_below_hafelekar = ds.sel(height = ds.height.where(ds.height <= confg.hafelekar_height, drop=True).height.values)
     else:
-        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height.values) # select full dataset below Hafelekar
+        # select full dataset below Hafelekar
+        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height.values)
     return ds_below_hafelekar
 
 
 def calc_vhd_single_point(ds_point, model="AROME"):
     """
     calculates the valley heat deficit (VHD) for a single point in a dataset, e.g. for Innsbruck.
-
     calc density from pressure and temperature using metpy/ ideal gas law: rho = p / (R * T) with R_dryair = 287.05
 
     param ds_point:
     :return: vhd_point: xarray.DataArray with valley heat deficit at the point with time as coord.
     """
     ds_below_hafelekar = define_ds_below_hafelekar(ds=ds_point, model=model)
-    th_hafelekar = ds_below_hafelekar.isel(height=0).th
-    vhd_point = confg.c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")
+    th_hafelekar = ds_below_hafelekar.sel(height=ds_below_hafelekar.height.max()).th
+    vhd_point = confg.c_p*((th_hafelekar - ds_below_hafelekar.th) * ds_below_hafelekar.rho).sum(dim="height")
 
     return vhd_point.to_dataset(name="vhd")  # return as dataset with vhd as variable
 
@@ -191,9 +193,19 @@ def calc_vhd_full_domain(ds_extent, model="AROME"):
     :param ds_extent:
     :return:
     """
-    ds_below_hafelekar = define_ds_below_hafelekar(ds=ds_extent, model=model)
-    th_hafelekar = ds_below_hafelekar.isel(height=0).th
-    vhd_full_domain = confg.c_p*((th_hafelekar - ds_below_hafelekar.th.isel(height=slice(1, 100))) * ds_below_hafelekar.rho).sum(dim="height")
+    if model == "AROME":  # searched for height-value of Hafelekar in the point-calculation for Ibk gridpoint and use
+        # that height for the full domain (searching here with HAF-height doesn't work properly,
+        # because some gridpoints are above HAF height...)
+        ds_below_hafelekar = ds_extent.sel(height = slice(37, 1))
+    elif model in ["ICON", "ICON2TE"]:
+        ds_below_hafelekar = ds_extent.sel(height=slice(33, 1))
+    else:
+        print("search proper HAF height in indexes of ds before calculating!")
+
+    th_hafelekar = ds_below_hafelekar.sel(height=ds_below_hafelekar.height.max()).th
+    vhd_full_domain = confg.c_p*((th_hafelekar - ds_below_hafelekar.th) * ds_below_hafelekar.rho).sum(dim="height")
+    # had before at ds_below_hafelekar .isel(height=slice(1, 100))
+
     return vhd_full_domain
 
 
@@ -367,7 +379,7 @@ def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_na
 
     pcgp_arome, pcgp_icon = read_dems_calc_pcgp(lat=lat, lon=lon, point_name=point_name)
     vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought method
-    # nearest isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
+    # "nearest" isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
     # difference is f.e. 12.064999 for vhd lon value and 12.065000 for pcgp lon value...
     vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
     vhd_icon2te_pcgp = vhd_icon2te.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item())
@@ -377,31 +389,38 @@ def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_na
 if __name__ == '__main__':
     matplotlib.use('Qt5Agg')
     pal = sequential_hcl("Terrain")
+
+    # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+    # vhd_hatpro = calc_vhd_single_point(hatpro, model="HATPRO")
+
     # to calculate the PCGP for this point and save timeseries of the models at the PCGP
     # read_dems_calc_pcgp(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], point_name=confg.ibk_villa["name"])
     # if PCGP already saved as extra nc file:
+    """
     vhd_arome, vhd_icon, vhd_icon2te = calc_vhd_single_point_main(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
                                                                   point_name=confg.ibk_villa["name"])  # call main fct which calls
     # all other fcts for calculating vhd for that point
     vhd_arome
-
     """
+
     # read full domain of model and calc VHD for every hour. concatenate them into 1 dataset and write them to a .nc file
-    timerange = pd.date_range("2017-10-15 13:00:00", periods=47, freq="30min")
+    timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
     vhd_datasets = []
+    vhd_ds_arome = []
+    vhd_ds_icon = []
     for timestamp in timerange:
-        # arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-        #                                                variables=["p", "temp", "th", "z", "rho"])
-        # vhd_datasets.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
+        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variables=["p", "temp", "th", "z", "rho"])
+        vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
         icon = read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                       variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
-        vhd_datasets.append(calc_vhd_full_domain(ds_extent=icon, model="ICON2TE"))
+                                                     variant="ICON", variables=["p", "temp", "th", "z", "rho"])
+        vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon, model="ICON"))
 
-    vhd_full = xr.concat(vhd_datasets, dim="time")
-    # vhd_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
-    # vhd_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
-    vhd_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
-    """
+    # vhd_arome_full = xr.concat(vhd_ds_arome, dim="time")
+    # vhd_arome_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    vhd_icon_full = xr.concat(vhd_ds_icon, dim="time")
+    vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
+    # vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
 
     # vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
     #                                                                   point_name=confg.ibk_uni["name"])

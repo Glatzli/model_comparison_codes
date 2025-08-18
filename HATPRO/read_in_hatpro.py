@@ -53,7 +53,8 @@ def read_hatpro(filepath):
         # ds["humidity"].attrs['units'] = "g/m^3"  # absolute humidity
         # ds['humidity'] = ds['humidity'].metpy.convert_units("g/m^3")
 
-        # print(ds["humidity"])"""
+        # print(ds["humidity"])
+    """
     return ds
 
 def merge_save_hatpro():
@@ -72,18 +73,18 @@ def merge_save_hatpro():
     hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_merged.nc")
 
 
-def interpolate_hatpro():
+def interpolate_hatpro_arome():
     """
-    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure
+    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure,
     and save it as a netcdf file
     :return:
     """
     arome = xr.open_dataset(confg.model_folder + "/AROME/AROME_temp_timeseries_ibk.nc")
     hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
-    arome
+    # arome
 
     # try to use pressure from AROME model to calc pot temp from hatpro data...
-    arome["height_above_ibk"] = arome.height - 612  # the HATPRO station is at 612 m a.s.l.
+    arome["height_above_ibk"] = arome.height - 612  # the HATPRO station is at 612 m a.s.l., lowest lvl of AROME is above...
     hatpro_interp = hatpro.interp(height=arome.height_above_ibk)
 
     # start_time = pd.to_datetime('2017-10-15 12:00:00', format='%Y-%m-%d %H:%M:%S')
@@ -95,14 +96,35 @@ def interpolate_hatpro():
 
     # hatpro_interp['pressure'] = (hatpro_interp['p'] / 100.0) * units.hPa
     # calc temp
-    hatpro_interp["th"] = mpcalc.potential_temperature(hatpro_interp["pressure"] * units.hPa, hatpro_interp["temperature"] * units("degC"))
+    hatpro_interp["th"] = mpcalc.potential_temperature(hatpro_interp["pressure"] * units.hPa, hatpro_interp["temp"] * units("degC"))
     hatpro_interp = hatpro_interp.metpy.dequantify()
+    hatpro_interp = hatpro_interp.rename({"pressure": "p"})
     hatpro_interp.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+
+
+def interpolate_hatpro_arome_add_density():
+    """
+    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure and
+    append calculated AROME density, espc for VHD calculation...
+    :return:
+    """
+    arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # because that point is the PCGP around
+    # the uni, it is not directly at the HATPRO but a bit easterly (although no point is exactly at the HATPRO station!)
+    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    # hatpro
+    hatpro["height"] = hatpro.height + 612  # Hatpro heights begin at 0 but HATPRO station is at 612 m a.s.l. => correct
+
+    # hatpro.interp(height=arome.isel(time=1).z.compute().values)
+    hatpro_interp = hatpro.interp(height=arome.isel(time=1).z.compute().values, method="linear")  # is that right?!
+
+
+    hatpro_interp.isel(time=0).temp  # for checking...
 
 
 if __name__ == '__main__':
     # merge_save_hatpro()
-    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
-    hatpro
-    # interpolate_hatpro()
-
+    #hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    # hatpro
+    # hatpro_interp = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+    # interpolate_hatpro_arome()
+    interpolate_hatpro_arome_add_density()

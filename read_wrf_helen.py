@@ -413,53 +413,8 @@ if __name__ == '__main__':
                               min_lat=min_lat_subset, max_lat=max_lat_subset)  #
     wrf
 
-    # shouldn't it normally work like that? according to https://pyproj4.github.io/pyproj/stable/examples.html ...
-    # but maybe some info is missing: Description: Inverse of unknown + unknown??
-    crs_orig = pyproj.CRS.from_proj4(wrf.attrs["pyproj_srs"])   # get CRS info from original WRF dataset
-    crs_proj = pyproj.CRS.from_epsg(4326)
-    proj = pyproj.Transformer.from_crs(crs_orig, crs_orig)
 
-    # try setting projection directly with cartopy?
-    wrf_proj_cartopy = ccrs.LambertConformal(central_longitude=wrf.attrs["STAND_LON"],
-                          central_latitude=wrf.attrs["MOAD_CEN_LAT"],
-                          false_easting=0, false_northing=0,
-                          standard_parallels=(wrf.attrs["TRUELAT1"], wrf.attrs["TRUELAT2"]),
-                          cutoff=0)
 
-    # try to reproject wrf to WGS84, or regular lat lon grid (to have uniform projection for all models)
-    # after https://fabienmaussion.info/2018/01/06/wrf-projection/ but some things are deprecated...
-    wrf_proj = pyproj.Proj(proj="lcc",
-                           lat_1 = wrf.attrs["TRUELAT1"], lat_2 = wrf.attrs["TRUELAT2"],
-                           lat_0 = wrf.attrs["MOAD_CEN_LAT"], lon_0 = wrf.attrs["STAND_LON"],
-                           a=6370000, b=6370000)
-    wgs_proj = pyproj.Proj(proj="latlong", datum="WGS84")
-    pyproj.Transformer.from_pipeline(wrf.attrs["pyproj_srs"])  # use projection string from wrf dataset for transforming
-    # the projection...
-    trans = pyproj.Transformer.from_crs("epsg:4326", wrf.attrs["pyproj_srs"])  # or does it work like that?
-
-    # but it somehow still doesn't work - maybe there is some information missing for the transformation?
-
-    """
-    transformer = Transformer.from_proj(wgs_proj, wrf_proj, always_xy=True)
-    x, y = transformer.transform(wrf.CEN_LON, wrf.CEN_LAT)
-
-    # Easting and Northings of the domains center point
-    wgs_proj = Proj(proj='latlong', datum='WGS84')
-    e, n = pyproj.transform(wgs_proj, wrf_proj, wrf.CEN_LON, wrf.CEN_LAT)
-    # Grid parameters
-    dx, dy = wrf.DX, wrf.DY
-    nx, ny = wrf.dims['west_east'], wrf.dims['south_north']
-    # Down left corner of the domain
-    x0 = -(nx - 1) / 2. * dx + e
-    y0 = -(ny - 1) / 2. * dy + n
-    # 2d grid
-    xx, yy = np.meshgrid(np.arange(nx) * dx + x0, np.arange(ny) * dy + y0)
-
-    our_lons, our_lats = pyproj.transform(wrf_proj, wgs_proj, xx, yy)
-    wrf['DIFF'] = np.sqrt((our_lons - wrf.XLONG_M) ** 2 + (our_lats - wrf.XLAT_M) ** 2)
-    wrf.salem.quick_map('DIFF', cmap='Reds');
-
-    wrf.z.isel(height=0).salem.quick_map(cmap='topo')"""
 
     #df = read_wrf_fixed_point_and_time(day=16, hour=3, latitude=confg.station_files_zamg["IAO"]["lat"],
     #                               longitude=confg.station_files_zamg["IAO"]["lon"], minute=0)
