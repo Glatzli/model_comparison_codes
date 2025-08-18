@@ -73,7 +73,8 @@ Points:
   general notes for calc:
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
 	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD larger as for cosma
- - calced VHD for ICON for all points over full timespan, saved it and started to plot as small multiples :)
+ - plot VHD as hourly small multiples :)
+ - Why is result of full domain calc & then selecting PCGP different from point calc?!
  - zmax: how to find stable layers/inversion: plot pot temp profiles for mult stations, maybe take same threshold as
    lukas umek in his paper? in vert. profiles it looked pretty shallow. Man braucht irgendein Maß für stärke und dicke des
    CAPs. zB Inversionshöhe & VHD. Maybe search for profiles at my plots? Warum zB ist mein VHD größer am Taleingang-> profil!
