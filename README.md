@@ -74,7 +74,9 @@ Points:
 	- take care that all needed vars are read if some are calculated! No checks included due to time-reasons...
 	- are units for VHD calc right? I have 3*10^6 values, cosma 1.1*10^6 -> YES, everything ok! VHD larger as for cosma
  - plot VHD as hourly small multiples :)
- - Why is result of full domain calc & then selecting PCGP different from point calc?!
+ - result of full domain calc & then selecting PCGP different from point calc?!?
+   		-> different levels of top! -> search for which height-Index is used for ibk gridpoint and use that for full domain
+   		indexing somehow doesn't work for full domain (probably due to some points that are even higher?!)
  - zmax: how to find stable layers/inversion: plot pot temp profiles for mult stations, maybe take same threshold as
    lukas umek in his paper? in vert. profiles it looked pretty shallow. Man braucht irgendein Maß für stärke und dicke des
    CAPs. zB Inversionshöhe & VHD. Maybe search for profiles at my plots? Warum zB ist mein VHD größer am Taleingang-> profil!
@@ -220,6 +222,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
