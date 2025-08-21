@@ -2,23 +2,7 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 Points: 
-- rewriting WRF-read-ins for regridded data: need to create new dataset, but somehow get dimension error...
-
-goal layout of point-dataset:
-<xarray.Dataset> Size: 73kB
-Dimensions:   (time: 49, height: 90, height_3: 91)
-Coordinates:
-    lon       float64 8B 11.38
-    lat       float64 8B 47.26
-  * time      (time) datetime64[ns] 392B 2017-10-15T12:00:00 ... 2017-10-16T1...
-  * height    (height) float64 720B 90.0 89.0 88.0 87.0 86.0 ... 4.0 3.0 2.0 1.0
-  * height_3  (height_3) float64 728B 91.0 90.0 89.0 88.0 ... 4.0 3.0 2.0 1.0
-Data variables:
-    p         (time, height) float32 18kB 29.8 37.62 49.86 ... 953.1 954.5 955.4
-    temp      (time, height) float32 18kB -59.7 -62.13 -63.57 ... 22.26 22.63
-    th        (time, height) float32 18kB 582.4 538.7 493.6 ... 299.4 299.7
-    z         (height_3) float32 364B 2.446e+04 2.345e+04 ... 608.1 603.2
-    rho       (time, height) float32 18kB 0.04864 0.06205 0.08287 ... 1.12 1.119
+- rewriting WRF-read-ins: THEY WORK!!! :D
 
 - writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
 - create file with plots and notes! Note what I did and already found!
@@ -57,7 +41,7 @@ Data variables:
   		can be calculated (interpolated) also later for 1 var if cross sect wanted.
 
 - PCGP calc for Arome & ICON: works now
-	Resolution of DEM & model not equal!
+	Resolution of DEM & models not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
   	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
   	-> factor 2 is not that bad!
@@ -75,7 +59,10 @@ Data variables:
 		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
 
   	-> works for AROME & ICON data
-     	calculate angle (numpy) & aspect ratio (xDEM) 
+     	calculate angle (numpy) & aspect ratio (xDEM)
+  
+  	- WRF: what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
+  		with other models?! ~ 20m difference for ibk gridpoint or woergl gridpoint... 
   	
 - maybe subset all models to have smaller datafiles? 
    AROME: in read in routine, works quite fine!
@@ -83,6 +70,7 @@ Data variables:
    UM & WRF not yet possible: missing lat/lon...
 
 - calc VHD:
+  WRF calculation probably wrong (too large vals) -> check again!
   compare with HATPRO data (spatial plot) and radiosonde (point plot)!
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
@@ -97,7 +85,7 @@ Data variables:
    		indexing somehow doesn't work for full domain (probably due to some points that are even higher?!)
    	AROME: height = 37 at Hafelekar
    	ICON: height = 33 at Hafelekar
-   	WRF
+   	WRF: height = 37 at Hafelekar
    ibk uni: AROME higher VHD for point calc... for ibk villa equal
 	woergl again higher vals for VHD; for kiefersfelden all models are higher for the point calc
  - zmax: how to find stable layers/inversion: plot pot temp profiles for mult stations, maybe take same threshold as
@@ -245,6 +233,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
