@@ -71,7 +71,7 @@ Points:
 
 - calc VHD:
   WRF calculation probably wrong (too large vals) -> check again!
-  compare with HATPRO data (spatial plot) and radiosonde (point plot)!
+  compare with HATPRO data (timeseries plot) and radiosonde (point plot)!
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
   different calc with reference at Hafelekar and not at max temp.)
@@ -233,6 +233,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
