@@ -71,6 +71,9 @@ Points:
 
 - calc VHD:
   WRF calculation probably wrong (too large vals) -> check again!
+  	Idea: Are other vars the same for point-read in and full domain read in?
+  	-> check!;
+  	had Problem in temp calc. Manuela already added the 300 for the pot temp...
   compare with HATPRO data (timeseries plot) and radiosonde (point plot)!
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
@@ -233,6 +236,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
