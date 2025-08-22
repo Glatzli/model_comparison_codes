@@ -1,8 +1,8 @@
 """Script to read in WRF ACINN data
 Note: it is a sort of WRF Data, but still different than the WRF_ETH files.
-re-written by Daniel
+re-written by Daniel, regridded by Manuela
 
-
+Hannes:
 Use salem from Prof. Maussion (https://salem.readthedocs.io/en/stable/) to read it in, had to modify it sometimes
 
 Most important functions:
@@ -18,8 +18,11 @@ import xarray as xr
 from fsspec.compression import compr
 from matplotlib import pyplot as plt
 from salem import wrftools
+import datetime
+from scripts.regsetup import description
 
 from shapely.geometry import Point, Polygon
+from sklearn.covariance import ledoit_wolf
 # from wrf import combine_dims
 from xarray.backends.netCDF4_ import NetCDF4DataStore
 import confg
@@ -33,7 +36,10 @@ import numpy as np
 #matplotlib.use('Qt5Agg')
 
 def __open_wrf_dataset_my_version(file, **kwargs):
-    """Updated Function from salem, the problem is that our time has no units (so i had to remove the check in the original function)
+    """deprecated?
+    Hannes used originally for loops through time to append each dataset to a list and then to combine them...
+
+    Updated Function from salem, the problem is that our time has no units (so i had to remove the check in the original function)
     Internally used to unstagger, and read in WRF 3D File.
 
     Wrapper around xarray's open_dataset to make WRF files a bit better.
@@ -80,8 +86,8 @@ def __open_wrf_dataset_my_version(file, **kwargs):
             pass
 
     # add cartesian coords
-    ds['longitude'] = ds.salem.grid.x_coord  # adapted
-    ds['latitude'] = ds.salem.grid.y_coord
+    # ds['longitude'] = ds.salem.grid.x_coord  # adapted
+    # ds['latitude'] = ds.salem.grid.y_coord
 
     # add pyproj string everywhere
     ds.attrs['pyproj_srs'] = ds.salem.grid.proj.srs
@@ -90,30 +96,43 @@ def __open_wrf_dataset_my_version(file, **kwargs):
 
     return ds
 
-def __open_wrf_dataset_my_version_open_mfdataset(filepaths):
+def assign_rename_coords(ds):
+    """assign and rename coordinates for WRF dataset: time and lat/lon"""
+
+    # WRF has originally "Time" as a dimension, but that are integer vals; it also has "time" as a data variable, which is
+    # in minutes since 2017-10-15T12:00:00Z (so mins after simulation start)
+    # => assign time to Time coordinate, delete "time" data var. rename "Time" to "time" for consistency and calculate
+    # it as datetime vals...
+    ds = ds.assign_coords(Time=("Time", ds.time.compute().data))
+    ds = ds.drop_vars("time")
+    new_time = [pd.Timestamp('2017-10-15T12:00:00') + pd.Timedelta(minutes=m) for m in ds.Time.values]
+    ds = ds.assign_coords(Time=("Time", new_time))
+
+    # define the lat&lon vals that are saved in data vars as coordinates
+    ds = ds.assign_coords(west_east=("west_east", ds.isel(south_north=1, Time=0).lon.data))
+    ds = ds.assign_coords(south_north=("south_north", ds.isel(west_east=1, Time=0).lat.data))
+    ds = ds.drop_vars(["lon", "lat"])  # drop lon & lat data vars, because they are now coords
+    ds = ds.rename({"Time": "time", "bottom_top": "height", "south_north": "lat", "west_east": "lon"})
+    ds = ds.assign_coords(height=("height", ds.height.data))  # height is just dim w/o coordinate, therefore set it
+    return ds
+
+
+def open_wrf_mfdataset(filepaths, variables):
     """changed function to work for multiple files with xarray's mfdataset
-    specifically for read_wrf_fixed_point
+    by Daniel to work for regridded WRF data...
 
-    Parameters
-    ----------
-    file : str
-        the path to the WRF file
-    **kwargs : optional
-        Additional arguments passed on to ``xarray.open_mfdataset``.
-
-    Returns
-    -------
-    an xarray Dataset
+    :param filepaths: list of filepaths to regridded WRF-files
+    :param variables: list of variables that need to be calculated (that are not in ds)
+    """
     """
     if isinstance(filepaths, str):
         filepaths = [filepaths]  # Einzelnen Pfad in eine Liste umwandeln
-
-    datasets = []
+    datasets = []  # i don't know exactly what these lines are doing...
     for filepath in filepaths:  # iterate through all paths, do commands for each file
         nc = netCDF4.Dataset(filepath)
         nc.set_auto_mask(False)
 
-        # unstagger variables
+        # unstagger variables; from Hannes...
         for vn, v in nc.variables.items():
             if wrftools.Unstaggerer.can_do(v):
                 nc.variables[vn] = wrftools.Unstaggerer(v)
@@ -125,33 +144,18 @@ def __open_wrf_dataset_my_version_open_mfdataset(filepaths):
                 nc.variables[vn] = cl(nc)
 
         # Trick xarray mit unserem benutzerdefinierten NetCDF
-        datasets.append(NetCDF4DataStore(nc))
+        datasets.append(NetCDF4DataStore(nc))"""
 
-    # trick xarray with our custom netcdf
-    ds = xr.open_mfdataset(datasets, concat_dim="Time", combine="nested", data_vars='minimal',
+    ds = xr.open_mfdataset(filepaths, chunks="auto", concat_dim="Time", combine="nested", data_vars='minimal',
                                 coords='minimal', compat='override', decode_cf=False)
+    # need to calculate the var's that are not in ds and are given (there are also lat&lon, time in this list, but those
+    # are not calculated...)
+    vars_to_calculate = set(variables) - set(list(ds.data_vars))
+    ds = assign_rename_coords(ds)
+    ds.attrs["history"] = "regridded to regular lat/lon grid by Manuela Lehner " + ds.attrs["history"]
 
-    # somehow time-dimension didn't work correctly, so add it by hand...
-    ds["Time"] = [pd.Timestamp('2017-10-15T12:00:00') + pd.Timedelta(minutes=m) for m in ds.time.values]
+    return ds, vars_to_calculate
 
-    # remove time dimension to lon lat
-    for vn in ['XLONG', 'XLAT']:
-        try:
-            v = ds[vn].isel(Time=0)
-            ds[vn] = xr.DataArray(v.values, dims=['south_north', 'west_east'])
-        except (ValueError, KeyError):
-            pass
-
-    # add cartesian coords
-    ds['longitude'] = ds.salem.grid.x_coord  # adapted
-    ds['latitude'] = ds.salem.grid.y_coord
-
-    # add pyproj string everywhere
-    ds.attrs['pyproj_srs'] = ds.salem.grid.proj.srs
-    for v in ds.data_vars:
-        ds[v].attrs['pyproj_srs'] = ds.salem.grid.proj.srs
-
-    return ds
 
 def salem_example_plots(ds):
     """Make some example plots with salem plotting functions need to have some slice of lat lon
@@ -181,10 +185,10 @@ def salem_example_plots(ds):
     plt.figure()
     ds["alb"].salem.quick_map(interp='linear')
 
-def convert_calc_variables(ds):
+
+def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
     """
-    changed from ICON, original from Hannes was insanely slow
-    cals temp (degC), rh (%), pressure (hpa) & evtl Td (degC)
+    calculate only variables that are wanted, and change attributes to new units/varibles
 
     Parameters:
     - ds: A xarray Dataset containing the columns 'p' for pressure in Pa
@@ -194,17 +198,29 @@ def convert_calc_variables(ds):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
-    # Convert pressure from Pa to hPa
-    ds['p'] = (ds['p'] / 100) * units.hPa
+    if "th" in ds:
+        # ds["th"] = ds["th"] + 300 # th is original the perturbation potential temp,
+        # WRF user manual says https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/output.html
+        ds["th"] = ds['th'].assign_attrs(units= "K", description="potential temperature, calced from pert. pot. temp + 300K")
 
-    # calculate temp in K
-    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
+    if "p" in ds:
+        # Convert pressure from Pa to hPa
+        ds["p"] = (ds["p"] / 100) * units.hPa
+        ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
+        if "temp" in vars_to_calc:
+            # calculate temp in K
+            ds["temp"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
+            if "rho" in vars_to_calc:
+                ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
+                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density, calced w R_dryair = 287.05")
 
     # ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["p"], ds["temperature"], ds["q_mixingratio"] * units("kg/kg")) * 100  # for percent
     # ds["Td"] = mpcalc.dewpoint_from_relative_humidity(ds["temp"], ds["rh"])  # I don't need it now, evtl. there is an error in calc of rh...
 
     ds = ds.metpy.dequantify()
-    ds["temperature"]  = ds["temperature"] - 273.15  # convert temp to °C
+    if "temp" in vars_to_calc:
+        ds["temp"]  = ds["temp"] - 273.15  # convert temp to °C
+        ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature")
 
     return ds
 
@@ -233,8 +249,8 @@ def create_ds_geopot_height_as_z_coordinate(ds):
 
 
 def read_wrf_fixed_point_and_time(day: int, hour: int, latitude: float, longitude: float, minute: int):
-    """Read in WRF ACINN at a fixed time (hour, day, min) and location (lat, lon)
-    I probably won't need this function!
+    """deprecated
+    Read in WRF ACINN at a fixed time (hour, day, min) and location (lat, lon)
 
     :param day: day can be 15 or 16 (October)
     :param hour: can be from 12 to 00 for 15.October to 00 to 12 for 16. October
@@ -275,36 +291,62 @@ def read_wrf_fixed_point_and_time(day: int, hour: int, latitude: float, longitud
     return df
 
 
-def generate_datasets(lat=47.259998, lon=11.384167, start_day=15, end_day=16,
-                      variable_list=["u", "v", "z", "th", "time", "p", "q_mixingratio"], lowest_level=False):
-    """read in wrf datasets, put them into list together & merge them w xarray"""
-    datasets = []
-    for day in range(start_day, end_day + 1):
-        date = f"201710{day:02d}"
-        day_folder = f"WRF_ACINN_{date}"
-        for hour in range(14 if day == 15 else 0, 24 if day == 15 else 13):  # adapted logic
-            for minute in [0, 30]:
-                if (hour == 12) & (minute == 30):
-                    continue  # skip 12:30 for day 16
-                file_name = f"WRF_ACINN_201710{15:02d}T{12:02d}{0:02d}Z_CAP02_3D_30min_1km_HCW_{date}T{hour:02d}{minute:02d}Z.nc"
-                filepath = f"{confg.wrf_folder}/{day_folder}/{file_name}"
+def rename_drop_vars(ds):
+    """ deprecated, cause ds is created new due to lat/lon dimensions
+    rename and drop variables for consistent naming
 
-                ds = __open_wrf_dataset_my_version(filepath)
-                # Directly subset the dataset for the given point and time
-                ds = ds.salem.subset(geometry=Point(lon, lat), crs='epsg:4236')
-                if lowest_level:  # from hannes, I probably won't need only lowest level
-                    ds = ds.isel(Time=0, south_north=0, west_east=0, bottom_top=0)
-                else:
-                    ds = ds.isel(Time=0, south_north=0, west_east=0)
-
-                ds = ds[variable_list]  # define variables
-                datasets.append(ds)
-
-    return xr.concat(generate_datasets(), dim='Time')
+    :param ds:
+    :return:
+    """
+    ds["Time"] = ds.time  # add correct Time value to coord
+    ds["south_north"] = ds.lat
+    ds["west_east"] = ds.lon
+    ds = ds.drop_vars(["time", "lat", "lon"])  # before also included: "latitude", "longitude"
+    ds = ds.rename({"Time": "time", "bottom_top": "height", "south_north": "lat", "west_east": "lon"})
+    # rename dimensions to uniform names
+    return ds
 
 
-def read_wrf_fixed_point(lat=47.259998, lon= 11.384167, variable_list=["u", "v", "z", "th", "time", "p", "q_mixingratio"],
-                         lowest_level=False):
+def create_new_dataset(ds):
+    """needed due to regridding, create a new dataset with lat, lon, height and time as coordinates
+    only used for read wrf fixed time over full domain, for a single point it's not needed!
+
+    """
+    # Problem: we have lat & lon not as coordinates => need to redefine the dataset
+    # extract 1D- coordinates
+    lat_1d = ds['lat'][0, :, 0].values
+    lon_1d = ds['lon'][0, 0, :].values
+
+    # Erzeuge ein neues Dataset mit 1D-Koordinaten
+    wrf = xr.Dataset(
+        data_vars=dict(
+            alb=(["time", "lat", "lon"], ds.alb.values),
+            hfs= (["time", "lat", "lon"], ds.hfs.values),
+            lfs=(["time", "lat", "lon"], ds.lfs.values),
+            lwd=(["time", "lat", "lon"], ds.lwd.values),
+            lwu=(["lat", "lon"], ds.lwu.values),
+            p=(["height", "lat", "lon"], ds.p.values),
+            swd=(["time", "lat", "lon"], ds.swd.values),
+            swu=(["lat", "lon"], ds.swu.values),
+            th=(["time", "height", "lat", "lon"], ds.th.values),
+            tke=(["time", "height", "lat", "lon"], ds.tke.values),
+            u=(["time", "height", "lat", "lon"], ds.u.values),
+            v=(["time", "height", "lat", "lon"], ds.v.values),
+            w=(["time", "height", "lat", "lon"], ds.w.values),
+            z=(["height", "lat", "lon"], ds.z.values),
+        ),
+        coords=dict(
+            height=("height", ds.bottom_top.values),
+            time=("time", ds.Time.values),
+            lat=("lat", lat_1d),
+            lon=("lon", lon_1d)
+        ),
+        attrs=dict(description="WRF data with regridded lat/lon as coordinates")
+    )
+    return wrf
+
+
+def read_wrf_fixed_point(lat=47.259998, lon= 11.384167, variables=["p", "temp", "th", "rho", "z"]):
     """calls fct to read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
     It is also possible to define the lowest_level = True, selects only lowest level
     then adjust dimensions to have time & height as coordinates
@@ -315,86 +357,45 @@ def read_wrf_fixed_point(lat=47.259998, lon= 11.384167, variable_list=["u", "v",
     :param lat: Latitude of the location.
     :param lon: Longitude of the location.
     """
-
-
     # combined_ds = generate_datasets(lat, lon, start_day, end_day, variable_list=["th", "p", "time"])  # deleted by daniel
     # create list of all wrf file names:
     hours_15 = [f"{hour:02d}{minute:02d}" for hour in range(12, 24) for minute in [0, 30]]  # 1200, 1230, ..., 2330 (list of strings)
     hours_16 = [f"{hour:02d}{minute:02d}" for hour in range(0, 12) for minute in [0, 30]] + ["1200"]  # 0000, 0030, ..., 1200
     wrf_files_15 = [confg.wrf_folder + f"/WRF_ACINN_20171015/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171015T"
-                 + hour + "Z.nc" for hour in hours_15]
+                 + hour + "Z_regrid.nc" for hour in hours_15]
     wrf_files_16 = [confg.wrf_folder + f"/WRF_ACINN_20171016/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171016T"
-                    + hour + "Z.nc" for hour in hours_16]
+                    + hour + "Z_regrid.nc" for hour in hours_16]
     wrf_files = wrf_files_15 + wrf_files_16  # list of path to all wrf files, not beautiful but works
 
-    combined_ds = __open_wrf_dataset_my_version_open_mfdataset(wrf_files)
+    combined_ds, vars_to_calculate = open_wrf_mfdataset(filepaths=wrf_files, variables=variables)
 
-    ds = combined_ds.salem.subset(geometry=Point(lon, lat), crs='epsg:4236')  #from Hannes' code, subset to point
-    ds = ds.isel(south_north=0, west_east=0)  # select point, from here on only 2D-dataset: Time & bottom_top
+    ds = combined_ds.sel(lat=lat, lon=lon, method= "nearest")  # index given point
+    ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
+    ds = ds[variables]
 
-    # assign data variable as coordinate
-    ds = ds.drop_vars(["time"])
-    ds = ds.rename({"Time": "time", "bottom_top": "height"})  # rename dimensions to uniform names
-    # assign bottom top as coordinate, and give it the values of z (height) m
-    #z_values_at_time0 = combined_ds.isel(Time=0)['z']
-
-    ds = convert_calc_variables(ds)
-    return ds
+    return ds.compute()
 
 
-def read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, min_lat=47, max_lat=48, variable_list=["time","u", "v", "z", "th", "p", "alb", "q_mixingratio"]):  #,lowest_level=False
-    """Read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
-    It is also possible to define the lowest_level = True, selects only lowest level
+def read_wrf_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "rho", "z"]):  # min_lat=46.5, max_lat=48.2, min_lon=9.2, max_lon=13
+    """ reads 1 single WRF file at a spec. time over the full domain
 
     :param my_time: selected time
-    :param min_lon, max_lon, min_lat, max_lat: minimum and maximum latitude and longitude of Box
+
     :param lowest_level: Default False, but if True then select only lowest level
-    :param variable_list: a variable list to keep only certain variables, if it is NONE, then preselection is done
+    :param variables: a variable list to keep only certain variables; default are those needed for VHD calc
 
     """
-    box_polygon = Polygon(
-        [(min_lon, min_lat), (min_lon, max_lat), (max_lon, max_lat), (max_lon, min_lat), (min_lon, min_lat)])
-
-    time = pd.to_datetime(my_time)
+    time = datetime.datetime(2017, 10, day, hour, min, 00)
 
     filepath = (confg.wrf_folder + f"/WRF_ACINN_201710{time.day:02d}/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710"
-                                   f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z.nc")
+                                   f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z_regrid.nc")
 
-    ds = __open_wrf_dataset_my_version(filepath)
-    ds["Time"] = ds.time  # add correct Time value to coord
-    ds = ds.drop_vars(["time"])
-    ds = ds.rename({"Time": "time", "bottom_top": "height"}) # rename dimensions to uniform names
-    ds = ds.salem.subset(geometry=box_polygon, crs='epsg:4236')  # .isel(Time=0)
+    ds, vars_to_calc = open_wrf_mfdataset(filepaths=filepath, variables=variables)
+    ds = convert_calc_variables(ds, vars_to_calc=vars_to_calc)  # calculate variables like temp, rho, etc.
+    ds = ds[variables]
 
-    ds = convert_calc_variables(ds)
-    return ds
+    return ds.compute()
 
-def read_wrf_fixed_time_wsl(my_time="2017-10-15T14:00:00", min_lon=11, max_lon=13, min_lat=47, max_lat=48, variable_list=["time","u", "v", "z", "th", "p", "alb", "q_mixingratio"]):  #,lowest_level=False
-    """Read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
-    It is also possible to define the lowest_level = True, selects only lowest level
-
-    :param my_time: selected time
-    :param min_lon, max_lon, min_lat, max_lat: minimum and maximum latitude and longitude of Box
-    :param lowest_level: Default False, but if True then select only lowest level
-    :param variable_list: a variable list to keep only certain variables, if it is NONE, then preselection is done
-
-    """
-    box_polygon = Polygon(
-        [(min_lon, min_lat), (min_lon, max_lat), (max_lon, max_lat), (max_lon, min_lat), (min_lon, min_lat)])
-
-    time = pd.to_datetime(my_time)
-
-    filepath = ("/mnt/d/MSc_Arbeit/WRF_ACINN" + f"/WRF_ACINN_201710{time.day:02d}/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710"
-                                   f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z.nc")
-
-    ds = __open_wrf_dataset_my_version(filepath)
-    ds["Time"] = ds.time  # add correct Time value to coord
-    ds = ds.drop_vars(["time"])
-    ds = ds.rename({"Time": "time", "bottom_top": "height"}) # rename dimensions to uniform names
-    ds = ds.salem.subset(geometry=box_polygon, crs='epsg:4236')  # .isel(Time=0)
-
-    ds = convert_calc_variables(ds)
-    return ds
 
 if __name__ == '__main__':
     import matplotlib
@@ -402,24 +403,18 @@ if __name__ == '__main__':
 
     lat_ibk = 47.259998
     lon_ibk = 11.384167
-    #wrf = read_wrf_fixed_point(lat=lat_ibk, lon=lon_ibk)
+
     #wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
     #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
-    min_lon_subset, max_lon_subset = 9.2, 13
-    min_lat_subset, max_lat_subset = 46.5, 48.2
 
-    wrf = read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=min_lon_subset, max_lon=max_lon_subset,
-                              min_lat=min_lat_subset, max_lat=max_lat_subset)  #
-    wrf
+    wrf = read_wrf_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variables=["p", "temp", "th", "rho", "z"])
+    wrf_extent = read_wrf_fixed_time(day=16, hour=12, min=0, variables=["hgt", "p", "temp", "th", "rho", "z"])
+    wrf_extent
 
-
-
-
-    #df = read_wrf_fixed_point_and_time(day=16, hour=3, latitude=confg.station_files_zamg["IAO"]["lat"],
-    #                               longitude=confg.station_files_zamg["IAO"]["lon"], minute=0)
-
-
-    #salem_example_plots(ds)
-    #plt.show()
-
+    # what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
+    # with other models?! ~ 20m difference...
+    wrf_extent.hgt.to_netcdf(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    wrf_tif = wrf_extent.rename({"lat": "y", "lon": "x", "hgt": "band_data"})  # rename for tif export
+    wrf_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
+    wrf_tif.isel(time=0).band_data.rio.to_raster(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file

@@ -41,14 +41,17 @@ def convert_calc_variables(ds, variables):
     if "p" in variables:
         # Convert pressure from Pa to hPa
         ds['p'] = (ds['p'] / 100.0) * units.hPa
+        ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
 
     if "th" in variables:
         # calc pot temp
         ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
+        ds["th"] = ds['th'].assign_attrs(units="K", description="potential temperature calced from p and temp")
 
     if "temp" in variables:
         # convert temp to °C
         ds["temp"]  = (ds["temp"] - 273.15) * units.degC
+        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
 
     # ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
 
@@ -359,7 +362,7 @@ if __name__ == '__main__':
     # testing cdo generates nc files:
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
 
-    icon = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"])
+    # icon = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"])
     # save height info as .tif file for pcgp computation i.e. calc of slope & aspect need crs info
     # icon_tif = icon_extent.rename({"lat": "y", "lon": "x", "z":"band_data"})  # rename
     # icon_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
@@ -370,7 +373,8 @@ if __name__ == '__main__':
     # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
 
-    # icon_point = read_icon_fixed_point(lat=confg.lat_ibk, lon=confg.lon_ibk, variant=model, variables=["p", "temp", "th", "z", "rho"])
+    icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
+                                       variables=["p", "temp", "th", "z", "rho"])
     # icon_point
 
     icon_full_domain = read_icon_full_domain_mutliple_hours()
@@ -381,14 +385,7 @@ if __name__ == '__main__':
     #icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
 
 
-    # with this code the ICON model is read in, one specific latitude is extracted and saved as new dataset with geometric
-    # height as vert coord
-    """ deprecated due to regridding...
-    icon15 = read_icon_fixed_point_multiple_hours(day=15, hours=np.arange(12, 24), lon=lon_ibk, lat=lat_ibk, variant="ICON")
-    icon16 = read_icon_fixed_point_multiple_hours(day=16, hours=np.arange(0, 13), lon=lon_ibk, lat=lat_ibk, variant="ICON")
-    variables = ["th", "temp", "z_ifc"]  # "temp", "pres", "u", "v", "w",
-    icon = xr.concat([icon15[variables], icon16[variables]], dim="time")
-    """
+
     # create a new dataset with geometric height z_ifc as vertical coordinate
     """
     icon_plotting = create_ds_geopot_height_as_z_coordinate(icon)

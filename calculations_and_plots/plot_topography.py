@@ -613,7 +613,7 @@ def plot_topo_um_cartopy():
 
 def plot_topo_wrf():
     """
-    try to plot WRF topography with cartopy
+    plot the original WRF topography with cartopy
     :return:
     """
     wrf = read_wrf_helen.read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=min_lon_subset, max_lon=max_lon_subset,
@@ -675,7 +675,7 @@ if __name__ == '__main__':
     plot_stations_and_AROME_height_filled(ds_large_extent, "ICON", ext_lat=extent_lat_large, ext_lon=extent_lon_large,
                                           ext_lat_small = extent_lat_small, ext_lon_small = extent_lon_small)
 
-    # plot_stations_detail(ds_small_extent2, "ICON", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
+    plot_stations_detail(ds_small_extent2, "ICON", ext_lat=extent_lat_small, ext_lon=extent_lon_small)
 
     # Plot the LOWI station point in center, and grid heights around it with real heights of DEM in the background
     # plot_height_diff_LOWI(ds_large_extent, "AROME")

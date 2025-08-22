@@ -41,16 +41,18 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
     if "p" in ds:
         # Convert pressure from Pa to hPa
         ds['p'] = (ds['p'] / 100.0) * units.hPa
+        ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
         if "temp" in vars_to_calc:
             # calc temp
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
 
             if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
                 ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
+                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")
         if "rh" in vars_to_calc:
             # calculate relative humidity only if it's loaded in the dataset
             ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q']* units("kg/kg")) * 100  # for percent
-
+            ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
 
     # calculate dewpoint
     #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
@@ -59,6 +61,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
     if "temp" in vars_to_calc:
         # convert temp to °C
         ds["temp"] = ds["temp"] - 273.15
+        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
     return ds
 
 
@@ -105,7 +108,8 @@ def read_timeSeries_AROME(location):
         raise FileNotFoundError(f"No files found for location {location}")
 
 def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False):
-    """ WITH the sel Method
+    """ deprecated
+    WITH the sel Method
     Read all the 2D variables (single netcdf per variable) and merge them
 
     :param variableList: List of the selected variables
@@ -136,8 +140,8 @@ def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"],
     return xr.merge(datasets, join="exact")
 
 def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, level=None, time=None):
-    """
-    ancient from hannes
+    """deprecated,
+    from hannes
     Merge datasets for a list of variables at a specific location and time.
     The (lat, lon, time) parameters can also be arrays, e.g., [10, 12, 13].
 
@@ -198,14 +202,7 @@ def read_in_arome(variables=["p", "th", "z"]):
     :return: ds with all variables in the list
     """
     data_vars = ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]  # saved file vars
-    vars_to_calculate = set(variables) - set(data_vars)
-    # vars_to_read = set(variables) & set(data_vars)
-    """if {"temp", "q"} & vars_to_calculate and "th" not in vars_to_read:
-        variables.append("th")
-    if "p" in vars_to_read:
-        
-    if "rh" in vars_to_calculate and "q" not in vars_to_read:
-        variables.append("q")"""
+    vars_to_calculate = set(variables) - set(data_vars)  # need to calculate the var's that are not in ds and are given
 
     arome_paths = [confg.dir_3D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc" for var in
                    variables if var in data_vars]  # only read in variables that are saved as files, others need to be calc.
@@ -249,7 +246,8 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     return ds
 
 
-def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2, min_lon=9.2, max_lon=13):
+def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2,
+                             min_lon=9.2, max_lon=13):
     """
     read arome data for a fixed time,
     by default indexes the data to the chosen box (icon)
@@ -286,7 +284,6 @@ def save_arome_topography(arome3d):
 
 
 if __name__ == '__main__':
-
     # arome = read_timeSeries_AROME(location)
 
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
@@ -295,7 +292,6 @@ if __name__ == '__main__':
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
     arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
     arome
-    # maybe subset w python?! arome.sel(latitude=slice(46.5, 48.2), longitude=slice(9.2, 13)).to_netcdf(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
 
     # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
     # arome_z
