@@ -50,7 +50,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
                 ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
                 ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")
         if "rh" in vars_to_calc:
-            # calculate relative humidity only if it's loaded in the dataset
+            # not checked yet
             ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q']* units("kg/kg")) * 100  # for percent
             ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
 
@@ -86,109 +86,6 @@ def create_ds_geopot_height_as_z_coordinate(ds):
         attrs=dict(description="AROME data with geopotential height at mid of ds as vertical coordinate"))
 
     return ds_new
-
-
-
-# those 3 functions are old one used by hannes, not used now!
-def read_timeSeries_AROME(location):
-    """The Timeseries is a direct AROME model output which holds all variables (see Data_structure.md) for a specific
-    location -> interpolated to 2m(?), only lowest level!
-    ::param location: is the selected location
-    """
-    pattern = f"AROME_Geosphere_20171015T1200Z_{location}_timeseries_40s_*.nc"
-    final_path_pattern = os.path.join(confg.dir_timeseries_AROME, pattern)
-
-    # Use glob to find files that match the pattern
-    matching_files = glob.glob(final_path_pattern)
-
-    # Assuming there's only one match per location, open the dataset
-    if matching_files:
-        return xr.open_dataset(matching_files[0])
-    else:
-        raise FileNotFoundError(f"No files found for location {location}")
-
-def read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False):
-    """ deprecated
-    WITH the sel Method
-    Read all the 2D variables (single netcdf per variable) and merge them
-
-    :param variableList: List of the selected variables
-    :param lon: Longitude of the MOMAA station
-    :param lat: Latitude of the MOMAA station
-    :param slice_lat_lon: Method for selecting latitude and longitude ('nearest' for nearest neighbor, None for exact match)
-    :return: Merged DataFrame with all the variables
-    """
-    datasets = []  # List to hold the interpolated datasets for each variable
-
-    for variable in variableList:
-        file_path = os.path.join(confg.dir_2D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variable}.nc")
-        ds = xr.open_dataset(file_path)
-
-        # Use no method if lat or lon are slice objects
-        if slice_lat_lon:
-            ds = ds.sel(longitude=lon, latitude=lat).isel(time=slice(4, None))
-        else:
-            ds = ds.sel(longitude=lon, latitude=lat, method="nearest").isel(time=slice(4, None))
-
-        for var, units in confg.variables_units_2D_AROME.items():
-            if var in ds:
-                ds[var].attrs['units'] = units
-
-        ds_quantified = ds.metpy.quantify()
-        datasets.append(ds_quantified)
-
-    return xr.merge(datasets, join="exact")
-
-def read_3D_variables_AROME(variables, method, lon, lat, slice_lat_lon=False, level=None, time=None):
-    """deprecated,
-    from hannes
-    Merge datasets for a list of variables at a specific location and time.
-    The (lat, lon, time) parameters can also be arrays, e.g., [10, 12, 13].
-
-    :param variables: List of variable names to include in the final merged dataset.
-    :param method: Selection method ('sel' or 'interp') for data points.
-    :param level: optional nz coordinate for data selection.
-    :param lon: Longitude coordinate for data selection.
-    :param lat: Latitude coordinate for data selection.
-    :param time: Optional time (is set from 4 to None) assuming it starts at 12:00
-    :param slice_lat_lon: default False, says if it is a slice object or not
-    :return: Merged xarray Dataset for the specified variables, location, and time.
-    """
-    datasets = []  # List to hold datasets for each variable
-
-    for i, var in enumerate(variables):
-        if var != "rho":
-            # Construct the file path and open the dataset except for rho, which is calculated later
-            file_path = os.path.join(confg.dir_3D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc")
-            ds = xr.open_dataset(file_path)
-
-        if time is None:  # if no time is given, read full timerange
-            time_start = pd.to_datetime('2017-10-15 12:00:00',
-                                        format='%Y-%m-%d %H:%M:%S')
-            time_end = pd.to_datetime('2017-10-16 12:00:00',
-                                      format='%Y-%m-%d %H:%M:%S')
-            time = pd.date_range(start=time_start, end=time_end, freq='30min')
-
-        # select point in space in domain either through interpolation or nearest point
-        if method == "interp":
-            ds_selected = ds.interp(longitude=lon, latitude=lat)
-        elif method == "sel":
-            ds_selected = ds.sel(longitude=lon, latitude=lat, method="nearest")
-        # shorter, used by Daniel (Hannes had a lot of checks for lat lon time etc -> I will make seperate function for that)
-
-        # Update variable units
-        # for variable, units in confg.variables_units_3D_AROME.items():
-        #    if variable in ds_selected:
-        #        ds_selected[variable].attrs['units'] = units
-
-        datasets.append(ds_selected)
-
-    # Merge all datasets
-    ds = xr.merge(datasets, join="exact")
-    ds = ds.isel(nz=slice(None, None, -1))  # reverse nz axis to have uniform 0 at ground level!
-    ds = create_ds_geopot_height_as_z_coordinate(ds)  # create new dataset with geopotential height as vertical coordinate
-    ds = convert_calc_variables(ds)
-    return ds
 
 
 def read_in_arome(variables=["p", "th", "z"]):
@@ -298,6 +195,6 @@ if __name__ == '__main__':
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
     # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
-    # arome3d_new# .to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
-    # read_2D_variables_AROME(lon, lat, variableList=["hfs", "hgt", "lfs", "lwd"], slice_lat_lon=False)
+    # arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
+
 

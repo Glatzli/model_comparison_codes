@@ -29,8 +29,9 @@ from shapely.geometry import box
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
 
 import confg
+from confg import station_files_zamg
 import read_ukmo
-from AROME.profile_radiosonde import station_files_zamg
+# from AROME.profile_radiosonde import station_files_zamg
 from confg import JSON_TIROL, TIROL_DEMFILE, cities, stations_ibox, MOMMA_stations_PM, dir_PLOTS, \
     ec_station_names, filepath_arome_height, dem_file_hobos_extent, data_folder
 import read_wrf_helen
@@ -630,10 +631,24 @@ def plot_topo_wrf():
                     transform=wrf_lowest, cmap = pal.cmap())
     plt.show()
 
+def smooth_dem():
+    """
+    smoothes the DEM, compute mean of 3 points in x and y direction
+    :param dem:
+    :return:
+    """
+    dem = xr.open_dataset(confg.TIROL_DEMFILE, engine="rasterio")
+    dem = dem.isel(y=slice(None, None, -1))  # flip data along y axis to have north on top
+    dem_plot = dem.sel(x=slice(9.2, 13), y=slice(48.2, 46.5))
+    dem_plot = dem_plot.coarsen(x=3, y=3, boundary="trim").mean()
+    dem_plot.isel(band=0)  .rio.to_raster(confg.dem_smoothed)
+
 
 if __name__ == '__main__':
     import matplotlib
     matplotlib.use('Qt5Agg')
+
+    smooth_dem()  # used only once to smooth the original DEM to approx. model resolution
 
     lat_ibk = 47.259998  # only for maßstab
     fontprops = fm.FontProperties(size=10)

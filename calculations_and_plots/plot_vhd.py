@@ -1,8 +1,12 @@
 """
 domain calc and point calculation both work now, but they are different! Why?
+WRF is now faaar to large -> check again...
+
 
 This script should plot the timeseries of the VHD for all models and the change of spatial extent of a defined threshold
 in time.
+A lot could be written shorter with loops through all models, but the effort isn't worth it for how often I will use
+this...
 
 """
 import math
@@ -31,12 +35,13 @@ import matplotlib.colors as mcolors
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
 
 
-def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_wrf, point_name=confg.ibk_uni["name"], vhd_origin="point"):
+def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, point_name=confg.ibk_uni["name"], vhd_origin="point"):
     """
     plots the VHD for a single point, which is already calced
     :param vhd_arome:
     :param vhd_icon:
     :param vhd_icon2te:
+    :param vhd_um:
     :param point_name:
     :param vhd_origin: should be either ["point", "domain"]; stands for how the VHD is calculated that is used for plotting.
         either from full domain calculation or from reading single point timeseries...
@@ -44,17 +49,17 @@ def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_wrf, point_name=confg.
     """
     fig, ax = plt.subplots(figsize=(10, 6))
     if vhd_origin == "point":  # add used lat & lon for each plot type (single point calc & domain calc)
-        (vhd_arome.vhd / 10**6).plot(ax=ax, label=f"AROME lat {vhd_arome_single.lat.item():.3f}, lon {vhd_arome_single.lon.item():.3f}")
-        (vhd_icon.vhd / 10**6).plot(ax=ax, label=f"ICON lat {vhd_icon_single.lat.item():.3f}, lon {vhd_icon_single.lon.item():.3f}")
-        (vhd_icon2te.vhd / 10**6).plot(ax=ax, label=f"ICON2TE lat {vhd_icon2te_single.lat.item():.3f}, lon {vhd_icon2te_single.lon.item():.3f}")
-
-        (vhd_wrf.vhd / 10 ** 6).plot(ax=ax, label=f"WRF lat {vhd_wrf_single.lat.item():.3f}, lon {vhd_wrf_single.lon.item():.3f}")
+        (vhd_arome.vhd / 10**6).plot(ax=ax, label=f"AROME lat {vhd_arome.lat.item():.3f}, lon {vhd_arome.lon.item():.3f}")
+        (vhd_icon.vhd / 10**6).plot(ax=ax, label=f"ICON lat {vhd_icon.lat.item():.3f}, lon {vhd_icon.lon.item():.3f}")
+        (vhd_icon2te.vhd / 10**6).plot(ax=ax, label=f"ICON2TE lat {vhd_icon2te.lat.item():.3f}, lon {vhd_icon2te.lon.item():.3f}")
+        (vhd_um.vhd/ 10**6).plot(ax=ax, label=f"UM lat {vhd_um.lat.item():.3f}, lon {vhd_um.lon.item():.3f}")
+        (vhd_wrf.vhd / 10 ** 6).plot(ax=ax, label=f"WRF lat {vhd_wrf.lat.item():.3f}, lon {vhd_wrf.lon.item():.3f}")
     elif vhd_origin == "domain":
-        (vhd_arome.vhd / 10**6).plot(ax=ax, label=f"AROME lat {vhd_arome_domain.lat.item():.3f}, lon {vhd_arome_domain.lon.item():.3f}")
-        (vhd_icon.vhd / 10**6).plot(ax=ax, label=f"ICON lat {vhd_icon_domain.lat.item():.3f}, lon {vhd_icon_domain.lon.item():.3f}")
-        (vhd_icon2te.vhd / 10**6).plot(ax=ax, label=f"ICON2TE lat {vhd_icon2te_domain.lat.item():.3f}, lon {vhd_icon2te_domain.lon.item():.3f}")
-
-        (vhd_wrf.vhd / 10 ** 6).plot(ax=ax, label=f"WRF lat {vhd_wrf_domain.lat.item():.3f}, lon {vhd_wrf_domain.lon.item():.3f}")
+        (vhd_arome.vhd / 10**6).plot(ax=ax, label=f"AROME lat {vhd_arome.lat.item():.3f}, lon {vhd_arome.lon.item():.3f}")
+        (vhd_icon.vhd / 10**6).plot(ax=ax, label=f"ICON lat {vhd_icon.lat.item():.3f}, lon {vhd_icon.lon.item():.3f}")
+        (vhd_icon2te.vhd / 10**6).plot(ax=ax, label=f"ICON2TE lat {vhd_icon2te.lat.item():.3f}, lon {vhd_icon2te.lon.item():.3f}")
+        (vhd_um.vhd / 10**6).plot(ax=ax, label=f"UM lat {vhd_um.lat.item():.3f}, lon {vhd_um.lon.item():.3f}")
+        (vhd_wrf.vhd / 10 ** 6).plot(ax=ax, label=f"WRF lat {vhd_wrf.lat.item():.3f}, lon {vhd_wrf.lon.item():.3f}")
 
     # plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m %H:%M'))
     # plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
@@ -75,13 +80,13 @@ def read_vhd_full_domain_and_plot_vhds_point(lat= confg.ibk_uni["lat"], lon=conf
 
     :return:
     """
-    vhd_arome, vhd_icon, vhd_icon2te = select_pcgp_vhd(lat=lat, lon=lon, point_name=point_name)
-    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, point_name=point_name,
-                    vhd_origin="domain")
+    vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf = select_pcgp_vhd(lat=lat, lon=lon, point_name=point_name)
+    plot_vhds_point(vhd_arome=vhd_arome, vhd_icon=vhd_icon, vhd_icon2te=vhd_icon2te, vhd_um=vhd_um, vhd_wrf=vhd_wrf,
+                    point_name=point_name, vhd_origin="domain")
 
 
 def plot_vhd_full_domain(ds_extent, time, model="ICON"):
-    """
+    """ deprecated
     not used right now
     :param ds_extent:
     :param time:
@@ -156,29 +161,36 @@ if __name__ == '__main__':
     # black_hcl = sequential_hcl(palette="Grays").colors()[0]
     # pal = sequential_hcl("Terrain")
     # calc_and_plot_vhds_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"])  # old stuff, prob überflüssig
-
+    """
     point_name, point_lat, point_lon = confg.ibk_villa["name"], confg.ibk_villa["lat"], confg.ibk_villa["lon"]
 
     # via single point VHD calculation
-    vhd_arome_single, vhd_icon_single, vhd_icon2te_single, vhd_wrf_single = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
+    vhd_arome_single, vhd_icon_single, vhd_icon2te_single, vhd_um_single, vhd_wrf_single = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
                                                                   point_name=point_name)  # call main fct which calls others
-    plot_vhds_point(vhd_arome=vhd_arome_single, vhd_icon=vhd_icon_single, vhd_icon2te=vhd_icon2te_single, vhd_wrf=vhd_wrf_single, point_name=point_name,
-                    vhd_origin="point")
+    plot_vhds_point(vhd_arome=vhd_arome_single, vhd_icon=vhd_icon_single, vhd_icon2te=vhd_icon2te_single,
+                    vhd_um=vhd_um_single, vhd_wrf=vhd_wrf_single, point_name=point_name, vhd_origin="point")
 
     # via full domain VHD calculation
-    vhd_arome_domain, vhd_icon_domain, vhd_icon2te_domain, vhd_wrf_domain = select_pcgp_vhd(lat=point_lat, lon=point_lon)
+    vhd_arome_domain, vhd_icon_domain, vhd_icon2te_domain, vhd_um_domain, vhd_wrf_domain = select_pcgp_vhd(lat=point_lat, lon=point_lon)
     plot_vhds_point(vhd_arome=vhd_arome_domain, vhd_icon=vhd_icon_domain, vhd_icon2te=vhd_icon2te_domain,
-                    vhd_wrf=vhd_wrf_domain, point_name=point_name, vhd_origin="domain")
-    #
+                    vhd_um=vhd_um_domain, vhd_wrf=vhd_wrf_domain, point_name=point_name, vhd_origin="domain")
+
     """
     vhd_arome = xr.open_dataset(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
     vhd_icon = xr.open_dataset(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
     vhd_icon2te = xr.open_dataset(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
+    vhd_um = xr.open_dataset(confg.ukmo_folder + "/UM_vhd_full_domain_full_time.nc")
     vhd_wrf = xr.open_dataset(confg.wrf_folder + "/WRF_vhd_full_domain_full_time.nc")
 
     plot_vhd_small_multiples(vhd_arome, model="AROME")
     plot_vhd_small_multiples(vhd_icon, model="ICON")
     plot_vhd_small_multiples(vhd_icon2te, model="ICON2TE")
+    plot_vhd_small_multiples(vhd_um, model="UM")
     plot_vhd_small_multiples(vhd_wrf, model="WRF")
-    """
+
     plt.show()
+
+
+
+
+
