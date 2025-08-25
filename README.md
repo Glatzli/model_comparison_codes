@@ -1,6 +1,12 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
+Things to check for errors/mistakes:
+- WRF far too large
+- DEM & model's aspect calculation
+- tipping errors: is everywhere really the right model & data used?
+- 
+
 Points: 
 - I already deleted old read ins... (before regridding?)
 - Do I have to make some further comparisons between the original data & the regridded?
@@ -99,6 +105,7 @@ Points:
    		indexing somehow doesn't work for full domain (probably due to some points that are even higher?!)
    	AROME: height = 37 at Hafelekar
    	ICON: height = 33 at Hafelekar
+    UM: height = 21 at Hafelekar (for gridpoints ibk, used geopot height)
    	WRF: height = 37 at Hafelekar
    ibk uni: AROME & WRF different higher VHD for point calc...
    ibk villa only WRF different...
@@ -250,6 +257,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
