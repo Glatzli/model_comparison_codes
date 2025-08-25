@@ -6,7 +6,7 @@ Points:
 - Do I have to make some further comparisons between the original data & the regridded?
 - How did Manuela interpolate the UM data? Probably I should know how that works...
 - Now all models are on the same coords, except AROME. Should I interpolate that too to have the same errors for
-  all models? To have an equal start.
+  all models? To have an equal start...
 - Which projection code is this now? not WGS84, right?
 
 - writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
@@ -248,6 +248,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
