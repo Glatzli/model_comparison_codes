@@ -2,9 +2,11 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 Points: 
-- Can I already delete old read ins (before regridding?)
+- I already deleted old read ins... (before regridding?)
 - Do I have to make some further comparisons between the original data & the regridded?
 - How did Manuela interpolate the UM data? Probably I should know how that works...
+- Now all models are on the same coords, except AROME. Should I interpolate that too to have the same errors for
+  all models? To have an equal start.
 - Which projection code is this now? not WGS84, right?
 
 - writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
@@ -48,9 +50,11 @@ Points:
 - PCGP calc for Arome & ICON: works now
 	Resolution of DEM & models not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
-  	-> should use DEM with same resolution as models: first complete model transformation/interpolation...
+  	-> should use DEM with same resolution as models
+  		=> smoothed DEM with xarray coarsen, took mean of every 3rd point.
   	-> factor 2 is not that bad!
   	just smooth DEM to have nearly same resolution, should be sufficient.
+  	
   
  	- for PCGP LU dataset I would need (see latex):
     		Slope angle (β): The steepness of the terrain.
@@ -244,6 +248,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
