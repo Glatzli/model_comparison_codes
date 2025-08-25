@@ -40,6 +40,8 @@ Points:
   	  	having completely same grid is most important for cross sections: that one can compare completely the same points.
   		can be calculated (interpolated) also later for 1 var if cross sect wanted.
 
+		=> Manuela regridded WRF & UM, no worries anymore!
+
 - PCGP calc for Arome & ICON: works now
 	Resolution of DEM & models not equal!
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
@@ -89,7 +91,10 @@ Points:
    	AROME: height = 37 at Hafelekar
    	ICON: height = 33 at Hafelekar
    	WRF: height = 37 at Hafelekar
-   ibk uni: AROME higher VHD for point calc... for ibk villa equal
+   ibk uni: AROME & WRF different higher VHD for point calc...
+   ibk villa only WRF different...
+   woergl: AROME & WRF different, again both higher for point calc...
+   
 	woergl again higher vals for VHD; for kiefersfelden all models are higher for the point calc
  - zmax: how to find stable layers/inversion: plot pot temp profiles for mult stations, maybe take same threshold as
    lukas umek in his paper? in vert. profiles it looked pretty shallow. Man braucht irgendein Maß für stärke und dicke des
@@ -236,6 +241,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
