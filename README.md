@@ -5,6 +5,7 @@ Points:
 - Can I already delete old read ins (before regridding?)
 - Do I have to make some further comparisons between the original data & the regridded?
 - How did Manuela interpolate the UM data? Probably I should know how that works...
+- Which projection code is this now? not WGS84, right?
 
 - writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
 - create file with plots and notes! Note what I did and already found!
@@ -243,6 +244,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
