@@ -161,8 +161,8 @@ if __name__ == '__main__':
     # black_hcl = sequential_hcl(palette="Grays").colors()[0]
     # pal = sequential_hcl("Terrain")
     # calc_and_plot_vhds_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"])  # old stuff, prob überflüssig
-    """
-    point_name, point_lat, point_lon = confg.ibk_villa["name"], confg.ibk_villa["lat"], confg.ibk_villa["lon"]
+
+    point_name, point_lat, point_lon = confg.ibk_uni["name"], confg.ibk_uni["lat"], confg.ibk_uni["lon"]
 
     # via single point VHD calculation
     vhd_arome_single, vhd_icon_single, vhd_icon2te_single, vhd_um_single, vhd_wrf_single = calc_vhd_single_point_main(lat=point_lat, lon=point_lon,
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     plot_vhd_small_multiples(vhd_icon2te, model="ICON2TE")
     plot_vhd_small_multiples(vhd_um, model="UM")
     plot_vhd_small_multiples(vhd_wrf, model="WRF")
-
+    """
     plt.show()
 
 

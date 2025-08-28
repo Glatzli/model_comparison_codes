@@ -27,6 +27,7 @@ import numpy as np
 import matplotlib
 from plot_topography import calculate_km_for_lon_extent
 import xdem
+from pyproj import CRS
 import matplotlib.pyplot as plt
 import pandas as pd
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
@@ -127,6 +128,8 @@ def calculate_slope(filepath):
                                              lon_extent_deg=model_xres_deg) * 1000  # convert to meters
 
     slope, slope_deg = calculate_slope_numpy(elevation_data=model.isel(band=0).band_data.values, x_res=model_xres_m)
+    vertical_crs = CRS("EVRF2019")
+
     dem = xdem.DEM(filepath)  # , transform=transform
     aspect = xdem.terrain.aspect(dem)
     model["slope"] = (("y", "x"), slope)  # add slope to dem dataset
@@ -432,7 +435,7 @@ if __name__ == '__main__':
     pal = sequential_hcl("Terrain")
 
     # used only once to calc and plot slopes & aspect ratios
-    # read_topos_calc_slope_aspect_main()
+    read_topos_calc_slope_aspect_main()
 
     # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
     # vhd_hatpro = calc_vhd_single_point(hatpro, model="HATPRO")

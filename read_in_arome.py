@@ -187,7 +187,8 @@ if __name__ == '__main__':
 
     # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
+    arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z", "rho"])
+    # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
     arome
 
     # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
