@@ -4,22 +4,21 @@ model intercomparison study
 VHD (espc WRF) false: Things to check for errors/mistakes:
 - WRF far too large
 - DEM & model's aspect calculation WRONG!:
-  	xDEM aspect definition i need the vertical CRS! -> how to define for different heigt defs?!? 
+  	xDEM aspect definition i need the vertical CRS! -> how to define for different heigt defs?!?
+  	Problem: ICON has f.e. a height based coordinate system that follows the terrain...
+  	=> How should/could I define that vCRS?!
 - tipping errors: is everywhere really the right model & data used?
 - for Ibk villa a different PCGP is chosen
-- 
+- maybe is slope calculation false? -> check with richDEM!
 
 Points: 
 - I already deleted old read ins... (the ones I had before regridding?)
 - Do I have to make some further comparisons between the original data & the regridded?
-- How did Manuela interpolate the UM data? Probably I should know how that works...
+- How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
 - Now all models are on the same coords, except AROME. Should I interpolate that too to have the same errors for
   all models? To have an equal start...
-- Which projection code is this now? not WGS84, right?
-  	aspect calc is wrong espc for DEM: UserWarning: DEM is not in a projected CRS, the following surface fit attributes might be wrong: ['slope', 'aspect', 'hillshade', 'curvature', 'planform_curvature', 'profile_curvature', 'maximum_curvature'].Use DEM.reproject(crs=DEM.get_metric_crs()) to reproject in a projected CRS.
-  	=> need to fix that (in calc_vhd)!
 
-- writing: can write stuff already immediately! espc. Methodology is important to not forget how I've done what!
+- writing: Methodology immediately, important to not forget how I've done what!
 - create file with plots and notes! Note what I did and already found!
 - Projections of Models:
 	- AROME: 
@@ -259,6 +258,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
