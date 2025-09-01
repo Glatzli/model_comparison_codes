@@ -12,14 +12,9 @@ VHD (espc WRF) false: Things to check for errors/mistakes:
 - maybe is slope calculation false? -> check with richDEM!
 
 Points: 
-- I already deleted old read ins... (the ones I had before regridding?)
-- Do I have to make some further comparisons between the original data & the regridded?
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
-- Now all models are on the same coords, except AROME. Should I interpolate that too to have the same errors for
-  all models? To have an equal start...
-
 - writing: Methodology immediately, important to not forget how I've done what!
-- create file with plots and notes! Note what I did and already found!
+	create file with plots and notes! Note what I did and already found!
 - Projections of Models:
 	- AROME: 
   	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
@@ -61,9 +56,9 @@ Points:
  	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
   	-> should use DEM with same resolution as models
   		=> smoothed DEM with xarray coarsen, took mean of every 3rd point.
-  	-> factor 2 is not that bad!
-  	just smooth DEM to have nearly same resolution, should be sufficient.
-  	
+
+	xDEM calc of aspect: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
+		would need vCRS: vertical coordinate reference system.
   
  	- for PCGP LU dataset I would need (see latex):
     		Slope angle (β): The steepness of the terrain.
@@ -74,13 +69,8 @@ Points:
 	-> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
   	rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
  	This was required by: ['slope'].)
-		xDEM: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
-
-  	-> works for AROME & ICON data
-     	calculate angle (numpy) & aspect ratio (xDEM)
-  
-  	- WRF: what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
-  		with other models?! ~ 20m difference for ibk gridpoint or woergl gridpoint... 
+	
+  	- WRF: took geometric height as topo (multiple levels at one one point, terrain height is only 2D) ~ 20m difference for ibk gridpoint or woergl gridpoint... 
   	
 - maybe subset all models to have smaller datafiles? 
    AROME: in read in routine, works quite fine!
@@ -258,6 +248,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
