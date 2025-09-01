@@ -9,66 +9,21 @@ VHD (espc WRF) false: Things to check for errors/mistakes:
   	=> How should/could I define that vCRS?!
 - tipping errors: is everywhere really the right model & data used?
 - for Ibk villa a different PCGP is chosen
-- maybe is slope calculation false? -> check with richDEM!
+- slope & aspect calculation is wrong? -> check with richDEM!
 
 Points: 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
 	create file with plots and notes! Note what I did and already found!
-- Projections of Models:
-	- AROME: 
-  	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
-	- UM: rotated pole projection was used (to have least error near Ibk)
-       		grid_mapping_name:            rotated_latitude_longitude
-     		longitude_of_prime_meridian:  0.0
-    		earth_radius:                 6371229.0
-     		grid_north_pole_latitude:     42.70000076293945
-     		grid_north_pole_longitude:    191.39999389648438
-     		north_pole_grid_longitude:    0.0
-  	- WRF: Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
-  	  '+proj=lcc +lat_0=47.3000068664551 +lon_0=11.3999996185303 +lat_1=44 +lat_2=60 +x_0=0 +y_0=0 +R=6370000 +units=m +no_defs'
-  		Manuela's input: For projecting the data into a new coordinate system (e.g., WGS84), you can use cartopy.crs (https://scitools.org.uk/cartopy/docs/latest/reference/crs.html). But even in WGS84, you will
-		not have a regular grid. For a regular grid, you will need to interpolate the data. Interpolation always means some sort of loss, but on the other hand having all models on the same grid has the advantage
-		that you could also calculate differences between the simulations.
 
-  	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
-  	-> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
-  	-> how interpolating/transforming?
-  		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
-  		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
-  		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
-  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!   	
-   	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
-   	  tried with pyproj but isn't correct, check calcs again!
-  	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
-  		pyproj.Proj(proj="lcc",
-                           lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
-                           lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
-                           a=6370000, b=6370000)
-    		-> for now: continue with AROME & ICON, maybe include others later 
-  	  	having completely same grid is most important for cross sections: that one can compare completely the same points.
-  		can be calculated (interpolated) also later for 1 var if cross sect wanted.
-
-		=> Manuela regridded WRF & UM, no worries anymore!
-
-- PCGP calc for Arome & ICON: works now
-	Resolution of DEM & models not equal!
- 	DEM: ~310 m between points, AROME: ~750m (2 points in x, lon compared with https://boulter.com/gps/distance/?from=47.5+15.385&to=47.5+15.395&units=k)
-  	-> should use DEM with same resolution as models
-  		=> smoothed DEM with xarray coarsen, took mean of every 3rd point.
-
-	xDEM calc of aspect: created .tif file from topography data with rioxarray, added WGS84 projection attribute. right?
-		would need vCRS: vertical coordinate reference system.
-  
- 	- for PCGP LU dataset I would need (see latex):
-    		Slope angle (β): The steepness of the terrain.
-    		Slope aspect (γ): The orientation of the slope.
-    		Roughness length (z₀): A measure of surface roughness affecting wind and turbulence.
-    		Albedo (α): The reflectivity of the surface.
-  	I don't have albedo & LU measured. => only use slope angle & aspect
+- PCGP calc:
 	-> calc slope angle with numpy and aspect with xDEM due to strange errors (ValueError: Surface fit and
   	rugosity require the same X and Y resolution ((0.013980000000000005, 0.009879999999999977) was given).
  	This was required by: ['slope'].)
+	created .tif file from topography data with rioxarray, added WGS84 projection attribute. wrong!
+		PROBLEM: would need vCRS: vertical coordinate reference system.
+
+  	richDEM: need zscale, what's that exactly?!
 	
   	- WRF: took geometric height as topo (multiple levels at one one point, terrain height is only 2D) ~ 20m difference for ibk gridpoint or woergl gridpoint... 
   	
@@ -155,6 +110,42 @@ AROME: hgt (2D), ICON: z_ifc, UM: hgt, WRF: hgt
 - WSL workspace folder:
 \\wsl.localhost\Ubuntu-24.04\mnt\wslg\distro\home\daniel\workspace\regrid_icon
 
+- Projections of Models:
+	- AROME: 
+  	- ICON is in regular lat/lon grid, which doesn't have to be WGS84 conformal. 
+	- UM: rotated pole projection was used (to have least error near Ibk)
+       		grid_mapping_name:            rotated_latitude_longitude
+     		longitude_of_prime_meridian:  0.0
+    		earth_radius:                 6371229.0
+     		grid_north_pole_latitude:     42.70000076293945
+     		grid_north_pole_longitude:    191.39999389648438
+     		north_pole_grid_longitude:    0.0
+  	- WRF: Do I have to interpolate WRF-model? from attrs of netCDF file: lambertian conformal projection
+  	  '+proj=lcc +lat_0=47.3000068664551 +lon_0=11.3999996185303 +lat_1=44 +lat_2=60 +x_0=0 +y_0=0 +R=6370000 +units=m +no_defs'
+  		Manuela's input: For projecting the data into a new coordinate system (e.g., WGS84), you can use cartopy.crs (https://scitools.org.uk/cartopy/docs/latest/reference/crs.html). But even in WGS84, you will
+		not have a regular grid. For a regular grid, you will need to interpolate the data. Interpolation always means some sort of loss, but on the other hand having all models on the same grid has the advantage
+		that you could also calculate differences between the simulations.
+
+  	I would like to have UM & WRF data also in a regular lat/lon grid. How can I reproject/transform that?
+  	-> plotting with defining a projection in cartopy is easy (for UM!), for WRF i get: ValueError: operands could not be broadcast together with shapes (1,189,289) (3,3) ...
+  	-> how interpolating/transforming?
+  		- Pyproj: wrong! documentation states that Area of use is important. Is not defined.
+  		Maybe I have to set Area of use somehow to get transformation with pyproj working? Only for coordinate transformation into new projection?
+  		- xESMF: not for Win, setup WSL env, and calc but get still error: Missing cf conventions: dataset is not cf-compatible...
+  		- stay with scipy? -> probably have to use loop for different levels, times etc?! -> probably slow and a bit complicated!   	
+   	- UM: subtract rotated_latitude_longitude from coords to have regular grid?
+   	  tried with pyproj but isn't correct, check calcs again!
+  	- WRF: scipy 2d interpolation? or rather pyproj with smth like:
+  		pyproj.Proj(proj="lcc",
+                           lat_1 = um.attrs["TRUELAT1"], lat_2 = um.attrs["TRUELAT2"],
+                           lat_0 = um.attrs["MOAD_CEN_LAT"], lon_0 = um.attrs["STAND_LON"],
+                           a=6370000, b=6370000)
+    		-> for now: continue with AROME & ICON, maybe include others later 
+  	  	having completely same grid is most important for cross sections: that one can compare completely the same points.
+  		can be calculated (interpolated) also later for 1 var if cross sect wanted.
+
+		=> Manuela regridded WRF & UM, no worries anymore!
+
 
 
 Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
@@ -169,9 +160,6 @@ erledigt:
 - cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
 - all metpy calculations now much faster
 - create uniform time & height coordinates! (rename them) -> works now perfectly! also for regridded data...
-- ...
-
-erledigt:
 - Einleseroutinen viel um/neugeschrieben
 - hannes' code funktioniert nun auch bei mir
 - cosma haben eig daten gefehlt, bzw hat sie AROME-Einleseroutine von hannes gar nicht verwendet!
@@ -248,6 +236,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
