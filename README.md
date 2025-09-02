@@ -9,7 +9,9 @@ VHD (espc WRF) false: Things to check for errors/mistakes:
   	=> How should/could I define that vCRS?!
 - tipping errors: is everywhere really the right model & data used?
 - for Ibk villa a different PCGP is chosen
-- slope & aspect calculation is wrong? -> check with richDEM!
+- slope & aspect calculation is wrong? -> check with richDEM:
+  	works fine, only aspect for DEM is somehow wrong -> Why?!?
+  	DEM coordinates are flipped upside down
 
 Points: 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
@@ -236,6 +238,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
