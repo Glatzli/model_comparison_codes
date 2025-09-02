@@ -3,15 +3,11 @@ model intercomparison study
 
 VHD (espc WRF) false: Things to check for errors/mistakes:
 - WRF far too large
-- DEM & model's aspect calculation WRONG!:
-  	xDEM aspect definition i need the vertical CRS! -> how to define for different heigt defs?!?
-  	Problem: ICON has f.e. a height based coordinate system that follows the terrain...
-  	=> How should/could I define that vCRS?!
+- DEM & model's aspect calculation now finally looks right with richDEM!
+  	Finally the same PCGP is chosen for point evaluation & full domain VHD calc...
+  	But VHD calcs are still different...
 - tipping errors: is everywhere really the right model & data used?
-- for Ibk villa a different PCGP is chosen
-- slope & aspect calculation is wrong? -> check with richDEM:
-  	works fine, only aspect for DEM is somehow wrong -> Why?!?
-  	DEM coordinates are flipped upside down
+  
 
 Points: 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
@@ -25,7 +21,7 @@ Points:
 	created .tif file from topography data with rioxarray, added WGS84 projection attribute. wrong!
 		PROBLEM: would need vCRS: vertical coordinate reference system.
 
-  	richDEM: need zscale, what's that exactly?!
+  	richDEM: looks finally good & consistent for DEM & models!
 	
   	- WRF: took geometric height as topo (multiple levels at one one point, terrain height is only 2D) ~ 20m difference for ibk gridpoint or woergl gridpoint... 
   	
@@ -37,7 +33,7 @@ Points:
 - calc VHD:
   WRF calculation probably wrong (too large vals) -> check again!
   	Idea: Are other vars the same for point-read in and full domain read in?
-  	-> check!;
+  	-> check!
   	had Problem in temp calc. Manuela already added the 300 for the pot temp...
   compare with HATPRO data (timeseries plot) and radiosonde (point plot)!
   
@@ -238,6 +234,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
