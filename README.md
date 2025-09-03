@@ -52,7 +52,7 @@ Points:
    	AROME: height = 37 at Hafelekar
    	ICON: height = 33 at Hafelekar
     UM: height = 21 at Hafelekar (for gridpoints ibk, used geopot height)
-   	WRF: height = 37 at Hafelekar
+   	WRF: height = 37 at Hafelekar -> WRONG?! looked again & had 31!
    ibk uni: AROME & WRF different higher VHD for point calc...
    ibk villa only WRF different...
    woergl: AROME & WRF different, again both higher for point calc...
@@ -236,6 +236,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
