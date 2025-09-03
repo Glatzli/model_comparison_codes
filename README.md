@@ -49,11 +49,12 @@ Points:
  - result of full domain calc & then selecting PCGP different from point calc?!?
    		-> different levels of top! -> search for which height-Index is used for ibk gridpoint and use that for full domain
    		indexing somehow doesn't work for full domain (probably due to some points that are even higher?!)
+   
    -> check again for ibk villa point:
    	AROME: height = 37 at Hafelekar => right
    	ICON: height = 33 at Hafelekar => till 32!
     UM: height = 21 at Hafelekar (for gridpoints ibk, used geopot height) => till 22!
-   	WRF: height = 37 at Hafelekar -> WRONG?! looked again & had 31!
+   	WRF: height = 37 at Hafelekar -> till 31!
    ibk uni: AROME & WRF different higher VHD for point calc...
    ibk villa only WRF different...
    woergl: AROME & WRF different, again both higher for point calc...
@@ -237,6 +238,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
