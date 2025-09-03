@@ -2,12 +2,14 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 VHD (espc WRF) false: Things to check for errors/mistakes:
-- WRF far too large
+- AROME is the same!
+- ICON & UM not exactly the same for the same gridpoint via domain/point calc
+- WRF far too large for domain calc
 - DEM & model's aspect calculation now finally looks right with richDEM!
   	Finally the same PCGP is chosen for point evaluation & full domain VHD calc...
   	But VHD calcs are still different...
 - tipping errors: is everywhere really the right model & data used?
-  
+
 
 Points: 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
@@ -234,6 +236,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
