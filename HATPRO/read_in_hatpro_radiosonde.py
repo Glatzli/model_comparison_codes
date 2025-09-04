@@ -1,6 +1,10 @@
 """
 With this script I read in the HATPRO temp & humidity csv data (all except met-file) and merged it in "main" together,
- and saved it as .nc file for a faster read in if it's needed for plotting f.e. (written by Daniel)
+and saved it as .nc file for a faster read in if it's needed for plotting f.e.
+Also interpolated it on AROME levels (easiest for first analysis, maybe include standard atmo?), calc all th & rho for
+VHD calc.
+
+(written by Daniel)
 """
 
 import pandas as pd
@@ -9,6 +13,20 @@ from metpy.units import units
 import metpy
 import metpy.calc as mpcalc
 import confg
+
+
+def calc_vars(ds):
+    """
+    calculate all needed vars like pot. temp & rho for VHD calculation
+    :param ds:
+    :return:
+    """
+    ds["th"] = mpcalc.potential_temperature(ds["p"] * units.hPa, ds["temp"] * units("degC"))  # calc pot temp
+      # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
+    ds["rho"] = (ds["p"] * 100) / (287.05 * (ds["temp"] + 273.15))
+    ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from HATPRO temp & AROME p with ideal gas law")
+    ds = ds.metpy.dequantify()
+    return ds
 
 
 def read_hatpro(filepath):
@@ -57,6 +75,7 @@ def read_hatpro(filepath):
     """
     return ds
 
+
 def merge_save_hatpro():
     # read hatpro data and save it as a merged .nc file
     filepath = f"{confg.hatpro_folder}/data_HATPRO_temp.csv"
@@ -73,58 +92,56 @@ def merge_save_hatpro():
     hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_merged.nc")
 
 
-def interpolate_hatpro_arome():
+def interpolate_hatpro_arome(hatpro, arome):
     """
-    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure,
-    and save it as a netcdf file
+    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature & density with
+    AROME pressure and save it as a netcdf file
     :return:
     """
-    arome = xr.open_dataset(confg.model_folder + "/AROME/AROME_temp_timeseries_ibk.nc")
-    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
-    # arome
+    hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
+    hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
 
     # try to use pressure from AROME model to calc pot temp from hatpro data...
-    arome["height_above_ibk"] = arome.height - 612  # the HATPRO station is at 612 m a.s.l., lowest lvl of AROME is above...
-    hatpro_interp = hatpro.interp(height=arome.height_above_ibk)
+    arome["height_above_hatpro"] = arome.z - 612  # the HATPRO station is at 612 m a.s.l., models always habve height abor m.s.l
+    # lowest lvl of AROME is still 30m above HATPRO...
+    hatpro_interp = hatpro_sel.interp(height=arome.height_above_hatpro)  # interpolate HATPRO to AROME lvls
+    hatpro_interp = hatpro_interp.assign(z=(("time", "height"), arome.height_above_hatpro.values))  # add geopot height
+    # as variable similar to models
 
-    # start_time = pd.to_datetime('2017-10-15 12:00:00', format='%Y-%m-%d %H:%M:%S')
-    # end_time = pd.to_datetime('2017-10-16 12:00:00', format='%Y-%m-%d %H:%M:%S')
-    hatpro_interp = hatpro_interp.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:30:00'))
-    hatpro_interp = hatpro_interp.resample(time="30min").mean()
-
-    hatpro_interp["pressure"] = arome.pressure.compute()  # use AROME pressure in HATPRO data
-
-    # hatpro_interp['pressure'] = (hatpro_interp['p'] / 100.0) * units.hPa
-    # calc temp
-    hatpro_interp["th"] = mpcalc.potential_temperature(hatpro_interp["pressure"] * units.hPa, hatpro_interp["temp"] * units("degC"))
-    hatpro_interp = hatpro_interp.metpy.dequantify()
-    hatpro_interp = hatpro_interp.rename({"pressure": "p"})
-    hatpro_interp.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+    hatpro_interp["p"] = arome.p # use AROME pressure in HATPRO data, hatpro also get
+    # up to height = 75 valid values, above only NaNs, cause AROME data goes farther up...
+    hatpro = calc_vars(ds=hatpro_interp)
+    hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
 
 
-def interpolate_hatpro_arome_add_density():
+def edit_vars(df):
     """
-    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature with AROME pressure and
-    append calculated AROME density, espc for VHD calculation...
+
+    :param df:
     :return:
     """
-    arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # because that point is the PCGP around
-    # the uni, it is not directly at the HATPRO but a bit easterly (although no point is exactly at the HATPRO station!)
-    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
-    # hatpro
-    hatpro["height"] = hatpro.height + 612  # Hatpro heights begin at 0 but HATPRO station is at 612 m a.s.l. => correct
-
-    # hatpro.interp(height=arome.isel(time=1).z.compute().values)
-    hatpro_interp = hatpro.interp(height=arome.isel(time=1).z.compute().values, method="linear")  # is that right?!
+    df["temp"] = df["temperature"] - 273.15
+    df["Td"] = df["dewpoint"] - 273.15
+    df["p"] = df["pressure"]
+    df = df.rename(columns={"geopotential height": "z", "wind direction": "wind_dir", "windspeed": "wspd"})
+    df.drop(["time", "pressure", "latitude offset", "longitude offset", "temperature", "dewpoint"], axis=1, inplace=True)
+    return df
 
 
-    hatpro_interp.isel(time=0).temp  # for checking...
+def read_radiosonde_csv(filepath):
+    # Lese die Datei, überspringe die ersten 5 Kommentarzeilen
+    df = pd.read_csv(filepath, comment='#')
+    df = edit_vars(df)
+    return df
 
 
 if __name__ == '__main__':
-    # merge_save_hatpro()
-    #hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
+    # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
     # hatpro
-    # hatpro_interp = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
-    # interpolate_hatpro_arome()
-    interpolate_hatpro_arome_add_density()
+    # arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # read PCGP around HATPRO for comparing
+
+    # interpolate_hatpro_arome(hatpro, arome)
+    radio = read_radiosonde_csv(confg.radiosonde_csv)
+    radio.to_csv(confg.radiosonde_edited, index=False)
+

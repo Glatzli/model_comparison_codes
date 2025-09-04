@@ -16,10 +16,11 @@ dir_PLOTS = "D:/MSc_Arbeit/plots/"
 hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset, used for VHD calc
 c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for VHD calc
 
-# coordinates of points used for Daniels' Analysis
+# coordinates of points used for Daniels' Analysis; all points that should include HATPRO plot (VHD) need "ibk" in name
 ibk_villa = {"name": "ibk_villa", "lat": 47.259998, "lon": 11.384167}  # same lat & lon of Ibk cosma already used: which
 # is for Ibk_Villa (2m temp recording)
 ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385}  # hatpro, uni coords rounded to 3 digits after comma
+ibk_airport = {"name": "ibk_airport", "lat": 47.26, "lon": 11.34}
 woergl = {"name": "woergl", "lat": 47.494, "lon": 12.059}  # coords for wörgl, lower Inn valley
 kiefersfelden = {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2}  # coords for kiefersfelden, Germany, entrance Inn valley
 
@@ -29,6 +30,7 @@ lon_min, lon_max = 10.8, 12  # 10.8, 12
 # -------------------------------------------------------------------------------------------------------------
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
+radiosonde_edited = f"{data_folder}radiosonde_ibk_2017101603.csv"
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
 TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"  # changed dem file: indexed and renamed coords

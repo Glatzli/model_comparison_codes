@@ -1,7 +1,11 @@
 """
 In this script some functions are defined that calculate the valley heat deficit (VHD) from the potential temperature
-for each model. VHD will be calc between lowest model level & Hafelekar at 2279 m, at the highest HOBO from
+for each model. VHD will be calc between lowest model level & Hafelekar (HAF) at 2279 m, at the highest HOBO from
 https://zenodo.org/records/4672313 hobo dataset
+Problem here: as topography value i.e. for indexing until HAF height geopotential height is used, which changes spatially
+and temporarily (a bit). Therefore I searched for the index of HAF for the IBK gridpoint and then used the hardcoded
+index for calculating the VHD (subsetting the dataset in function define_ds_below_hafelekar).
+
 for point values of the VHD PCGP selection is used to find the physically consistent grid point (PCGP) from a model grid point ensemble (GPE)
 as described in Simonet et al. (2025)  https://doi.org/10.21203/rs.3.rs-6050730/v1
 
@@ -14,13 +18,15 @@ Plotting the VHD (timeseries and spatial extent over time) is done in plot_vhd.p
 
 import sys
 from pathlib import Path
-
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
-
 import read_in_arome
+import cartopy.crs as ccrs
+import richdem as rd
 import read_icon_model_3D
 import read_ukmo
 import read_wrf_helen
+import importlib
+importlib.reload(read_wrf_helen)
 import confg
 import xarray as xr
 import numpy as np
@@ -41,39 +47,35 @@ def read_topos_calc_slope_aspect_main():
     :return:
     """
     # read DEM and calc slope, save them as netcdf files
-    slope_dem, aspect_dem, dem = calculate_slope(confg.dem_smoothed)
-    plot_height_slope_aspect(height_da=dem.isel(band=0).band_data, slope=dem.isel(band=0).slope,
-                             aspect_raster=dem.isel(band=0).aspect, modeltype="DEM smoothed", title_height="Height",
+    dem = calculate_slope_aspect_richdem(confg.dem_smoothed)
+
+    plot_height_slope_aspect(ds=dem.isel(band=0), modeltype="DEM smoothed", title_height="Height",
                              title_slope="Slope", title_aspect="Aspect")
     dem.to_netcdf(f"{confg.data_folder}/Height/" + "dem_with_slope_aspect.nc")
 
     # read AROME topo tif file and calc slope
-    slope_arome, aspect_arome, arome = calculate_slope(confg.dir_AROME + "AROME_geopot_height_3dlowest_level_w_crs.tif")
+    arome = calculate_slope_aspect_richdem(confg.dir_AROME + "AROME_geopot_height_3dlowest_level_w_crs.tif")
     arome = arome.sel(x=slice(9.2, 13), y=slice(46.5, 48.2))
 
-    plot_height_slope_aspect(height_da=arome.isel(band=0).band_data, slope=arome.isel(band=0).slope,
-                             aspect_raster=arome.isel(band=0).aspect, modeltype="AROME", title_height="Height",
+    plot_height_slope_aspect(ds=arome.isel(band=0), modeltype="AROME", title_height="Height",
                              title_slope="Slope", title_aspect="Aspect")
     arome.to_netcdf(confg.data_folder + "/Height/arome_topo_with_slope_aspect.nc")
 
     # read ICON, calc & plot slope + aspect
-    slope_icon, aspect_icon, icon = calculate_slope(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
-    plot_height_slope_aspect(height_da=icon.isel(band=0).band_data, slope=icon.isel(band=0).slope,
-                             aspect_raster=icon.isel(band=0).aspect, modeltype="ICON", title_height="Height",
+    icon = calculate_slope_aspect_richdem(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level_w_crs.tif")
+    plot_height_slope_aspect(ds=icon.isel(band=0), modeltype="ICON", title_height="Height",
                              title_slope="Slope", title_aspect="Aspect")
     icon.to_netcdf(confg.data_folder + "/Height/icon_topo_with_slope_aspect.nc")
 
     # read UKMO and calc slope
-    slope_um, aspect_um, um = calculate_slope(confg.ukmo_folder + "/UM_geometric_height_3dlowest_level.tif")
-    plot_height_slope_aspect(height_da=um.isel(band=0).band_data, slope=um.isel(band=0).slope,
-                             aspect_raster=um.isel(band=0).aspect, modeltype="UM", title_height="Height",
+    um = calculate_slope_aspect_richdem(confg.ukmo_folder + "/UM_geometric_height_3dlowest_level.tif")
+    plot_height_slope_aspect(ds=um.isel(band=0), modeltype="UM", title_height="Height",
                              title_slope="Slope", title_aspect="Aspect")
     um.to_netcdf(confg.data_folder + "/Height/um_topo_with_slope_aspect.nc")
 
     # read WRF and calc slope
-    slope_wrf, aspect_wrf, wrf = calculate_slope(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.tif")
-    plot_height_slope_aspect(height_da=wrf.isel(band=0).band_data, slope=wrf.isel(band=0).slope,
-                             aspect_raster=wrf.isel(band=0).aspect, modeltype="WRF", title_height="Height",
+    wrf = calculate_slope_aspect_richdem(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.tif")
+    plot_height_slope_aspect(ds=wrf.isel(band=0), modeltype="WRF", title_height="Height",
                              title_slope="Slope", title_aspect="Aspect")
     wrf.to_netcdf(confg.data_folder + "/Height/wrf_topo_with_slope_aspect.nc")
     plt.show()
@@ -137,26 +139,68 @@ def calculate_slope(filepath):
     return slope, aspect, model
 
 
-def plot_height_slope_aspect(height_da, slope, aspect_raster, modeltype, title_height="Height", title_slope="Slope", title_aspect="Aspect"):
+def calculate_slope_aspect_richdem(filepath):
+    """
+    calculates slope and aspect ratio using richdem
+    first read .tif-topo file, squeeze height data, calculate z_scale (right?) and then compute slope&aspect with richDEM
+
+    :param ds: fixed_time dataset of a model
+    :return:
+    :ds: dataset with slope and aspect ratio
+    """
+    ds = xr.open_dataset(filepath, engine="rasterio")  # for xDEM calculation I had a .tif file of topo, continue with that
+    if "dem" in filepath:  # missing geotransform, try to set it by hand
+        # In case of north up images, the GT(2) and GT(4) coefficients are zero, and the GT(1) is pixel width,
+        # and GT(5) is pixel height.
+        # The (GT(0),GT(3)) position is the top left corner of the top left pixel of the raster. from GDAL docs
+        ds["y"] = ds["y"][::-1]
+
+    xgeo = np.array([ds.y.max().item(), len(ds.x.values), 0, ds.x.min().item(), 0, len(ds.y.values)])
+    hgt = ds['band_data'].values.squeeze()
+
+    # calculate slope angle
+    hgtrd = rd.rdarray(hgt, geotransform=xgeo, no_data=-9999)  # there's no value with -9999, all data is used!
+    # zscale (float) – How much to scale the z-axis by prior to calculation
+    # i.e. how much smaller is the distance in z between the levels than in x or y?
+    # original by Manuela: 1/(how much km is 1° * dist_x in deg)
+    # => I calculate it with searching the distance between points in lon [deg] and converting those to [m] with the function
+    # "calculate_km_for_lon_extent", divide that through 1 cause Manuela did that also -> hopefully right?
+    dist_x = calculate_km_for_lon_extent(confg.ibk_uni["lat"],
+                                         (ds.isel(y=1, x=2).x - ds.isel(y=1, x=1).x)) * 1000
+    z_scale = 1 / dist_x
+
+    slope = rd.TerrainAttribute(hgtrd, attrib='slope_degrees', zscale=z_scale)
+    aspect = rd.TerrainAttribute(hgtrd, attrib='aspect', zscale=z_scale)
+    aspect = np.mod(360 - aspect + 180, 360)
+    ds["slope"] = (("y", "x"), slope)  # add slope to dem dataset
+    ds["aspect"] = (("y", "x"), aspect)
+    return ds
+
+
+def plot_height_slope_aspect(ds, modeltype, title_height="Height", title_slope="Slope", title_aspect="Aspect"):
     """
     Plottet Höhe (xarray.DataArray), Slope (np.ndarray) und Aspect (Raster-Objekt) nebeneinander.
     """
     # Aspect-Daten extrahieren und fehlende Werte maskieren
-    aspect = np.array(aspect_raster.data, dtype=np.float32)
+    # aspect = np.array(aspect_raster.data, dtype=np.float32)
     # aspect = np.ma.masked_where(np.isnan(aspect) | (aspect == getattr(aspect_raster, "nodata", -99999)), aspect)
     # what's that?
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    # if modeltype in ["DEM", "dem", "DEM smoothed"]:
+    #     plot_origin = "upper"
+    # else:
+    plot_origin = "lower"
 
-    im0 = axes[0].imshow(height_da.values, origin="lower", cmap=pal.cmap())
+    im0 = axes[0].imshow(ds.band_data.values, origin=plot_origin, cmap=pal.cmap())
     axes[0].set_title(modeltype + " " + title_height)
     plt.colorbar(im0, ax=axes[0], fraction=0.025, pad=0.04, label="Height [m]")
 
-    im1 = axes[1].imshow(slope, origin="lower", cmap=pal.cmap())
+    im1 = axes[1].imshow(ds.slope.values, origin=plot_origin, cmap=pal.cmap())
     axes[1].set_title(title_slope)
     plt.colorbar(im1, ax=axes[1], fraction=0.025, pad=0.04, label="Slope [°]")
 
-    im2 = axes[2].imshow(aspect, origin="lower", cmap="twilight", vmin=0, vmax=360)
+    im2 = axes[2].imshow(ds.aspect.values, origin=plot_origin, cmap="twilight", vmin=0, vmax=360)
     axes[2].set_title(title_aspect)
     plt.colorbar(im2, ax=axes[2], fraction=0.025, pad=0.04, label="Aspect [°]")
 
@@ -176,23 +220,28 @@ def define_ds_below_hafelekar(ds, model="AROME"):
     :param model:
     :return:
     """
-    if model in ["ICON", "ICON2TE"]:
+    if model == "AROME":
+        # select full dataset below Hafelekar for AROME (and all else...)
+        # ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # for searching HAF height
+        ds_below_hafelekar = ds.sel(height=slice(37, 1))  # use uniformely level of HAF for Ibk gridpoint -> the same?
+
+    elif model in ["ICON", "ICON2TE"]:
         # for ICON we have different height coordinates (staggered & unstaggered), therefore I chose the height level
         # of Hafelekar with the height var of z (orig z_ifc, which is unstaggered or staggered?!?) and indexed with it
         # the "height" coord which is the coord for the other variables like th, rho, p etc
         # distance between vert. model levels is ~100m, so error is of max. 50m, which is acceptable
         # (which is ~ 10% error for AROME, just took hafelekar height +50m and looked at VHD...)
-        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height_3.values)
+        # ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height_3.values)
+        ds_below_hafelekar = ds.sel(height=slice(32, 1))
     elif model == "UM":
         ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # maybe the others are uselessly
+        ds_below_hafelekar = ds.sel(height=slice(1, 22))
         # complicated? check again for errors...
     elif model == "WRF":
         ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).bottom_top_stag.values)
+        ds_below_hafelekar = ds.sel(height=slice(1, 31))
     elif model == "HATPRO":
-        ds_below_hafelekar = ds.sel(height = ds.height.where(ds.height <= confg.hafelekar_height, drop=True).height.values)
-    else:
-        # select full dataset below Hafelekar for AROME
-        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height.values)
+        ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # for HATPRO
     return ds_below_hafelekar
 
 
@@ -226,11 +275,11 @@ def calc_vhd_full_domain(ds_extent, model="AROME"):
         # because some gridpoints are above HAF height...)
         ds_below_hafelekar = ds_extent.sel(height = slice(37, 1))
     elif model in ["ICON", "ICON2TE"]:
-        ds_below_hafelekar = ds_extent.sel(height=slice(33, 1))
+        ds_below_hafelekar = ds_extent.sel(height=slice(32, 1))
     elif model == "UM":  # which index?
-        ds_below_hafelekar = ds_extent.sel(height=slice(1, 21))
+        ds_below_hafelekar = ds_extent.sel(height=slice(1, 22))
     elif model == "WRF":  # I have no clue why I have to use a rising slice for WRF and a descending one for the other models
-        ds_below_hafelekar = ds_extent.sel(height=slice(1, 37))
+        ds_below_hafelekar = ds_extent.sel(height=slice(1, 31))
     else:
         print("search proper HAF height in indexes of ds before calculating!")
 
@@ -372,6 +421,7 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=confg.ibk_uni["nam
     """
     checks if timeseries is not already saved for the given point, if not it reads the DEMs, calculates the PCGP and
     then read & save the timeseries for the PCGP for the given point.
+    HATPRO timeseries is only included for points with "ibk" in it's names
 
     :param lat: latitude of point
     :param lon: longitude of point
@@ -383,27 +433,32 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=confg.ibk_uni["nam
                         "ICON": Path(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc"),
                         "ICON2TE": Path(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc"),
                         "UM": Path(confg.ukmo_folder + f"/um_{point_name}_timeseries.nc"),
-                        "WRF": Path(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc")}
+                        "WRF": Path(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc"),
+                        "HATPRO": Path(confg.hatpro_folder + f"/hatpro_interpolated_arome.nc")}
     # if [f.exists() for f in timeseries_paths].count(False) >= 1:  # check if timeseries were already saved for that point, if not read and save them!
 
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
     save_timeseries(pcgp_arome=pcgp_arome, pcgp_icon=pcgp_icon, pcgp_um=pcgp_um, pcgp_wrf=pcgp_wrf,
-                    point_name=point_name, variables=["p", "th", "temp", "rho", "z", "hgt"], paths=timeseries_paths)
-
+                    point_name=point_name, variables=["p", "th", "temp", "rho", "z"], paths=timeseries_paths)  # , "hgt"
+    # Do I even use the hgt var for any calculation?
     # read saved timeseries for ibk gridpoint defined above
-    arome_timeseries = xr.open_dataset(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
-    icon_timeseries = xr.open_dataset(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc")# read saved AROME timeseries
-    icon2te_timeseries = xr.open_dataset(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc")  # read saved ICON timeseries
-    um_timeseries = xr.open_dataset(confg.ukmo_folder + f"/um_{point_name}_timeseries.nc")  # read saved UKMO timeseries
-    wrf_timeseries = xr.open_dataset(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc")  # read saved WRF timeseries
+    arome_timeseries = xr.open_dataset(timeseries_paths["AROME"])  # confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
+    icon_timeseries = xr.open_dataset(timeseries_paths["ICON"])# read saved AROME timeseries
+    icon2te_timeseries = xr.open_dataset(timeseries_paths["ICON2TE"])  # read saved ICON timeseries
+    um_timeseries = xr.open_dataset(timeseries_paths["UM"])  # read saved UKMO timeseries
+    wrf_timeseries = xr.open_dataset(timeseries_paths["WRF"])  # read saved WRF timeseries
+    hatpro_timeseries = xr.open_dataset(timeseries_paths["HATPRO"])
+    radiosonde = pd.read_csv(confg.radiosonde_edited)
 
     # calc VHD for model data for single PCGP
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
     vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
-    vhd_icon2te = calc_vhd_single_point(icon2te_timeseries, model="ICON")
+    vhd_icon2te = calc_vhd_single_point(icon2te_timeseries, model="ICON2TE")
     vhd_um = calc_vhd_single_point(um_timeseries, model="UM")
     vhd_wrf = calc_vhd_single_point(wrf_timeseries, model="WRF")
-    return vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf
+    vhd_hatpro = calc_vhd_single_point(hatpro_timeseries, model="HATPRO")
+    # vhd_radio
+    return vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, vhd_hatpro
 
 
 def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"]):
@@ -435,7 +490,7 @@ if __name__ == '__main__':
     pal = sequential_hcl("Terrain")
 
     # used only once to calc and plot slopes & aspect ratios
-    read_topos_calc_slope_aspect_main()
+    # read_topos_calc_slope_aspect_main()
 
     # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
     # vhd_hatpro = calc_vhd_single_point(hatpro, model="HATPRO")
@@ -443,38 +498,48 @@ if __name__ == '__main__':
     # to calculate the PCGP for this point and save timeseries of the models at the PCGP
     # read_dems_calc_pcgp(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"])
 
-    # if PCGP already saved as extra nc file:
+    # calculate VHD for a single point (timeseries isn't already saved, data will be read first):
     # vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf = calc_vhd_single_point_main(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
-     #                                                             point_name=confg.ibk_villa["name"])  # call main fct which calls
+    #                                                              point_name=confg.ibk_villa["name"])  # call main fct which calls
     # vhd_arome  # all other fcts for calculating vhd for that point
 
     # read full domain of model and calc VHD for every hour concatenate them into 1 dataset and write them to a .nc file
     timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
-    vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_um, vhd_ds_wrf = [], [], [], [], []
+    vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_icon2te, vhd_ds_um, vhd_ds_wrf = [], [], [], [], [], []
 
     for timestamp in timerange:
-        # arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-        #                                               variables=["p", "temp", "th", "z", "rho"])
-        #vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
-        # icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-        #                                             variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
-        # vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon2te, model="ICON2TE"))
+        """
+        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variables=["p", "temp", "th", "z", "rho"])
+        vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
+
+        icon = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                    variant="ICON", variables=["p", "temp", "th", "z", "rho"])
+        vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon, model="ICON"))
+        icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                    variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
+        vhd_ds_icon2te.append(calc_vhd_full_domain(ds_extent=icon2te, model="ICON2TE"))
+        """
         um = read_ukmo.read_ukmo_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                            variables=["p", "temp", "th", "z", "rho", "hgt"])
+                                            variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_um.append(calc_vhd_full_domain(ds_extent=um, model="UM"))
         wrf = read_wrf_helen.read_wrf_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                       variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_wrf.append(calc_vhd_full_domain(ds_extent=wrf, model="WRF"))
 
-    # vhd_arome_full = xr.concat(vhd_ds_arome, dim="time")
-    # vhd_arome_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
-    # vhd_icon_full = xr.concat(vhd_ds_icon, dim="time")
-    # vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
-    # vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
+    """
+    vhd_arome_full = xr.concat(vhd_ds_arome, dim="time")
+    vhd_arome_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
+    vhd_icon_full = xr.concat(vhd_ds_icon, dim="time")
+    vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
+    vhd_icon2te_full = xr.concat(vhd_ds_icon2te, dim="time")
+    vhd_icon2te_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
+    """
     vhd_um_full = xr.concat(vhd_ds_um, dim="time")
     vhd_um_full.to_dataset(name="vhd").to_netcdf(confg.ukmo_folder + "/UM_vhd_full_domain_full_time.nc")
     vhd_wrf_full = xr.concat(vhd_ds_wrf, dim="time")
     vhd_wrf_full.to_dataset(name="vhd").to_netcdf(confg.wrf_folder + "/WRF_vhd_full_domain_full_time.nc")
+
 
     # vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
     #                                                                   point_name=confg.ibk_uni["name"])

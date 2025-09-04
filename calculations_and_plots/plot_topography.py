@@ -62,6 +62,9 @@ def read_plot_clip_tirol():
 
 
 def read_dem_xarray(file_name = TIROL_DEMFILE):
+    """
+    read .tif DEM as xarray Dataset and rename it accordingly
+    """
     dem = xr.open_dataset(file_name, engine="rasterio")
     dem = dem.rename({"x": "lon", "y": "lat", "band_data":"height"})  # rename the coordinates to lon and lat
     return dem
@@ -213,6 +216,7 @@ def plot_stations_and_AROME_height(df, model_name, ext_lat, ext_lon):
     ax.add_artist(momma_legend)
     ax.add_artist(ec_legend)
     plt.savefig(f"{dir_PLOTS}/contour_stations_with_AROME_height/contour_{model_name}_zoom.png")
+
 
 def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_lat_small, ext_lon_small):
     """
@@ -639,9 +643,9 @@ def smooth_dem():
     """
     dem = xr.open_dataset(confg.TIROL_DEMFILE, engine="rasterio")
     dem = dem.isel(y=slice(None, None, -1))  # flip data along y axis to have north on top
-    dem_plot = dem.sel(x=slice(9.2, 13), y=slice(48.2, 46.5))
+    dem_plot = dem.sel(x=slice(9.2, 13), y=slice(46.5, 48.2))
     dem_plot = dem_plot.coarsen(x=3, y=3, boundary="trim").mean()
-    dem_plot.isel(band=0)  .rio.to_raster(confg.dem_smoothed)
+    dem_plot.isel(band=0).rio.to_raster(confg.dem_smoothed)
 
 
 if __name__ == '__main__':

@@ -90,11 +90,15 @@ def create_ds_geopot_height_as_z_coordinate(ds):
     return ds_new
 
 
-def read_full_icon(variant="ICON"):
+def read_full_icon(variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
     """
     (lazy) Read the regridded, full ICON 3D model dataset for a given variant. ~8GB
 
     """
+    data_vars = ["temp", "pres", "qv", "clc", "tke", "z_ifc", "rho", "theta_v", "u", "v", "w"]
+    # list of available, original (regridded) ICON variables
+    vars_to_calculate = set(variables) - set(data_vars)  # need to calculate the var's that are not in ds and are given
+
     if variant == "ICON":
         ds_path = confg.icon_folder_3D + "/ICON_latlon_subset_tirol.nc"
     elif variant == "ICON2TE":
@@ -102,7 +106,7 @@ def read_full_icon(variant="ICON"):
     else:
         raise ValueError("wrong variant")
     icon_full = xr.open_dataset(ds_path, chunks="auto", engine="netcdf4")
-    return icon_full
+    return icon_full, vars_to_calculate
 
 
 def rename_icon_variables(ds):
@@ -127,7 +131,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     :param variant: model variant, either "ICON" or "ICON2TE"
     :param variables: list of variables to select from the dataset with the consistent names-> document in github readme
     """
-    icon_full = read_full_icon(variant=variant)
+    icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
     icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
     icon_point = convert_calc_variables(icon_point, variables= variables)
@@ -139,7 +143,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
 
 
 def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
-    icon_full = read_full_icon(variant=variant)
+    icon_full, vars_to_calculate  = read_full_icon(variant=variant)
 
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
     icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,

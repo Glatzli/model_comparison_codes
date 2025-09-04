@@ -97,7 +97,10 @@ def __open_wrf_dataset_my_version(file, **kwargs):
     return ds
 
 def assign_rename_coords(ds):
-    """assign and rename coordinates for WRF dataset: time and lat/lon"""
+    """
+    assign and rename coordinates for WRF dataset: time and lat/lon
+
+    """
 
     # WRF has originally "Time" as a dimension, but that are integer vals; it also has "time" as a data variable, which is
     # in minutes since 2017-10-15T12:00:00Z (so mins after simulation start)
@@ -113,7 +116,9 @@ def assign_rename_coords(ds):
     ds = ds.assign_coords(south_north=("south_north", ds.isel(west_east=1, Time=0).lat.data))
     ds = ds.drop_vars(["lon", "lat"])  # drop lon & lat data vars, because they are now coords
     ds = ds.rename({"Time": "time", "bottom_top": "height", "south_north": "lat", "west_east": "lon"})
-    ds = ds.assign_coords(height=("height", ds.height.data))  # height is just dim w/o coordinate, therefore set it
+    ds = ds.assign_coords(height=("height", ds.height.data + 1))  # height is just dim w/o coordinate,
+    # also start by 1 till 80 not 0 to 79 as original
+    ds = ds.assign_coords(bottom_top_stag=("bottom_top_stag", ds.bottom_top_stag.data + 1))  # same for bottom_top_stag
     return ds
 
 
