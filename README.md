@@ -1,15 +1,6 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
-VHD (espc WRF) false: Things to check for errors/mistakes:
-- AROME is the same!
-- ICON & UM not exactly the same for the same gridpoint via domain/point calc
-- WRF far too large for domain calc
-- DEM & model's aspect calculation now finally looks right with richDEM!
-  	Finally the same PCGP is chosen for point evaluation & full domain VHD calc...
-  	But VHD calcs are still different...
-- tipping errors: is everywhere really the right model & data used?
-
 ToDo: 
 - revise ICON read in code (variables & calculation of missing vars)
 
@@ -28,18 +19,10 @@ Points:
   	richDEM: looks finally good & consistent for DEM & models!
 	
   	- WRF: took geometric height as topo (multiple levels at one one point, terrain height is only 2D) ~ 20m difference for ibk gridpoint or woergl gridpoint... 
-  	
-- maybe subset all models to have smaller datafiles? 
-   AROME: in read in routine, works quite fine!
-   ICON: once before w CDO
-   UM & WRF not yet possible: missing lat/lon...
 
 - calc VHD:
-  WRF calculation probably wrong (too large vals) -> check again!
-  	Idea: Are other vars the same for point-read in and full domain read in?
-  	-> check!
-  	had Problem in temp calc. Manuela already added the 300 for the pot temp...
-  compare with HATPRO data (timeseries plot) and radiosonde (point plot)!
+  - plot HATPRO data only for ibk point?(timeseries plot)
+  - add radiosonde (point plot)!
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
   different calc with reference at Hafelekar and not at max temp.)
@@ -236,6 +219,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
