@@ -3,9 +3,20 @@ model intercomparison study
 
 ToDo: 
 - revise ICON read in code (variables & calculation of missing vars)
+- sensitivity of HATPRO pot temp calc: Use radiosonde pressure and other models => what's difference?
+
+
+- timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
+  	need to define a threshold -> paper
+  	plot then height below threshold over full domain -> just use level below threshold consistent for all models
+  		=> be careful in the interpretation (f.e. 10 m difference - but model level distance is for 1 model 10m
+  		and for the other 20m => probably no difference!)
+  	probably ppl look most on temp inversion because it's what we measure the longest...
+	
 
 Points: 
-- How did Manuela interpolate the UM data? Manuela already compared qualitatively, I can also look at the code...
+- finally VHD calc is right!
+- How did Manuela interpolate the UM data? Manuela already compared qualitatively, can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
 	create file with plots and notes! Note what I did and already found!
 
@@ -23,6 +34,11 @@ Points:
 - calc VHD:
   - plot HATPRO data only for ibk point?(timeseries plot)
   - add radiosonde (point plot)!
+  - plot 80% of maximum VHD contour line for every model to show where it evolves first?!
+    	=> zoom in further?!
+ 
+  - UM has lower VHD at 04 in the morning -> assimilation? not everyone used same model for boundary conditions...
+  	=> maybe due to that...
   
   can it be correct with only 0.3 MJ/m^2 (in model!) -> calc for radiosounding & HATPRO (cosma already did that a bit, but I have
   different calc with reference at Hafelekar and not at max temp.)
@@ -219,6 +235,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
