@@ -5,13 +5,12 @@ ToDo:
 - revise ICON read in code (variables & calculation of missing vars)
 - sensitivity of HATPRO pot temp calc: Use radiosonde pressure and other models => what's difference?
   	edit Radiosonde-data: skip height 0! (NaN values)
-  		radio.z.values:
-			array([  256,   578,   593, ..., 25356, 25371, 26377], dtype=int64)
-		hatpro.height:
-	  		array([    0,    10,    30,    50,    75,   100,   125,   150,   200,   250,
-	  		325,   400,   475,   550,   625,   700,   800,   900,  1000,  1150,
-	        1300,  1450,  1600,  1800,  2000,  2200,  2500,  2800,  3100,  3500,
-	        3900,  4400,  5000,  5600,  6200,  7000,  8000,  9000, 10000])
+
+  	Radiosonde has all ~9-15m a measurement => finest resolution of all data!
+  	=> interpolate hatpro & radiosonde to vertical model levels and then use radiosonde pressure for HATPRO
+  		pot temp calc. ? But what model should I use?! => WRF!
+  	-> implement in code...
+
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper
@@ -242,6 +241,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
