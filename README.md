@@ -4,7 +4,8 @@ model intercomparison study
 ToDo: 
 - revise ICON read in code (variables & calculation of missing vars)
 - sensitivity of HATPRO pot temp calc: Use radiosonde pressure and other models => what's difference?
-  	edit Radiosonde-data: skip height 0! (NaN values)
+  	edit Radiosonde-data: skipped height 0! (NaN values)
+  	and interpolated 
 
   	Radiosonde has all ~9-15m a measurement => finest resolution of all data!
   	=> interpolate hatpro & radiosonde to vertical model levels and then use radiosonde pressure for HATPRO
@@ -243,6 +244,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
