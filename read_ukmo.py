@@ -90,7 +90,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):  # , multiple_leve
         ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
         if "temp" in vars_to_calc:
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] *
-                                                                              units("K"))  # .metpy.dequantify() - 273.15 # temp in Celsius w/o unit
+                                                                              units("K"))  # calc temp in K
             if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
                 ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
                 ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")

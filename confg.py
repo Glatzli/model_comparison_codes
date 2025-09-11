@@ -23,7 +23,7 @@ ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385}  # hatpro, uni coord
 ibk_airport = {"name": "ibk_airport", "lat": 47.26, "lon": 11.34}
 woergl = {"name": "woergl", "lat": 47.494, "lon": 12.059}  # coords for wörgl, lower Inn valley
 kiefersfelden = {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2}  # coords for kiefersfelden, Germany, entrance Inn valley
-
+telfs = {"name": "telfs", "lat": 47.3, "lon": 11.1}
 
 lat_min, lat_max = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
 lon_min, lon_max = 10.8, 12  # 10.8, 12
@@ -31,6 +31,7 @@ lon_min, lon_max = 10.8, 12  # 10.8, 12
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
 radiosonde_edited = f"{data_folder}radiosonde_ibk_2017101603.csv"
+radiosonde_dataset = f"{data_folder}radiosonde_ibk_2017101603.nc"  # for same handling for plots & calcs  save Radiosonde as dataset
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
 TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"  # changed dem file: indexed and renamed coords

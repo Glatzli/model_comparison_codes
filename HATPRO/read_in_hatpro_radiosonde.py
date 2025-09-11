@@ -7,17 +7,20 @@ VHD calc.
 (written by Daniel)
 """
 
+import numpy as np
 import pandas as pd
 import xarray as xr
-from metpy.units import units
-import metpy
 import metpy.calc as mpcalc
+from metpy.units import units
 import confg
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+mpl.use('Qt5Agg')
 
 
-def calc_vars(ds):
+def calc_vars_hatpro_w_pressure(ds):
     """
-    calculate all needed vars like pot. temp & rho for VHD calculation
+    calculate pot temp & density of HATPRO data with added pressure (either from raso or a model)
     :param ds:
     :return:
     """
@@ -27,6 +30,46 @@ def calc_vars(ds):
     ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from HATPRO temp & AROME p with ideal gas law")
     ds = ds.metpy.dequantify()
     return ds
+
+
+def calc_vars_radiosonde(df):
+    """
+    calculate potential temp & density of radiosonde data
+    :param df:
+    :return:
+    """
+    df["th"] = mpcalc.potential_temperature(pressure=(df['p'].values) * units.mbar,
+                                            temperature=(df["temp"].values + 273.15) * units.kelvin)
+    df["rho"] = (df["p"].values * 100) / (287.05 * (df["temp"].values + 273.15))
+    return df
+
+
+def calc_vars_hatpro_radio_wrf(radio_wrf_interp, hatpro_arome_interp, hatpro_wrf_interp, wrf):
+    """
+    calculate pot temp for HATPRO using radiosonde and model pressures, compare them afterwards for a sensitivity
+    analysis
+
+    :param radio_wrf_interp:
+    :param wrf:
+    :return:
+    """
+    # hatpro = hatpro.isel(height=slice(0, 80))
+    hatpro_radiop = hatpro_wrf_interp.assign(p=(("height"), radio_wrf_interp.p.values))  # assign
+    hatpro_radiop = calc_vars_hatpro_w_pressure(ds=hatpro_radiop)
+
+    hatrpo_aromep = hatpro_arome_interp.assign(p=(("height"), arome.p.values))  # some error, do that tomorrow...
+    hatpro_aromep = calc_vars_hatpro_w_pressure(ds=hatrpo_aromep)
+
+    hatpro_wrfp = hatpro_wrf_interp.assign(p=(("height"), wrf.p.values))
+    hatpro_wrfp = calc_vars_hatpro_w_pressure(ds=hatpro_wrfp)
+
+    plt.figure(figsize=(12, 8))
+    hatpro_radiop.isel(time=12).th.plot(y="height", label="p from radiosonde")
+    hatpro_aromep.isel(time=12).th.plot(y="height", label="p from AROME")
+    hatpro_wrfp.isel(time=12).th.plot(y="height", label="p from WRF")
+    plt.legend()
+    plt.show()
+
 
 
 def read_hatpro(filepath):
@@ -110,8 +153,46 @@ def interpolate_hatpro_arome(hatpro, arome):
 
     hatpro_interp["p"] = arome.p # use AROME pressure in HATPRO data, hatpro also get
     # up to height = 75 valid values, above only NaNs, cause AROME data goes farther up...
-    hatpro = calc_vars(ds=hatpro_interp)
+    hatpro = calc_vars_hatpro_w_pressure(ds=hatpro_interp)
     hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+
+
+def interpolate_hatpro_radiosonde(hatpro, radio, arome, wrf):
+    """
+    interpolate hatpro & radiosonde data onto WRF-geopot height levels
+    caution: HATPRPO's height difference between levels gets bigger with increasing
+    height, for models that distance stays the same -> further up the interpolation
+    error increases for the HATPRO-data
+    :param hatpro:
+    :param radio:
+    :param wrf:
+    :return:
+    """
+    # ibk airport (radiosonde) is at 581m
+    z_unstag = wrf.z.rolling(bottom_top_stag=2, center=True).mean()[1:]  # geopot height is on staggered variable: take
+    # mean to compute it on unstaggered grid (height variable), where temp etc are calculated
+    wrf = wrf.assign(z_unstag=(("height"), z_unstag.values))  # assign unstaggered variables as a new coordinate
+
+    hatpro_wrf_interp = hatpro.interp(height=wrf.z_unstag.values, method="linear")  # interpolate HATPRO temp & humidity linearly
+    hatpro_arome_interp = hatpro.interp(height=arome.isel(time=25).z.values[::-1], method="linear")
+
+    """
+    plt.figure(figsize=(2, 5))  # check if unstaggering worked
+    plt.plot(["z"] * len(wrf.z.values), wrf.z.values, linestyle="None", ms=5, marker="_")
+    plt.plot(["z_stag"] * len(wrf.z_stag.values), wrf.z_stag.values, linestyle="None", ms=5, marker="_")
+    plt.grid()
+    plt.show()
+    """
+
+    radio["height"] = radio.z.values  # need geopot height as coordinate values for interpolation
+    radio = radio.drop_vars("z")
+
+    # Auch radio.height eindeutig machen (falls nötig)
+    radio_mean = radio.groupby("height").mean(dim="height")  # radiosonde data has mutliple meas. on the same heights
+    # => take mean over all values on the same height
+    radio_wrf_interp = radio_mean.interp(height=wrf.isel(time=0).z_unstag.values, method="linear")  # and then interpolate it onto WRF levels
+
+    return radio_wrf_interp, hatpro_arome_interp, hatpro_wrf_interp, wrf
 
 
 def edit_vars(df):
@@ -122,26 +203,111 @@ def edit_vars(df):
     """
     df["temp"] = df["temperature"] - 273.15
     df["Td"] = df["dewpoint"] - 273.15
-    df["p"] = df["pressure"]
+    df["p"] = df["pressure"] / 100  # pressure in hPa
     df = df.rename(columns={"geopotential height": "z", "wind direction": "wind_dir", "windspeed": "wspd"})
     df.drop(["time", "pressure", "latitude offset", "longitude offset", "temperature", "dewpoint"], axis=1, inplace=True)
     return df
 
 
 def read_radiosonde_csv(filepath):
+    """
+    read in original radiosonde data
+    :param filepath:
+    :return:
+    """
     # Lese die Datei, überspringe die ersten 5 Kommentarzeilen
     df = pd.read_csv(filepath, comment='#')
     df = edit_vars(df)
     return df
 
+def convert_to_dataset(radio):
+    """
+    converts edited radiosonde dataframe to dataset (only because handling is then the same as for model data...)
+    throws away first datapoint, which is NaN data
+    :param radio: finished edited radiosonde dataframe
+    :return:
+    :param ds: dataset of edited radiosonde data
+    """
+    # ToDo set coords time & others...
+    #   * time     (time) datetime64[ns] 392B 2017-10-15T12:00:00 ... 2017-10-16T12...
+    #     lat      float32 4B 47.28
+    #     lon      float32 4B 11.4
+    ds = xr.Dataset(
+        {col: ("height", radio[col].values[1::]) for col in radio.columns},
+        coords={"height": radio.index.values[1::]}
+    )
+    return ds
+
+
+def plot_height_levels(arome_heights, icon_heights, um_heights, wrf_heights, radio_heights, hatpro_heights=None):
+    """
+    this short function plots the different geopot. height levels for all models incl. radiosonde & hatpro data, for
+    getting an overview which data should be interpolated onto which levels...
+    :param arome_heights:
+    :param icon_heights:
+    :param um_heights:
+    :param wrf_heights:
+    :param radio_heights:
+    :param hatpro_heights:
+    :return:
+    """
+
+    model_names = ['AROME', 'ICON', 'UM', 'WRF', 'Radiosonde', 'HATPRO']
+    height_arrays = [
+        arome_heights,
+        icon_heights,
+        um_heights,
+        wrf_heights,
+        radio_heights,
+        hatpro_heights
+    ]
+
+    plt.figure(figsize=(5, 8))
+    for i, heights in enumerate(height_arrays):
+        plt.plot([model_names[i]] * len(heights), heights, linestyle="None", label=model_names[i],
+                 ms=5, marker="_")
+
+    plt.ylabel('geopotential height [m]')
+    plt.ylim([500, 3000])
+    plt.title('vertical level comparison models & measurments')
+    plt.grid(True, axis='y')
+    plt.tight_layout()
+    plt.savefig(confg.dir_PLOTS + "model_infos_general/vertical_geopot_height_levels_comp.svg")
+    plt.show()
+
 
 if __name__ == '__main__':
     # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
-    # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
-    # hatpro
-    # arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # read PCGP around HATPRO for comparing
+    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
+    hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
+    hatpro_sel["height"] = hatpro_sel.height + 612  # the HATPRO station is at 612 m a.s.l., models always have height above m amsl.
 
+    arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # read PCGP around HATPRO for comparing
+    icon = xr.open_dataset(confg.icon_folder_3D + "/icon_ibk_uni_timeseries.nc")
+    um = xr.open_dataset(confg.ukmo_folder + "um_ibk_uni_timeseries.nc")
+    wrf = xr.open_dataset(confg.wrf_folder + "/wrf_ibk_uni_timeseries.nc")
     # interpolate_hatpro_arome(hatpro, arome)
-    radio = read_radiosonde_csv(confg.radiosonde_csv)
-    radio.to_csv(confg.radiosonde_edited, index=False)
+    radio = xr.open_dataset(confg.radiosonde_dataset)  # for the radiosonde data the first (height=0) data point is not valid?!
+
+    # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],
+    #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,
+    #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)
+
+    radio_wrf_interp, hatpro_arome_interp, hatpro_wrf_interp, wrf = interpolate_hatpro_radiosonde(hatpro=hatpro_sel, radio=radio, arome=arome, wrf=wrf)  # for interpolating HATPRO data to
+    calc_vars_hatpro_radio_wrf(radio_wrf_interp=radio_wrf_interp, hatpro_arome_interp=hatpro_arome_interp,
+                               hatpro_wrf_interp=hatpro_wrf_interp, wrf=wrf)
+
+    """
+    lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset
+    # radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to uniform
+    # units, drop not needed vars
+    # radio.to_csv(confg.radiosonde_edited, index=False)  # and saved as dataframe
+
+    # modify radiosonde data (calc th & rho) and save it as dataset
+    radio = pd.read_csv(confg.radiosonde_edited)
+    radio = calc_vars_radiosonde(df = radio)
+    radio_ds = convert_to_dataset(radio)
+    radio_ds.to_netcdf(confg.radiosonde_dataset)
+    """
 
