@@ -10,6 +10,8 @@ ToDo:
   	=> interpolate hatpro & radiosonde to vertical model levels and then use radiosonde pressure for HATPRO
   		pot temp calc. ? But what model should I use?! => WRF!
   	-> implement in code...
+- staggering: Should I include the unstaggering of geopot. height (WRF & ICON) already in the read-in
+  code?
 
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
@@ -241,6 +243,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
