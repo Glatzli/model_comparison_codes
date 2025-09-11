@@ -8,6 +8,18 @@
 - UKMO
 - WRF_ACINN
 
+## Radiosonde
+original vars:
+'time', 'pressure' [Pa], 'geopotential height', 'latitude offset', 'longitude offset', 
+'temperature' [K], 'dewpoint' [K], 'wind direction', 'windspeed'
+
+changed to:
+- temp [°C]
+- Td [°C]
+- p [hPa]
+- geopot height renamed to z, dropped lat/lon, time
+
+
 
 ## AROME
 already improved:
