@@ -187,7 +187,7 @@ def read_ukmo(variables=["p", "temp", "th", "rho", "z"]):
     return data, vars_to_calculate
 
 
-def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None):
+def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="True"):
     """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
     """
@@ -195,6 +195,8 @@ def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], va
     data = data.sel(lat=lat, lon=lon, method="nearest")  # selects lat, lon
     data = convert_calc_variables(data, vars_to_calc=vars_to_calculate)
     data = data[variables]  # subset to have only the variables wanted before computing
+    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
+        data["height"] = data.z.isel(time=slice(4, 100)).mean(dim="time").values
 
     return data.compute()
 
@@ -310,15 +312,14 @@ if __name__ == '__main__':
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    # um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-    #                            variable_list=["p", "hgt", "temp", "th", "rho", "z"])
-    um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variable_list=["hgt"])
-
-    um_extent
+    um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                               variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)  # , "hgt" , "rho"
+    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variable_list=["hgt"])
+    um
 
     # save lowest level as nc file for topo plotting
 
-    save_um_topography(ds=um_extent)
+    # save_um_topography(ds=um_extent)
 
 
     # um_geopot = create_ds_geopot_height_as_z_coordinate(um)

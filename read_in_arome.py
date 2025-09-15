@@ -119,7 +119,7 @@ def rename_vars(data):
     return data
 
 
-def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"]):  # , variable_list=
+def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"], height_as_z_coord=False):  # , variable_list=
     """
     Read the AROME model output for a fixed point at a specific location with full time range.
     The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
@@ -129,6 +129,7 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     :param method: Selection method of point ('sel' or 'interp').
     :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z", "rho"]
         if "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables"
+    :param: height_as_z_coord: sets mean geopot. height as the coordinate in z (which simplifies some computations)
     :return: Merged xarray Dataset
     """
     ds, vars_to_calculate = read_in_arome(variables=variables)
@@ -139,6 +140,8 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
 
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
+    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
+        ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values
     ds = ds.compute()
     return ds
 
@@ -187,7 +190,7 @@ if __name__ == '__main__':
 
     # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z", "rho"])
+    arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z"], height_as_z_coord=True)
     # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
     arome
 

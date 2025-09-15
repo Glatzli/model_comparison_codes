@@ -312,6 +312,30 @@ def rename_drop_vars(ds):
     return ds
 
 
+def unstagger_z_point(ds):
+    """
+    for unstaggering the geopotential height var, i.e. calculating it on the same levels as p and other
+    vars are available, only for the point-read in: take mean between every 2nd level to compute it
+    :param ds:
+    :return:
+    """
+    z_unstag = ds.z.rolling(bottom_top_stag=2, center=True).mean()[1:]  # geopot height is on staggered variable: take
+    # mean to compute it on unstaggered grid (height variable), where temp etc are calculated
+    ds = ds.assign(z_unstag=(("height"), z_unstag.values))  # assign unstaggered variables as new data var (only height coord)
+    return ds
+
+
+def unstagger_z_domain(ds):
+    """
+    same as unstagger_z_point but only with lat&lon coords for full domain read in
+    :param ds:
+    :return:
+    """
+    z_unstag = ds.z.rolling(bottom_top_stag=2, center=True).mean()[1:]
+    ds = ds.assign(z_unstag=(("height", "lat", "lon"), z_unstag.values))  # also has lat&lon vals
+    return ds
+
+
 def create_new_dataset(ds):
     """needed due to regridding, create a new dataset with lat, lon, height and time as coordinates
     only used for read wrf fixed time over full domain, for a single point it's not needed!
@@ -350,20 +374,11 @@ def create_new_dataset(ds):
     )
     return wrf
 
-
-def read_wrf_fixed_point(lat=47.259998, lon= 11.384167, variables=["p", "temp", "th", "rho", "z"]):
-    """calls fct to read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
-    It is also possible to define the lowest_level = True, selects only lowest level
-    then adjust dimensions to have time & height as coordinates
-    & calculate vars like rh etc with metpy in convert_calc_variables
-
-    :param lowest_level: Default False, but if True then select only lowest level
-    :param variable_list: a variable list to keep only certain variables, if empty default is used
-    :param lat: Latitude of the location.
-    :param lon: Longitude of the location.
+def generate_filenames():
     """
-    # combined_ds = generate_datasets(lat, lon, start_day, end_day, variable_list=["th", "p", "time"])  # deleted by daniel
-    # create list of all wrf file names:
+    create list of all wrf file names:
+    :return:
+    """
     hours_15 = [f"{hour:02d}{minute:02d}" for hour in range(12, 24) for minute in [0, 30]]  # 1200, 1230, ..., 2330 (list of strings)
     hours_16 = [f"{hour:02d}{minute:02d}" for hour in range(0, 12) for minute in [0, 30]] + ["1200"]  # 0000, 0030, ..., 1200
     wrf_files_15 = [confg.wrf_folder + f"/WRF_ACINN_20171015/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171015T"
@@ -371,12 +386,32 @@ def read_wrf_fixed_point(lat=47.259998, lon= 11.384167, variables=["p", "temp", 
     wrf_files_16 = [confg.wrf_folder + f"/WRF_ACINN_20171016/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171016T"
                     + hour + "Z_regrid.nc" for hour in hours_16]
     wrf_files = wrf_files_15 + wrf_files_16  # list of path to all wrf files, not beautiful but works
+    return wrf_files
 
+
+def read_wrf_fixed_point(lat=47.259998, lon=11.384167, variables=["p", "temp", "th", "rho", "z"], height_as_z_coord=False):
+    """calls fct to read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
+    It is also possible to define the lowest_level = True, selects only lowest level
+    then adjust dimensions to have time & height as coordinates
+    & calculate vars like rh etc with metpy in convert_calc_variables
+
+    :param variables: a variable list to keep only certain variables, if empty default is used
+    :param lat: Latitude of the location.
+    :param lon: Longitude of the location.
+    :param height_as_z_coord: set mean geopot. height as height variable
+    """
+    # combined_ds = generate_datasets(lat, lon, start_day, end_day, variable_list=["th", "p", "time"])  # deleted by daniel
+
+    wrf_files = generate_filenames()
     combined_ds, vars_to_calculate = open_wrf_mfdataset(filepaths=wrf_files, variables=variables)
 
     ds = combined_ds.sel(lat=lat, lon=lon, method= "nearest")  # index given point
+    if "z_unstag" in variables:
+        ds = unstagger_z_point(ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
     ds = ds[variables]
+    if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
+        ds["height"] = ds.z_unstag.values
 
     return ds.compute()
 
@@ -391,11 +426,12 @@ def read_wrf_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "r
 
     """
     time = datetime.datetime(2017, 10, day, hour, min, 00)
-
     filepath = (confg.wrf_folder + f"/WRF_ACINN_201710{time.day:02d}/WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710"
                                    f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z_regrid.nc")
 
     ds, vars_to_calc = open_wrf_mfdataset(filepaths=filepath, variables=variables)
+    if "z_unstag" in variables:
+        ds = unstagger_z_domain(ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calc)  # calculate variables like temp, rho, etc.
     ds = ds[variables]
 
@@ -406,20 +442,18 @@ if __name__ == '__main__':
     import matplotlib
     matplotlib.use('Qt5Agg')
 
-    lat_ibk = 47.259998
-    lon_ibk = 11.384167
-
     #wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
     #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    wrf = read_wrf_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variables=["p", "temp", "th", "rho", "z"])
-    wrf_extent = read_wrf_fixed_time(day=16, hour=12, min=0, variables=["hgt", "p", "temp", "th", "rho", "z"])
+    wrf = read_wrf_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
+                               variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
+    wrf_extent = read_wrf_fixed_time(day=16, hour=12, min=0, variables=["hgt", "p", "temp", "th", "rho", "z", "z_unstag"])
     wrf_extent
 
     # what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
     # with other models?! ~ 20m difference...
-    wrf_extent.hgt.to_netcdf(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
-    wrf_tif = wrf_extent.rename({"lat": "y", "lon": "x", "hgt": "band_data"})  # rename for tif export
-    wrf_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
-    wrf_tif.isel(time=0).band_data.rio.to_raster(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
+    # wrf_extent.hgt.to_netcdf(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    # wrf_tif = wrf_extent.rename({"lat": "y", "lon": "x", "hgt": "band_data"})  # rename for tif export
+    # wrf_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection
+    # wrf_tif.isel(time=0).band_data.rio.to_raster(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file

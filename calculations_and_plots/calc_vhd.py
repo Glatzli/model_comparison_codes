@@ -419,19 +419,27 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None,
         model_timeseries.to_netcdf(paths["WRF"])
 
 
-def open_save_timeseries(lat=None, lon=None, point_name=confg.ibk_uni["name"]):
-    timeseries_paths = {"AROME": Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),
+def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name"]):
+    """
+    calculates PCGP aroung given NGP, calculates timeseries for every model at that point (only if there isn't
+    already one saved for that point) and returns the timeseries
+    :param lat:
+    :param lon:
+    :param point_name:
+    :return:
+    """
+    pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
+    timeseries_paths = {"AROME": Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),  # define timeseries paths
                         "ICON": Path(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc"),
                         "ICON2TE": Path(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc"),
                         "UM": Path(confg.ukmo_folder + f"/um_{point_name}_timeseries.nc"),
                         "WRF": Path(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc"),
                         "HATPRO": Path(confg.hatpro_folder + f"/hatpro_interpolated_arome.nc")}
-    # if [f.exists() for f in timeseries_paths].count(False) >= 1:  # check if timeseries were already saved for that point, if not read and save them!
 
-    pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
     save_timeseries(pcgp_arome=pcgp_arome, pcgp_icon=pcgp_icon, pcgp_um=pcgp_um, pcgp_wrf=pcgp_wrf,
-                    point_name=point_name, variables=["p", "th", "temp", "rho", "z"], paths=timeseries_paths)
-    # , "hgt", use geopot height for indexing, not "terrain height" vars!
+                    point_name=point_name, variables=["p", "th", "temp", "rho", "z", "z_unstag"], paths=timeseries_paths)
+    # if timeseries isn't already saved at that point, read it and save it
+    # used geopot height for indexing, not "terrain height" vars!
 
     # read saved timeseries for ibk gridpoint defined above
     arome_timeseries = xr.open_dataset(timeseries_paths["AROME"])  # confg.dir_AROME + f"/arome_{point_name}_timeseries.nc")
@@ -446,8 +454,11 @@ def open_save_timeseries(lat=None, lon=None, point_name=confg.ibk_uni["name"]):
 
 def calc_vhd_single_point_main(lat=None, lon=None, point_name=None):
     """
-    checks if timeseries is not already saved for the given point, if not it reads the DEMs, calculates the PCGP and
-    then read & save the timeseries for the PCGP for the given point.
+    does some things after each other (not a very testable function...)
+    1. calls function that calcs PCGP aroung given NGP, calculates timeseries for every model at that point (only if
+        there isn't already one saved for that point) and returns the timeseries
+    2. calc the VHD from that timeseries and returns it
+
     HATPRO timeseries is only included for points with "ibk" in it's names
 
     :param lat: latitude of point
@@ -457,7 +468,7 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=None):
     vhd_arome:
     """
     (arome_timeseries, icon_timeseries, icon2te_timeseries,
-     um_timeseries, wrf_timeseries, hatpro_timeseries, radio) = open_save_timeseries(lat=lat, lon=lon, point_name=point_name)
+     um_timeseries, wrf_timeseries, hatpro_timeseries, radio) = open_save_timeseries_main(lat=lat, lon=lon, point_name=point_name)
 
     # calc VHD for model data for single PCGP
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
@@ -504,13 +515,14 @@ if __name__ == '__main__':
     # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
     # vhd_hatpro = calc_vhd_single_point(hatpro, model="HATPRO")
 
-    # to calculate the PCGP for this point and save timeseries of the models at the PCGP
-    # read_dems_calc_pcgp(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"])
+    point = confg.ibk_airport
+    # calculate PCGP for the given point
+    # pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=point["lat"], lon=point["lon"])
 
-    # calculate VHD for a single point (timeseries isn't already saved, data will be read first):
-    # (vhd_arome, vhd_icon, vhd_icon2te,
-    # vhd_um, vhd_wrf, vhd_hatpro, vhd_radio) = calc_vhd_single_point_main(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
-    #                                                           point_name=confg.ibk_villa["name"])  # call main fct which calls
+    # calculate VHD for a single point (if timeseries isn't already saved, data will be read first):
+    (vhd_arome, vhd_icon, vhd_icon2te,
+    vhd_um, vhd_wrf, vhd_hatpro, vhd_radio) = calc_vhd_single_point_main(lat=point["lat"], lon=point["lon"],
+                                                                         point_name=point["name"])  # call main fct which calls
     # vhd_arome  # all other fcts for calculating vhd for that point
 
 
@@ -520,20 +532,20 @@ if __name__ == '__main__':
     # read full domain of model and calc VHD for every hour concatenate them into 1 dataset and write them to a .nc file
     timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
     vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_icon2te, vhd_ds_um, vhd_ds_wrf = [], [], [], [], [], []
-
+    """
     for timestamp in timerange:
-        """
+
         arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                        variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
-        """
+
         icon = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                     variant="ICON", variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon, model="ICON"))
         icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                     variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_icon2te.append(calc_vhd_full_domain(ds_extent=icon2te, model="ICON2TE"))
-        """
+
         um = read_ukmo.read_ukmo_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                             variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_um.append(calc_vhd_full_domain(ds_extent=um, model="UM"))
@@ -544,12 +556,12 @@ if __name__ == '__main__':
     """
     vhd_arome_full = xr.concat(vhd_ds_arome, dim="time")
     vhd_arome_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
-    """
+
     vhd_icon_full = xr.concat(vhd_ds_icon, dim="time")
     vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
     vhd_icon2te_full = xr.concat(vhd_ds_icon2te, dim="time")
     vhd_icon2te_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
-    """
+
     vhd_um_full = xr.concat(vhd_ds_um, dim="time")
     vhd_um_full.to_dataset(name="vhd").to_netcdf(confg.ukmo_folder + "/UM_vhd_full_domain_full_time.nc")
     vhd_wrf_full = xr.concat(vhd_ds_wrf, dim="time")

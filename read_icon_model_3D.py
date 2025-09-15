@@ -119,7 +119,29 @@ def rename_icon_variables(ds):
     return ds
 
 
-def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
+def unstagger_z_point(ds):
+    """
+    function for unstaggering the geometric height var (orig z_ifc, renamed to z)
+    :param ds:
+    :return:
+    """
+    z_unstag = ds.z.rolling(height_3=2, center=True).mean()[1:]
+    ds = ds.assign(z_unstag=(("height"), z_unstag.values))
+    return ds
+
+
+def unstagger_z_domain(ds):
+    """
+    same as unstagger_z_point but only with lat&lon coords for full domain read in
+    :param ds:
+    :return:
+    """
+    z_unstag = ds.z.rolling(height_3=2, center=True).mean()[1:]
+    ds = ds.assign(z_unstag=(("height", "lat", "lon"), z_unstag.values))
+    return ds
+
+
+def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"], height_as_z_coord=False):
     """
     Read ICON 3D model at a fixed point, edit for consistent names etc:
     1. read full icon ds, 2. select given point, 3. rename vars so that given var string are the consistent names with
@@ -130,12 +152,17 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     :param lon: longitude of the point
     :param variant: model variant, either "ICON" or "ICON2TE"
     :param variables: list of variables to select from the dataset with the consistent names-> document in github readme
+    :param height_as_z_coord: set unstaggered geopot. height as values for the height coordinate
     """
     icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
     icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
+    if "z_unstag" in variables:  # if unstaggered geometric height is needed, calc it
+        icon_point = unstagger_z_point(ds=icon_point)
     icon_point = convert_calc_variables(icon_point, variables= variables)
     icon_selected = icon_point[variables]  # select only the variables wanted
+    if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
+        icon_selected["height"] = icon_selected.z_unstag.values
 
     icon_selected = icon_selected.compute()
     icon_selected = reverse_height_indices(ds = icon_selected)
@@ -148,6 +175,8 @@ def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p",
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
     icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
     icon = rename_icon_variables(ds=icon)  # rename z_ifc to z
+    if "z_unstag" in variables:
+        icon = unstagger_z_domain(ds=icon)
     icon = convert_calc_variables(icon, variables= variables)
     icon_selected = icon[variables]  # select only the variables wanted
 
@@ -185,24 +214,21 @@ if __name__ == '__main__':
     # testing cdo generates nc files:
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
 
-    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"])
     # save_icon_topo(icon_extent)
-
 
     # save lowest level as nc file for topo plotting
     # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem calc of slope I need .tif file
 
     icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
-                                       variables=["p", "temp", "th", "z", "rho"])
-    # icon_point
-
+                                       variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)
+    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
+    #                                    variables=["p", "temp", "th", "rho", "z", "z_unstag"])
+    icon_point
 
     # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     #icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")
     #icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
-
-
 
     # create a new dataset with geometric height z_ifc as vertical coordinate
     """

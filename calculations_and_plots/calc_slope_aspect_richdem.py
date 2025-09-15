@@ -1,4 +1,6 @@
 """
+NOT USED!
+
 written by Manuela Lehner for calculating slope and aspect for COSMO data, changed to work for my data
 Problems... what's zscale?!
 """
