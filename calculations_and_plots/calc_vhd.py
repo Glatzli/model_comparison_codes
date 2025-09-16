@@ -380,12 +380,12 @@ def read_dems_calc_pcgp(lat=None, lon=None):
     return pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf
 
 
-def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None,
-                    variables=None, paths={"AROME": Path(confg.dir_AROME + "/arome_ibk_uni_timeseries.nc"),
-                                           "ICON": Path(confg.icon_folder_3D + "/icon_ibk_uni_timeseries.nc"),
-                                           "ICON2TE": Path(confg.icon2TE_folder_3D + "/icon_2te_ibk_uni_timeseries.nc"),
-                                           "UM": Path(confg.ukmo_folder + "/um_ibk_uni_timeseries.nc"),
-                                           "WRF": Path(confg.wrf_folder + "/wrf_ibk_uni_timeseries.nc")}):
+def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, variables=None,
+                    paths={"AROME": Path(confg.dir_AROME + "/arome_ibk_uni_timeseries.nc"),
+                           "ICON": Path(confg.icon_folder_3D + "/icon_ibk_uni_timeseries.nc"),
+                           "ICON2TE": Path(confg.icon2TE_folder_3D + "/icon_2te_ibk_uni_timeseries.nc"),
+                           "UM": Path(confg.ukmo_folder + "/um_ibk_uni_timeseries.nc"),
+                           "WRF": Path(confg.wrf_folder + "/wrf_ibk_uni_timeseries.nc")}, height_as_z_coord=False):
     """
     checks if timeseries already exists for the given point, if not it reads the timeseries at the given PCGP-point
     and saves the timeseries as .nc files.
@@ -394,32 +394,43 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None,
     """
     if not paths["AROME"].exists():
         print("vhd AROME need to be calculated first for that point, please wait...")
-        model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
-                                                                   variables=variables)
+        if variables[-1] == "z_unstag":  #
+            model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+                                                                       variables=variables[-1], height_as_z_coord=height_as_z_coord)
+        else:
+            model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+                                                                       variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["AROME"])
     if not paths["ICON"].exists():
         print("vhd ICON need to be calculated first for that point, please wait...")
         model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
-                                                                    variant="ICON", variables=variables)
+                                                                    variant="ICON", variables=variables,
+                                                                    height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["ICON"])
     if not paths["ICON2TE"].exists():
         print("vhd ICON2TE need to be calculated first for that point, please wait...")
         model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
-                                                                    variant="ICON2TE", variables=variables)
+                                                                    variant="ICON2TE", variables=variables,
+                                                                    height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["ICON2TE"])
     if not paths["UM"].exists():
         print("vhd UM need to be calculated first for that point, please wait...")
-        model_timeseries = read_ukmo.read_ukmo_fixed_point(lat=pcgp_um.y.values, lon=pcgp_um.x.values,
-                                                           variables=variables)
+        if variables[-1] == "z_unstag":  #
+            model_timeseries = read_ukmo.read_ukmo_fixed_point(lat=pcgp_um.y.values, lon=pcgp_um.x.values,
+                                                               variables=variables[:-1], height_as_z_coord=height_as_z_coord)
+        else:
+            model_timeseries = read_ukmo.read_ukmo_fixed_point(lat=pcgp_um.y.values, lon=pcgp_um.x.values,
+                                                               variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["UM"])
     if not paths["WRF"].exists():
         print("vhd WRF need to be calculated first for that point, please wait...")
         model_timeseries = read_wrf_helen.read_wrf_fixed_point(lat=pcgp_wrf.y.values, lon=pcgp_wrf.x.values,
-                                                               variables=variables)
+                                                               variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["WRF"])
 
 
-def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name"]):
+def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name"],
+                              variables=["p", "th", "temp", "rho", "z", "z_unstag"], height_as_z_coord=False):
     """
     calculates PCGP aroung given NGP, calculates timeseries for every model at that point (only if there isn't
     already one saved for that point) and returns the timeseries
@@ -429,15 +440,22 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
     :return:
     """
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
-    timeseries_paths = {"AROME": Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),  # define timeseries paths
+    timeseries_paths = {"AROME": Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),
+                        # define timeseries paths
                         "ICON": Path(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc"),
                         "ICON2TE": Path(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc"),
                         "UM": Path(confg.ukmo_folder + f"/um_{point_name}_timeseries.nc"),
                         "WRF": Path(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc"),
                         "HATPRO": Path(confg.hatpro_folder + f"/hatpro_interpolated_arome.nc")}
+    if height_as_z_coord:  # if geopot. height as z coordinate needed: modify the dictionary accordingly
+        timeseries_paths = {
+            key: path.with_name(path.stem + "_height_as_z.nc") if key != "HATPRO" else path
+            for key, path in timeseries_paths.items()
+        }
 
     save_timeseries(pcgp_arome=pcgp_arome, pcgp_icon=pcgp_icon, pcgp_um=pcgp_um, pcgp_wrf=pcgp_wrf,
-                    point_name=point_name, variables=["p", "th", "temp", "rho", "z", "z_unstag"], paths=timeseries_paths)
+                    point_name=point_name, variables=variables, paths=timeseries_paths,
+                    height_as_z_coord=height_as_z_coord)
     # if timeseries isn't already saved at that point, read it and save it
     # used geopot height for indexing, not "terrain height" vars!
 
@@ -468,8 +486,10 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=None):
     vhd_arome:
     """
     (arome_timeseries, icon_timeseries, icon2te_timeseries,
-     um_timeseries, wrf_timeseries, hatpro_timeseries, radio) = open_save_timeseries_main(lat=lat, lon=lon, point_name=point_name)
-
+     um_timeseries, wrf_timeseries, hatpro_timeseries, radio) = open_save_timeseries_main(lat=lat, lon=lon,
+                                                                                          point_name=point_name,
+                                                                                          variables=["p", "th", "temp", "rho", "z", "z_unstag"],
+                                                                                          height_as_z_coord=False)
     # calc VHD for model data for single PCGP
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
     vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
@@ -534,7 +554,6 @@ if __name__ == '__main__':
     vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_icon2te, vhd_ds_um, vhd_ds_wrf = [], [], [], [], [], []
     """
     for timestamp in timerange:
-
         arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                        variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))

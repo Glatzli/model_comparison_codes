@@ -162,7 +162,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     icon_point = convert_calc_variables(icon_point, variables= variables)
     icon_selected = icon_point[variables]  # select only the variables wanted
     if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
-        icon_selected["height"] = icon_selected.z_unstag.values
+        icon_selected["height"] = icon_selected.z_unstag.values[::-1]
 
     icon_selected = icon_selected.compute()
     icon_selected = reverse_height_indices(ds = icon_selected)
