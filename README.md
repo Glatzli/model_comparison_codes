@@ -15,10 +15,16 @@ ToDo:
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
+  	I have no clue how I should define smth for the vertical profiles, cause AROME, UM & WRF are pretty
+  	smoothly increasing in pot temp. with height, there's no significant change in height...
+
   	plot then height below threshold over full domain -> just use level below threshold consistent for all models
   		=> be careful in the interpretation (f.e. 10 m difference - but model level distance is for 1 model 10m
   		and for the other 20m => probably no difference!)
   	probably ppl look most on temp inversion because it's what we measure the longest...
+
+- 2nd research goal:
+  	plot sensible heat flux over full domain for AROME & WRF
 	
 
 Points: 
@@ -242,6 +248,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
