@@ -2,7 +2,6 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo: 
-- added geopot height as possible z coordinate in read in's
 - sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
   	Radiosonde-data: interpolated to staggered vals 
 
@@ -10,7 +9,6 @@ ToDo:
   	=> interpolate hatpro & radiosonde to vertical model levels and then use radiosonde pressure for HATPRO
   		pot temp calc. ? But what model should I use?! => WRF!
   	-> implement in code...
-- staggering: Included fct that unstaggers geometric & geopot height vars in read ins if needed (ICON & WRF)
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper: defined a threshhold for a stable layer
@@ -24,10 +22,13 @@ ToDo:
   	probably ppl look most on temp inversion because it's what we measure the longest...
 
 - 2nd research goal:
-  	plot sensible heat flux over full domain for AROME & WRF
+  	plot sensible heat flux over full domain for AROME & WRF:
+	maybe plot it as small multiples like VHD?
 	
 
-Points: 
+general points:
+- added geopot height as possible z coordinate in read in's
+- staggering: Included fct that unstaggers geometric & geopot height vars in read ins if needed (ICON & WRF)
 - finally VHD calc is right!
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
@@ -248,6 +249,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
