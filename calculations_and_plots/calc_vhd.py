@@ -393,28 +393,28 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, v
 
     """
     if not paths["AROME"].exists():
-        print("vhd AROME need to be calculated first for that point, please wait...")
+        print("AROME timeseries need to be read in first for that point, please wait...")
         if variables[-1] == "z_unstag":  #
             model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
-                                                                       variables=variables[-1], height_as_z_coord=height_as_z_coord)
+                                                                       variables=variables[:-1], height_as_z_coord=height_as_z_coord)
         else:
             model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
                                                                        variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["AROME"])
     if not paths["ICON"].exists():
-        print("vhd ICON need to be calculated first for that point, please wait...")
+        print("ICON timeseries need to be read in first for that point, please wait...")
         model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
                                                                     variant="ICON", variables=variables,
                                                                     height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["ICON"])
     if not paths["ICON2TE"].exists():
-        print("vhd ICON2TE need to be calculated first for that point, please wait...")
+        print("ICON2TE timeseries need to be read in first for that point, please wait...")
         model_timeseries = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
                                                                     variant="ICON2TE", variables=variables,
                                                                     height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["ICON2TE"])
     if not paths["UM"].exists():
-        print("vhd UM need to be calculated first for that point, please wait...")
+        print("UM timeseries need to be read in first for that point, please wait...")
         if variables[-1] == "z_unstag":  #
             model_timeseries = read_ukmo.read_ukmo_fixed_point(lat=pcgp_um.y.values, lon=pcgp_um.x.values,
                                                                variables=variables[:-1], height_as_z_coord=height_as_z_coord)
@@ -423,7 +423,7 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, v
                                                                variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["UM"])
     if not paths["WRF"].exists():
-        print("vhd WRF need to be calculated first for that point, please wait...")
+        print("WRF timeseries need to be read in first for that point, please wait...")
         model_timeseries = read_wrf_helen.read_wrf_fixed_point(lat=pcgp_wrf.y.values, lon=pcgp_wrf.x.values,
                                                                variables=variables, height_as_z_coord=height_as_z_coord)
         model_timeseries.to_netcdf(paths["WRF"])
@@ -449,7 +449,7 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
                         "HATPRO": Path(confg.hatpro_folder + f"/hatpro_interpolated_arome.nc")}
     if height_as_z_coord:  # if geopot. height as z coordinate needed: modify the dictionary accordingly
         timeseries_paths = {
-            key: path.with_name(path.stem + "_height_as_z.nc") if key != "HATPRO" else path
+            key: path.with_name(path.stem + "_height_as_z.nc") # if key != "HATPRO" else path  # for incl. hatpro?
             for key, path in timeseries_paths.items()
         }
 
@@ -466,7 +466,12 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
     um_timeseries = xr.open_dataset(timeseries_paths["UM"])  # read saved UKMO timeseries
     wrf_timeseries = xr.open_dataset(timeseries_paths["WRF"])  # read saved WRF timeseries
     hatpro_timeseries = xr.open_dataset(timeseries_paths["HATPRO"])
-    radio = xr.open_dataset(confg.radiosonde_dataset)
+
+    if height_as_z_coord:  # if geopot height wanted as z coordinate read the accordingly saved radiosonde data
+        radio = xr.open_dataset(confg.radiosonde_dataset_height_as_z)
+    else:
+        radio = xr.open_dataset(confg.radiosonde_dataset)
+
     return arome_timeseries, icon_timeseries, icon2te_timeseries, um_timeseries, wrf_timeseries, hatpro_timeseries, radio
 
 

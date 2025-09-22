@@ -1,12 +1,11 @@
 """
-domain calc and point calculation both work now, but they are different! Why?
-WRF is now faaar to large -> check again...
-
-
 This script should plot the timeseries of the VHD for all models and the change of spatial extent of a defined threshold
 in time.
-A lot could be written shorter with loops through all models, but the effort isn't worth it for how often I will use
-this...
+An hourly small multiple plot of the VHD over the full valley extent was done, with a contour line at 80% of the
+maximum VHD, to show the extent of the maximum in each timestep.
+
+(A lot could be programmed shorter with loops through all models etc, but the effort isn't worth it for how often I will use
+this...)
 
 """
 import datetime
@@ -143,9 +142,9 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
                                                    lon=slice(confg.lon_min, confg.lon_max))
         im = vhd.vhd.plot(ax=ax, cmap=darkblue_hcl_rev, transform=ccrs.Mercator(), add_colorbar=False,
                           levels=levels)
-        # add 50% of max contourline:
-        # (ds_extent.sel(time=time).max() / 1e6)
-        contours = vhd.vhd.max().item() * 0.8  # first contour line at 1/2 of the max. VHD
+
+        # shows extent of max: plot a contour line for 80% of the maximum of current VHD:
+        contours = vhd.vhd.max().item() * 0.8
         cs = ax.contour(vhd.lon, vhd.lat, vhd.vhd.values, levels=contours, colors='black', linewidths=0.5,
                         transform=ccrs.Mercator())
         ax.set_title(f"{time.dt.strftime('%H:%M').item()}", y = 1.0, pad = -25)  # show time inside plot

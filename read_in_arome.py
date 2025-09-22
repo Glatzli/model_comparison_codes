@@ -166,6 +166,39 @@ def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat
     return ds
 
 
+def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
+    """ function from Hannes, with sel-method
+    Read all the 2D variables (single netcdf per variable) and merge them
+
+    :param variableList: List of the selected variables
+    :param lon: Longitude of the MOMAA station
+    :param lat: Latitude of the MOMAA station
+    :param slice_lat_lon: True: lon & lat are slices, if False not, Method for selecting latitude and longitude
+    :return: Merged DataFrame with all the variables
+    """
+    datasets = []  # List to hold the interpolated datasets for each variable
+
+    for variable in variableList:
+        file_path = os.path.join(confg.dir_2D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variable}.nc")
+
+        ds = xr.open_dataset(file_path)
+
+        # Use no method if lat or lon are slice objects
+        if slice_lat_lon:
+            ds = ds.sel(longitude=lon, latitude=lat).isel(time=slice(4, None))  # , method="nearest"
+        else:
+            ds = ds.sel(longitude=lon, latitude=lat, method="nearest").isel(time=slice(4, None))
+
+        for var, units in variables_units_2D_AROME.items():
+            if var in ds:
+                ds[var].attrs['units'] = units
+
+        # ds_quantified = ds.metpy.quantify()
+        datasets.append(ds)
+
+    return xr.merge(datasets, join="exact")
+
+
 def save_arome_topography(arome3d):
     """
     saves the geopotential height of the lowest level of AROME as a 2D .netcdf file for topography plotting and as .tif
@@ -190,10 +223,14 @@ if __name__ == '__main__':
 
     # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z"], height_as_z_coord=True)
+    # arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z"], height_as_z_coord=True)
     # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
-    arome
+    # arome
 
+    arome2d = read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"],
+                                      lon=slice(confg.lon_hf_min, confg.lon_hf_max),
+                                      lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
+    arome2d
     # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
     # arome_z
     # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
