@@ -5,31 +5,28 @@ ToDo:
 - sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
   	Radiosonde-data: interpolated to staggered vals 
 
-  	Radiosonde has all ~9-15m a measurement => finest resolution of all data!
-  	=> interpolate hatpro & radiosonde to vertical model levels and then use radiosonde pressure for HATPRO
-  		pot temp calc. ? But what model should I use?! => WRF!
-  	-> implement in code...
-
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
-  	I have no clue how I should define smth for the vertical profiles, cause AROME, UM & WRF are pretty
-  	smoothly increasing in pot temp. with height, there's no significant change in height...
-
   	plot then height below threshold over full domain -> just use level below threshold consistent for all models
   		=> be careful in the interpretation (f.e. 10 m difference - but model level distance is for 1 model 10m
   		and for the other 20m => probably no difference!)
-  	probably ppl look most on temp inversion because it's what we measure the longest...
+  		(probably ppl look most on temp inversion because it's what we measure the longest...)
+  	no clue how I should define smth for the vertical profiles, cause AROME, UM & WRF are pretty
+  	smoothly increasing in pot temp. with height, there's no significant change in height...
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF:
-	maybe plot it as small multiples like VHD?
-	
+	small multiples:
 
 general points:
 - added geopot height as possible z coordinate in read in's
-- staggering: Included fct that unstaggers geometric & geopot height vars in read ins if needed (ICON & WRF)
-- finally VHD calc is right!
+- staggering: see plot in overleaf, Included fct that unstaggers geometric & geopot height vars in read ins if needed (ICON & WRF)
+- VHD calc is right!
+- look on interpretation of vertical plots!
+- 
+
+
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
 	create file with plots and notes! Note what I did and already found!
@@ -249,6 +246,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
