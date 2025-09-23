@@ -10,6 +10,11 @@ import pandas as pd
 import xarray as xr
 from metpy.calc import dewpoint_from_specific_humidity, relative_humidity_from_dewpoint
 from metpy.units import units
+import pyproj
+import matplotlib
+import matplotlib.pyplot as plt
+import datetime
+from pyproj import Transformer, CRS
 # from rasterio.env import local
 from scipy.interpolate import interp1d
 from pathlib import Path
@@ -40,7 +45,8 @@ def get_coordinates_by_station_name(station_name):
 
 
 def get_rotated_index_of_lat_lon(latitude, longitude):
-    """Function to get the index of the selected latitude and longitude"""
+    """deprecated
+    Function to get the index of the selected latitude and longitude"""
     dat = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_v.nc", decode_timedelta = True)
 
     # Define the rotated pole coordinates and the regular longitude-latitude projection
@@ -69,17 +75,30 @@ def get_rotated_index_of_lat_lon(latitude, longitude):
     return xi, yi
 
 
-def convert_variables(ds, multiple_levels=True):
-    """converts variables with metpy, interpolates wind on pressure levels only if dataset in multiple levels
+def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):  # , multiple_levels=True
+    """converts & calculates variables using metpy, ideal gas law etc
+    UM is quite similar as AROME, but there will be some differences (wind level staggering etc), therefore leave extra
+    function for every model
 
-    ds: ukmo-xarray dataset
-    multiple_levels: bool
+    interpolates wind on pressure levels only if dataset in multiple levels
+
+    :param ds: xarray dataset
+    :param vars_to_calc: list of variables to calculate
     """
-
-    ds["p"] = (ds["p"] / 100) * units("hPa")
-    # p = ds["pressure"] * units.hPa
-    ds["temperature"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] *
-                                                                      units("K"))  # .metpy.dequantify() - 273.15 # temp in Celsius w/o unit
+    if "p" in ds:
+        ds["p"] = (ds["p"] / 100) * units("hPa")
+        ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
+        if "temp" in vars_to_calc:
+            ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] *
+                                                                              units("K"))  # calc temp in K
+            if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
+                ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
+                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")
+            if "rh" in vars_to_calc:
+                # not checked
+                ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q'] * units(
+                    "kg/kg")) * 100  # for percent
+                ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
 
     # qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
     # u_icon = ds["transformed_x_wind"] * units("m/s")  # I don't need this now...
@@ -100,8 +119,10 @@ def convert_variables(ds, multiple_levels=True):
 
     #else: ds["relative_humidity"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], temp, qv).to("percent")
     ds = ds.metpy.dequantify()
-    ds["temperature"] = ds["temperature"] - 273.15  # convert to Celsius
-    # ds["rh"] = ds["rh"] * 100  # convert to percent
+    if "temp" in vars_to_calc:
+        # convert temp to °C
+        ds["temp"] = ds["temp"] - 273.15
+        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
     return ds
 
 
@@ -129,67 +150,76 @@ def create_ds_geopot_height_as_z_coordinate(ds):
 
 
 def rename_variables(ds):
-    """rename variables to have a consistent naming convention"""
-    ds = ds.rename({"model_level_number": "height", "air_potential_temperature": "th", "air_pressure": "p",
-                    "specific_humidity": "q", "geopotential_height": "z"})
+    """rename variables to have a consistent naming convention
+    :param ds: xarray dataset
+    :return: ds with renamed variables
+    """
+    ds = ds.rename({"surface_altitude" : "hgt", "model_level_number": "height",
+                    "grid_latitude": "lat", "grid_longitude": "lon","air_potential_temperature": "th",
+                    "transformed_x_wind": "u", "transformed_y_wind": "v", "upward_air_velocity": "w",
+                    "air_pressure": "p", "specific_humidity": "q", "geopotential_height": "z"})
+    ds['lat'] = ds['lat'].assign_attrs(description="regridded latitude", units="degrees_north")
+    ds['lon'] = ds['lon'].assign_attrs(description="regridded longitude", units="degrees_east")
+    ds["u"] = ds["u"].assign_attrs(description="regridded wind speed in x dir")
+    ds["v"] = ds["v"].assign_attrs(description="regridded wind speed in y dir")
+    ds["w"] = ds["w"].assign_attrs(description="regridded wind speed in w dir (small differences due to "
+                                               "interpolation of the small values)")
     return ds
 
 
-def read_ukmo_fixed_point_lowest_level(city_name=None, lat=None, lon=None):
-    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)"""
-    if city_name is not None:
-        lat, lon = get_coordinates_by_station_name(city_name)
+def read_ukmo(variables=["p", "temp", "th", "rho", "z"]):
+    """
+    reads all regridded UM files as xarray dataset using DASK ~3GB
+    also renames the vars immediately for consistency and adds attrs
+    :param variables: list of variables to be read/calculated in
+    :return:
+    """
+    data_vars = ["hgt", "p", "q", "th", "u", "v", "w", "z"]  # saved file vars except "lct":land binary mask, made problems
+    # whilst interpolating (and I'm not even sure what this var is...)
+    vars_to_calculate = set(variables) - set(data_vars)  # need to calculate the var's that are not in ds and are given
 
-    xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
+    ukmo_files = [confg.ukmo_folder + (f"MetUM_MetOffice_20171015T1200Z_CAP02_{'2D' if var == 'hgt' else '3D'}"
+                                       f"_30min_1km_optimal_{var}_regrid.nc") for var in data_vars]  # read in all saved vars
+    # only the terrain height "hgt" is 2D, and therefore also has a different filename
+    data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
+                             coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
+    data = rename_variables(data)
+    return data, vars_to_calculate
 
-    for i, var in enumerate(["u", "v", "w", "z", "th", "q", "p"]):
-        data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
-        data = data.sel(time=slice("2017-10-15T14:00:00", "2017-10-16T12:00:00.000000000"))  # delete first 2h
-        data = data.isel(grid_latitude=yi, grid_longitude=xi, model_level_number=0, bnds=1)  # selects lowest level, and lat, lon
 
-        if i == 0:  # this is not beautiful but o.k.
-            dat = data
-        else:
-            dat = xr.merge([dat, data], compat='override')
-
-        # print(data_final["level_height"].values) # u and v are on 2.5 m, all other variables at 5m
-    # dat = convert_variables(dat, multiple_levels=False)
-    return dat
-
-def read_ukmo_fixed_point(city_name=None, lat=None, lon=None, variable_list=["u", "v", "w", "z", "th", "q", "p"]):
+def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="True"):
     """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
     """
-    if city_name is not None:
-        lat, lon = get_coordinates_by_station_name(city_name)
+    data, vars_to_calculate = read_ukmo(variables=variables)
+    data = data.sel(lat=lat, lon=lon, method="nearest")  # selects lat, lon
+    data = convert_calc_variables(data, vars_to_calc=vars_to_calculate)
+    data = data[variables]  # subset to have only the variables wanted before computing
+    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
+        data["height"] = data.z.isel(time=slice(4, 100)).mean(dim="time").values
 
-    xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
+    return data.compute()
 
-    ukmo_files = [confg.ukmo_folder + f"/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc" for var in variable_list]
-    data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
-                             coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
 
-    data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)  # selects lat, lon
-    data = rename_variables(data)
-    data = convert_variables(data, multiple_levels=True)
-    return data
+def read_ukmo_fixed_time(day=16, hour=12, min=0, variables=None):
+    """
+    read full domain of UKMO Model at a fixed time
+    converts the lat/lon vars from rotated pole to regular lat/lon
+    :param day: int [15, 16]
+    :param variables: list of variables to read in
+    """
+    data, vars_to_calculate = read_ukmo(variables=variables)
+    timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
+    data = data.sel(time=timestamp)  # selects time , bnds=1
+    data = convert_calc_variables(data, vars_to_calc=vars_to_calculate)
+    data = data[variables]  # subset to have only the variables wanted before computing
 
-def read_ukmo_fixed_time(time="2017-10-15T14:00:00", variable_list=["u", "v", "w", "z", "th", "q", "p"]):
-    """read full domain of UKMO Model at a fixed time"""
-
-    ukmo_files = [confg.ukmo_folder + f"/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc" for var in variable_list]
-    data = xr.open_mfdataset(ukmo_files, combine = "by_coords", data_vars = 'minimal',
-                             coords = 'minimal', compat = 'override', decode_timedelta=True)  #concat_dim="time",
-
-    data = data.sel(time=time)  # selects time , bnds=1
-
-    data = rename_variables(data)
-    data = convert_variables(data, multiple_levels=True)
-    return data
+    return data.compute()
 
 
 def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
-    """read in UKMO Model at fixed point w all levels, either with city_name or with lat/lon, get xarray ds!
+    """deprecated
+    read in UKMO Model at fixed point w all levels, either with city_name or with lat/lon, get xarray ds!
 
     city_name: str
     time: str
@@ -209,17 +239,18 @@ def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", l
         datasets.append(data)
 
     dat = xr.merge(datasets, compat='override')
-    dat = convert_variables(dat, multiple_levels=True)
+    dat = convert_calc_variables(dat, multiple_levels=True)
     dat = dat.rename({"model_level_number": "height"})
     return dat
 
-
+"""
 def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
-    """read all ukmo data (~40GB) as xarray dataset
+    deprecated?
+    read all ukmo data (~40GB) as xarray dataset
     Problem: "regular_longitude" and "regular_latitude" are not coordinates, but data variables!
     (written by chatgpt, maybe coord. transform is totally useless)
 
-    """
+    
     um_files = [ukmo_folder + "/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_" + var + ".nc"
                 for var in variables]
     um = xr.open_mfdataset(um_files, combine='by_coords', compat='override', decode_timedelta=True)
@@ -237,7 +268,7 @@ def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
     um['regular_latitude'] = (('grid_latitude', 'grid_longitude'), regular_lat)
 
     return um
-
+    """
 
 def get_ukmo_height_of_specific_lat_lon(lat, lon):
     """Get ukmo height for a specific lat lon"""
@@ -263,24 +294,44 @@ def get_ukmo_height_of_city_name(city_name):
     return get_ukmo_height_of_specific_lat_lon(lat=lat, lon=lon)
 
 
+def save_um_topography(ds):
+    """
+    save the terrain height as netcdf and .tif file (for PCGP calc)
+    """
+
+    # save um extent terrain height as xr dataset
+    ds.to_netcdf(confg.ukmo_folder + "/UM_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
+    ds.rio.write_crs("EPSG:4326", inplace=True)  # add some projection info ()
+    # rename coords for xdem calc of slope => need .tif file
+    ds.rename({"lat": "y", "lon": "x"}).hgt.rio.to_raster(confg.ukmo_folder + "/UM_geometric_height_3dlowest_level.tif")
+
+
 if __name__ == '__main__':
+    matplotlib.use('Qt5Agg')
     # get values on lowest level
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
-    um = read_ukmo_fixed_point(lat=47.266076, lon=11.4011756)
-    # um = read_ukmo_fixed_time(time="2017-10-15T14:00:00")
-    um_geopot = create_ds_geopot_height_as_z_coordinate(um)
-
-    um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
-    um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
+    um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                               variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)  # , "hgt" , "rho"
+    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variable_list=["hgt"])
     um
-    # um = read_ukmo_fixed_point_and_time(lat=47.266076, lon=11.4011756, time="2017-10-15T14:00:00")
+
+    # save lowest level as nc file for topo plotting
+
+    # save_um_topography(ds=um_extent)
+
+
+    # um_geopot = create_ds_geopot_height_as_z_coordinate(um)
+
+    # save um for plotting temp timeseries with geopot height as z coord
+    # um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
+    # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     # um
 
-    # um = read_full_ukmo(["th", "p"])
-    # um
 
-
-    # xi, yi = get_rotated_index_of_lat_lon(latitude=47.266076, longitude=11.4011756)
-    # df3d = get_ukmo_fixed_point_lowest_level("Kufstein")
+ # are these the correct lats&lons of the UM model? just thought by myself, not sure if this is correct
+    # lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude
+    # lon = (um.grid_longitude - 360) + um.rotated_latitude_longitude.grid_north_pole_longitude
+    # um["grid_latitude"] = lat
+    # um["grid_longitude"] = lon
