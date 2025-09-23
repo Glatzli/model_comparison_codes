@@ -101,10 +101,10 @@ def plot_vhd_full_domain(ds_extent, time, model="ICON"):
     :return:
     """
     fig, axis = plt.subplots(figsize=(8, 5), subplot_kw={'projection': ccrs.Mercator()})  # , subplot_kw={'projection': ccrs.PlateCarree()}
-    model_vhd = (ds_extent / 10**6).sel(lat=slice(confg.lat_min, confg.lat_max),
-                  lon=slice(confg.lon_min, confg.lon_max)).plot(ax=axis, cmap=darkblue_hcl_rev,
-                                                                transform=ccrs.Mercator(),
-                                                                add_colorbar=False)
+    model_vhd = (ds_extent / 10**6).sel(lat=slice(confg.lat_min_vhd, confg.lat_max_vhd),
+                                        lon=slice(confg.lon_min_vhd, confg.lon_max_vhd)).plot(ax=axis, cmap=darkblue_hcl_rev,
+                                                                                              transform=ccrs.Mercator(),
+                                                                                              add_colorbar=False)
     cbar = fig.colorbar(model_vhd, ax=axis, orientation='vertical', pad=0.02)
     cbar.set_label("valley heat deficit [$J/m^2$]", rotation=90, labelpad=15)
     axis.add_feature(cfeature.BORDERS, linestyle=':')
@@ -127,28 +127,30 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
     :param model:
     :return:
     """
-    ds_extent = ds_extent.isel(time=slice(2, 100, 2))
-    times = ds_extent.time
-    n = len(times)
-    cols = 6
-    rows = math.ceil(n / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(12, 6), layout="compressed", subplot_kw={'projection': ccrs.Mercator()})
+    projection = ccrs.Mercator()
+    ds_extent = ds_extent.isel(time=slice(4, 100, 4))
+    nplots, ncols = len(ds_extent.time), 3
+    nrows = int((nplots + ncols - 1) / ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(12, 6), layout="compressed", subplot_kw={'projection': projection})
     # norm = mpl.colors.Normalize(vmin=0, vmax=0.5)  # normalize the colorbar
     axes = axes.flatten()
-    levels = np.linspace(0.05, 0.36, 10)
-    for i, time in enumerate(times):
+    # levels = np.linspace(0.05, 0.36, 10)  # try without distinct levels
+    for i, time in enumerate(ds_extent.time):
         ax = axes[i]
-        vhd = (ds_extent.sel(time=time) / 1e6).sel(lat=slice(confg.lat_min, confg.lat_max),
-                                                   lon=slice(confg.lon_min, confg.lon_max))
-        im = vhd.vhd.plot(ax=ax, cmap=darkblue_hcl_rev, transform=ccrs.Mercator(), add_colorbar=False,
-                          levels=levels)
+        ds_extent_sel = (ds_extent.sel(time=time) / 1e6).sel(lat=slice(confg.lat_min_vhd, confg.lat_max_vhd),
+                                                   lon=slice(confg.lon_min_vhd, confg.lon_max_vhd))
+        im = ds_extent_sel.vhd.plot(ax=ax, cmap=darkblue_hcl_cont_rev, transform=projection, vmin=0.05, vmax=0.36,
+                                    add_colorbar=False)
 
         # shows extent of max: plot a contour line for 80% of the maximum of current VHD:
-        contours = vhd.vhd.max().item() * 0.8
-        cs = ax.contour(vhd.lon, vhd.lat, vhd.vhd.values, levels=contours, colors='black', linewidths=0.5,
-                        transform=ccrs.Mercator())
-        ax.set_title(f"{time.dt.strftime('%H:%M').item()}", y = 1.0, pad = -25)  # show time inside plot
+        contours = [ds_extent_sel.vhd.max().item() * 0.8]
+        cs = ax.contour(ds_extent_sel.lon, ds_extent_sel.lat, ds_extent_sel.vhd.values, levels=contours,
+                        colors="k", linewidths=0.5, transform=projection)
 
+        # maybe add topography contours? would need height info in dataset...
+        ax.text(0.1, 0.8, f"{time.dt.hour.item() :02d}h", transform=ax.transAxes,  # create hour text label w white box
+                fontsize=10, fontweight="bold", bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
+        ax.set_title("")
         ax.set_xlabel("")
         ax.set_ylabel("")
     # plt.title("valley heat deficit spatial evolution " + model)
@@ -156,7 +158,7 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
     # cbar_ax = fig.add_axes([0.91, 0.15, 0.02, 0.7])
     # fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=darkblue_hcl_rev), cax=cbar_ax,
     #             label=model + " valley heat deficit [$MJ/m^2$]", ticks=np.arange(0, 0.5, 0.05))
-    cbar = plt.colorbar(im, ax = axes, label=model + " valley heat deficit [$MJ/m^2$]", ticks=np.round(levels, 2))  # , ticks=np.arange(0, 0.5, 0.05)
+    cbar = plt.colorbar(im, ax = axes, label=model + " valley heat deficit [$MJ/m^2$]")  # , ticks=np.round(levels, 2)
     cbar.ax.tick_params(size=0)
     #fig.colorbar(im, ax=axes, orientation='vertical', pad=0.02, fraction=0.02).set_label(
     #"valley heat deficit [$J/m^2$]", rotation=90, labelpad=15)
@@ -169,6 +171,7 @@ if __name__ == '__main__':
     mpl.use('Qt5Agg')
     darkblue_hcl = sequential_hcl(palette="Blues 3")  # colors for slope profiles
     darkblue_hcl_rev = mcolors.ListedColormap(darkblue_hcl.colors()[::-1])
+    darkblue_hcl_cont_rev = darkblue_hcl.cmap().reversed()
     # darkred_hcl = sequential_hcl(palette="Reds 3").colors()[4]
     # black_hcl = sequential_hcl(palette="Grays").colors()[0]
     # pal = sequential_hcl("Terrain")
@@ -177,7 +180,7 @@ if __name__ == '__main__':
 
     # define point for which VHD timeline should be calculated
     point = confg.telfs
-
+    """
     # via single point VHD calculation
     (vhd_arome_single, vhd_icon_single, vhd_icon2te_single,
      vhd_um_single, vhd_wrf_single, vhd_hatpro, vhd_radio) = calc_vhd_single_point_main(lat=point["lat"], lon=point["lon"],
@@ -203,6 +206,6 @@ if __name__ == '__main__':
     plot_vhd_small_multiples(vhd_icon2te, model="ICON2TE")
     plot_vhd_small_multiples(vhd_um, model="UM")
     plot_vhd_small_multiples(vhd_wrf, model="WRF")
-    """
+
     plt.show()
 

@@ -169,6 +169,7 @@ def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat
 def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
     """ function from Hannes, with sel-method
     Read all the 2D variables (single netcdf per variable) and merge them
+    hfs: sensible heat flux is vice versa than in WRF -> invert sign!?
 
     :param variableList: List of the selected variables
     :param lon: Longitude of the MOMAA station
@@ -195,8 +196,12 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
 
         # ds_quantified = ds.metpy.quantify()
         datasets.append(ds)
-
-    return xr.merge(datasets, join="exact")
+    data = xr.merge(datasets, join="exact")
+    if "hfs" in data:
+        data["hfs"] = -data["hfs"]  # invert sign of sensible heat flux to be consistent with WRF
+        data["hfs"].attrs['description'] = "sensible heat flux, positive: heat transport toward surface"
+    data = data.rename({"latitude": "lat", "longitude": "lon"})
+    return data
 
 
 def save_arome_topography(arome3d):

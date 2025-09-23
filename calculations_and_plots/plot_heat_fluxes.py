@@ -1,8 +1,6 @@
 """
-added AROME, but not finished, debug!
-'Dataset' object has no attribute 'lon'. Did you mean: 'loc'?
-
-2. change colormap to sens heat flux vals and not terrain height...
+sensible heat flux spatial plots:
+during night AROME is mostly negative, during
 
 sunset at 16:25 UTC: temp falls already since ~15:30? => heat flux turns around at sunset
 WRF hfs: UPWARD HEAT FLUX AT THE SURFACE
@@ -53,7 +51,7 @@ def plot_heatflux(ds):
     ax.contour(ds.lon.values, ds.lat.values, z, ls=thin_levels, colors="k", linewidths=0.3, transform=projection)
     # ax.contour(ds.lon.values, ds.lat.values, z, levels=thick_levels, colors="k", linewidths=1.0, transform=projection)
 
-    cbar = plt.colorbar(pcm, ax=ax, orientation="vertical", shrink=0.7, label="Sensible Heat Flux [W m$^{-2}$]")
+    cbar = plt.colorbar(pcm, ax=ax, orientation="vertical", shrink=0.7, vmin=-250, vmax=250, label="Sensible Heat Flux [W m$^{-2}$]")
     time_val = ds.time.values
     # Convert to datetime and format
     time_val = pd.to_datetime(time_val)
@@ -114,17 +112,17 @@ def plot_small_multiples(ds, model="WRF"):
     for i, time in enumerate(times):
         ax = axes[i]
         ds_sel = ds.sel(time=time)  # .sel(lat=slice(confg.lat_min, confg.lat_max), lon=slice(confg.lon_min, confg.lon_max))
-        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel.hfs.values, cmap=colormap,
+        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel.hfs.values, cmap=colormap, vmin=-100, vmax=100,
                            transform=projection)
         if model=="WRF":
             z = ds_sel.z_unstag.isel(height=0)
         elif model=="AROME":
-            z = ds.hgt
+            z = ds_sel.hgt
         thin_levels = list(range(0, int(z.max()) + 100, 250))
         ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=thin_levels, colors="k", linewidths=0.3,
                    transform=projection)
         ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
-        ax.text(0.05, 0.9, f"{time.hour:02d}h", transform=ax.transAxes,  # create hour text label w white box
+        ax.text(0.1, 0.8, f"{time.hour:02d}h", transform=ax.transAxes,  # create hour text label w white box
                 fontsize=10, fontweight="bold", bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
 
         ax.set_xlabel(""), ax.set_ylabel("")
@@ -133,8 +131,7 @@ def plot_small_multiples(ds, model="WRF"):
     cbar = plt.colorbar(im, ax = axes, label=model + "sensible heat flux at surface [$W/m^2$]")
     cbar.ax.tick_params(size=0)
     # plt.tight_layout()
-    #plt.savefig(confg.dir_PLOTS + "heat_flux/" + f"heat_flux_{model}_small_multiples.png", dpi=600)
-    #plt.show()
+    plt.savefig(confg.dir_PLOTS + "heat_flux/" + f"heat_flux_{model}_small_multiples.png", dpi=500)
 
 
 def plot_heatflux_small_multiples(start_day=15, start_hour=14,
@@ -201,23 +198,23 @@ def plot_heatflux_small_multiples(start_day=15, start_hour=14,
 
 if __name__ == '__main__':
     mpl.use('Qt5Agg')
-    colormap = diverging_hcl(palette="Blue-Red 2").cmap().reversed()
+    colormap = diverging_hcl(palette="Blue-Red 2").cmap()
     # wrf_extent = read_wrf_helen.read_wrf_fixed_time(day=15, hour=15, min=0, variables=["hfs", "z", "z_unstag"])  #  "p", "temp", "th",
     # plot_heatflux(ds=wrf_extent.isel(time=0))
 
-    times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=10, end_minute=0, freq="2h")
-    wrf_hf = read_wrf_for_times(times=times, variables=["hfs", "z", "z_unstag"])
-    # plot_small_multiples(ds=wrf_hf, ncols=4, projection=ccrs.Mercator())
-    plot_small_multiples(ds=wrf_hf, model="WRF")
+    times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=12, end_minute=0, freq="2h")
 
+    arome2d = read_in_arome.read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs"],  # reads all timestamps
+                                                    lon=slice(confg.lon_min, confg.lon_max),
+                                                    lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
+    arome2d = arome2d.sel(time=times)  # select only the times we want to plot
+    plot_small_multiples(ds=arome2d, model="AROME")
+
+    wrf_hf = read_wrf_for_times(times=times, variables=["hfs", "z", "z_unstag"])
+    plot_small_multiples(ds=wrf_hf, model="WRF")
+    plt.show()
 
     #plot_heatflux_small_multiples(start_day=15, start_hour=14, end_day=16, end_hour=10,
     #                              variables=["hfs", "z", "z_unstag"])
-
-    arome2d = read_in_arome.read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs"],
-                                                    lon=slice(confg.lon_min, confg.lon_max),
-                                                    lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
-    plot_small_multiples(ds=arome2d, model="AROME")
-
 
 

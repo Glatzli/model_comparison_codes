@@ -29,8 +29,12 @@ telfs = {"name": "telfs", "lat": 47.3, "lon": 11.1, "height": 622}  # 622m
 lat_hf_min, lat_hf_max = 47, 47.6
 lon_hf_min, lon_hf_max = 11.1, 12.1
 
-lat_min, lat_max = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
-lon_min, lon_max = 10.8, 12  # 10.8, 12
+lat_min_vhd, lat_max_vhd = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
+lon_min_vhd, lon_max_vhd = 10.8, 12  # 10.8, 12
+
+lat_min, lat_max = 46.5, 48.2
+lon_min, lon_max = 9.2, 13
+
 # -------------------------------------------------------------------------------------------------------------
 
 radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
