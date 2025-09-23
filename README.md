@@ -17,7 +17,7 @@ ToDo:
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF:
-	small multiples:
+	look on heat flux sign again!
 
 general points:
 - added geopot height as possible z coordinate in read in's
@@ -246,6 +246,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
