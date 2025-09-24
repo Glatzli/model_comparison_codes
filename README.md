@@ -17,6 +17,8 @@ ToDo:
   - probably I should plot vert. profile with wspds & specific humidity and not only pot. temp!
     	=> But how best?
     	w MetPy I would need to change read in routines to have units included...
+    
+    	=> write new function that reads & saves timeseries for every point with humidity & wind speed+direction (with units for metpy plots...)?
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF:
@@ -249,6 +251,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
