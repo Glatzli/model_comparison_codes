@@ -2,6 +2,8 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo: 
+- add wind speed & dir calculation to read in's
+- which measure for humidity?
 - sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
   	Radiosonde-data: interpolated to staggered vals 
 
@@ -251,6 +253,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
