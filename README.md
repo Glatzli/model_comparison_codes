@@ -14,6 +14,9 @@ ToDo:
   		(probably ppl look most on temp inversion because it's what we measure the longest...)
   	no clue how I should define smth for the vertical profiles, cause AROME, UM & WRF are pretty
   	smoothly increasing in pot temp. with height, there's no significant change in height...
+  - probably I should plot vert. profile with wspds & specific humidity and not only pot. temp!
+    	=> But how best?
+    	w MetPy I would need to change read in routines to have units included...
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF:
@@ -246,6 +249,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
