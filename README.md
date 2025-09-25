@@ -6,7 +6,9 @@ ToDo:
 - add "with units function" or add them before plotting with MetPy again?
 - which measure for humidity?
 - sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
-  	Radiosonde-data: interpolated to staggered vals 
+  	Radiosonde-data: interpolated to staggered vals
+  plot evtl dewpoint depression
+  for horizontal plot take spec. humidity!
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper: defined a threshhold for a stable layer
@@ -22,18 +24,24 @@ ToDo:
     	w MetPy I would need to change read in routines to have units included...
     	=> write new function that reads & saves timeseries for every point with humidity & wind speed+direction (with units for metpy plots...)?
     	and plots it as MetPy plot
+    1. first plot T! evtl plot dT/dz
+    3. plot gradient dtheta/dz to find threshhold? -> normally one uses dT/dz for stability and dtheta/dz only 		> 0, < 0 ...
+    or evtl gradient Richardson Number?
+    and Metpy radiosonde plot...
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF:
 	look on heat flux sign again!
+	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
+  take 10m to that: evtl due to wspds: that HF is param. by wspd and through that sensible heat flux
+  strong winds work against strong cold pool production, maybe in wipp valley there are higher wspds which
+	temperatur unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizient
+
+	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...)
 
 general points:
 - added geopot height as possible z coordinate in read in's
-- staggering: see plot in overleaf, Included fct that unstaggers geometric & geopot height vars in read ins if needed (ICON & WRF)
-- VHD calc is right!
 - look on interpretation of vertical plots!
-- 
-
 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
@@ -53,8 +61,7 @@ general points:
 - calc VHD:
   - plot HATPRO data only for ibk point?(timeseries plot)
   - add radiosonde (point plot)!
-  - plot 80% of maximum VHD contour line for every model to show where it evolves first?!
-    	=> zoom in further?!
+  - plot 80% of maximum VHD contour line for every model
  
   - UM has lower VHD at 04 in the morning -> assimilation? not everyone used same model for boundary conditions...
   	=> maybe due to that...
@@ -254,6 +261,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
