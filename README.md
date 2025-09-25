@@ -4,10 +4,9 @@ model intercomparison study
 ToDo: 
 - add wind speed & dir calculation to read in's: AROME done
 - add "with units function" or add them before plotting with MetPy again?
-- which measure for humidity?
+- which measure for humidity? plot evtl dewpoint depression
 - sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
   	Radiosonde-data: interpolated to staggered vals
-  plot evtl dewpoint depression
   for horizontal plot take spec. humidity!
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
@@ -264,6 +263,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
