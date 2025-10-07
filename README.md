@@ -34,10 +34,16 @@ ToDo:
 	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
   take 10m to that: evtl due to wspds: that HF is param. by wspd and through that sensible heat flux
   strong winds work against strong cold pool production, maybe in wipp valley there are higher wspds which
-	temperatur unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
+	Temperatur-Unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
 
 	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...)
-
+		points: Wipp valley: 47.13N, 11.45E (between Schönberg & Matrei)
+  				Ziller valley: 47.25N, 11.9E (between Zell am Ziller & Zillertal)
+  	should I use PCGP-method for comparing? - maybe not that point that I chose, but consistent...
+  
+- tests: have 1 for arome read in - but doesn't work...
+  	-> don't waste too much time debugging code I don't understand!
+  
 make same plot for radiation!
 - write routine for plotting energy balance: how does which part contribute to the onset/breakup of the CAP?
 
@@ -179,7 +185,6 @@ Verbesserungs ToDo's für die ich mir keine Zeit nehmen will:
 - maybe us pickle for make read in faster? binary data formats. But it works for now.
 - create one file "general_calculations"? for slope angles and future stuff?
 - maybe overthink read in function setup again (to have enough functions with 1 task...)
-- Tests! zmd Tests für die Einleseroutinen (maybe use chatgpt if read in routines are nearly finished?)...
 
 erledigt:
 - Einleseroutinen viel um/neugeschrieben
@@ -263,6 +268,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
