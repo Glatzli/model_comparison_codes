@@ -37,8 +37,7 @@ ToDo:
 	Temperatur-Unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
 
 	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...)
-		points: Wipp valley: 47.13N, 11.45E (between Schönberg & Matrei)
-  				Ziller valley: 47.25N, 11.9E (between Zell am Ziller & Zillertal)
+
   	should I use PCGP-method for comparing? - maybe not that point that I chose, but consistent...
   
 - tests: have 1 for arome read in - but doesn't work...
@@ -268,6 +267,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
