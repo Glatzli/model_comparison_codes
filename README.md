@@ -2,6 +2,12 @@ Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 
 ToDo: 
+- compute running mean of RASO for calculating CAP depth
+- add wind speed & dir profiles to vert. plots!
+- maybe wind speed is higher up in AROmE (also foehn in wipp valley)
+- würde zunehmende CAP depth beim Taleingang erwarten => aufgrund inversionen um 04UTC
+
+
 - add wind speed & dir calculation to read in's: AROME done
 - add "with units function" or add them before plotting with MetPy again?
 - which measure for humidity? plot evtl dewpoint depression
@@ -29,14 +35,19 @@ ToDo:
     and Metpy radiosonde plot...
 
 - 2nd research goal:
-  	plot sensible heat flux over full domain for AROME & WRF:
-	look on heat flux sign again!
+  	plot sensible heat flux over full domain for AROME & WRF
+  
 	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
-  take 10m to that: evtl due to wspds: that HF is param. by wspd and through that sensible heat flux
+  		point north of patscherkofel (still cooling):
+  
+  take 10m wind to that: evtl due to wspds: that HF is param. by wspd and through that sensible heat flux
   strong winds work against strong cold pool production, maybe in wipp valley there are higher wspds which
 	Temperatur-Unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
 
-	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...)
+	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...):
+		ziller ried point has at 04UTC 1degree stronger inversion for AROME; in Wipp valley thicker layer with nearly isothermal boundary layer,
+  			ziller immediately cooling
+  	difficulty: choose which timestep for which model to look at inversion for which point...?
 
   	should I use PCGP-method for comparing? - maybe not that point that I chose, but consistent...
   
@@ -267,6 +278,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
