@@ -1,19 +1,14 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
+GOAL: till end of the year/mid Jan 1. draft of full thesis
 
 ToDo: 
 - compute running mean of RASO for calculating CAP depth
 - add wind speed & dir profiles to vert. plots!
-- maybe wind speed is higher up in AROmE (also foehn in wipp valley)
+- 
 - würde zunehmende CAP depth beim Taleingang erwarten => aufgrund inversionen um 04UTC
 
-
-- add wind speed & dir calculation to read in's: AROME done
-- add "with units function" or add them before plotting with MetPy again?
 - which measure for humidity? plot evtl dewpoint depression
-- sensitivity of HATPRO pot temp calc: raso p & model p: 0.5 K diff! => No diff!
-  	Radiosonde-data: interpolated to staggered vals
-  for horizontal plot take spec. humidity!
 
 - timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
   	need to define a threshold -> paper: defined a threshhold for a stable layer
@@ -40,8 +35,10 @@ ToDo:
 	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
   		point north of patscherkofel (still cooling):
   
-  take 10m wind to that: evtl due to wspds: that HF is param. by wspd and through that sensible heat flux
-  strong winds work against strong cold pool production, maybe in wipp valley there are higher wspds which
+  add wind:
+  strong winds work against strong cold pool production, in wipp valley there are higher wspds which
+  maybe wind speed is higher up in AROME (maybe there also foehn in wipp valley)
+  
 	Temperatur-Unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
 
 	compare inversions in Wipp & Ziller Valley: is layer much more stable in Wipp valley for WRF data (cause cooling is much more intense...):
@@ -58,8 +55,9 @@ make same plot for radiation!
 - write routine for plotting energy balance: how does which part contribute to the onset/breakup of the CAP?
 
 general points:
+- inversion/sensible heat flux feedback: when inversion is strong it's damping wind speed, which is enhancing stability
+  	(that HF is param. by wspd...)
 - added geopot height as possible z coordinate in read in's
-- look on interpretation of vertical plots!
 
 - How did Manuela interpolate the UM data? Manuela already compared qualitatively, can also look at the code...
 - writing: Methodology immediately, important to not forget how I've done what!
@@ -278,6 +276,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
