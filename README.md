@@ -1,17 +1,15 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
-GOAL: till end of the year/mid Jan 1. draft of full thesis
+GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- compute running mean of RASO for calculating CAP depth
-- add wind speed & dir profiles to vert. plots!
-- 
-- würde zunehmende CAP depth beim Taleingang erwarten => aufgrund inversionen um 04UTC
-
 - which measure for humidity? plot evtl dewpoint depression
 
-- timeseries of depth of CAP? how to define? inversion? pot temp increase w height?
-  	need to define a threshold -> paper: defined a threshhold for a stable layer
+- timeseries of depth of CAP:
+  	when 3 model levels with dT/dz < 0 => CAP depth
+  -> compute running mean of RASO for calculating CAP depth
+  
+  	(need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
   	plot then height below threshold over full domain -> just use level below threshold consistent for all models
   		=> be careful in the interpretation (f.e. 10 m difference - but model level distance is for 1 model 10m
@@ -25,9 +23,12 @@ ToDo:
     	=> write new function that reads & saves timeseries for every point with humidity & wind speed+direction (with units for metpy plots...)?
     	and plots it as MetPy plot
     1. first plot T! evtl plot dT/dz
-    3. plot gradient dtheta/dz to find threshhold? -> normally one uses dT/dz for stability and dtheta/dz only 		> 0, < 0 ...
+    3. plot gradient dtheta/dz to find threshhold? -> normally one uses dT/dz for stability and dtheta/dz only > 0, < 0 ...
     or evtl gradient Richardson Number?
-    and Metpy radiosonde plot...
+    and Metpy radiosonde plot...)
+
+	add wind speed & dir profiles to vert. plots as line & dot plots!
+	=> würde zunehmende CAP depth beim Taleingang erwarten => aufgrund stärkerer Inversionen um 04UTC
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF
@@ -36,7 +37,7 @@ ToDo:
   		point north of patscherkofel (still cooling):
   
   add wind:
-  strong winds work against strong cold pool production, in wipp valley there are higher wspds which
+  strong winds work against strong cold pool production, in wipp valley there are higher wspds!
   maybe wind speed is higher up in AROME (maybe there also foehn in wipp valley)
   
 	Temperatur-Unterschied zw niedrigstem modell-level und Boden & Austauchsckoeffizien
@@ -45,6 +46,7 @@ ToDo:
 		ziller ried point has at 04UTC 1degree stronger inversion for AROME; in Wipp valley thicker layer with nearly isothermal boundary layer,
   			ziller immediately cooling
   	difficulty: choose which timestep for which model to look at inversion for which point...?
+  		-> time-evolution of depth of CAP is important!
 
   	should I use PCGP-method for comparing? - maybe not that point that I chose, but consistent...
   
@@ -276,6 +278,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
