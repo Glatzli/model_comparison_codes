@@ -7,8 +7,8 @@ ToDo:
 
 - timeseries of depth of CAP:
   	when 3 model levels with dT/dz < 0 => CAP depth
-  	works now! compare lower Inn Valley with upper/Innsbruck: how does it change? (Ask chat to rewrite plotting
-  	routine for all given points in confg at once)
+  	works now! compare lower Inn Valley with upper/Innsbruck: how does it change?
+  		Looks like CAP is lower in lower Inn valley...
   
   	(need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
@@ -279,6 +279,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
