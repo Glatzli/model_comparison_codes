@@ -313,14 +313,12 @@ if __name__ == '__main__':
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
     um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)  # , "hgt" , "rho"
-    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variable_list=["hgt"])
+                               variables=["p", "temp", "th", "z"], height_as_z_coord=True)  # , "hgt" , "rho" , "z_unstag"
+    um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, height_as_z_coord=True, variables=["p", "temp", "th", "z"])  # , "z_unstag"
     um
 
     # save lowest level as nc file for topo plotting
-
     # save_um_topography(ds=um_extent)
-
 
     # um_geopot = create_ds_geopot_height_as_z_coordinate(um)
 
@@ -328,7 +326,6 @@ if __name__ == '__main__':
     # um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
     # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     # um
-
 
  # are these the correct lats&lons of the UM model? just thought by myself, not sure if this is correct
     # lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude

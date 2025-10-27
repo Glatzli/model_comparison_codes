@@ -9,6 +9,9 @@ The radiosonde data is calculated/transformed & saved in different formats (last
 3. with calculated th & rho, transformed to dataset (with "height 0, 1, 2, ...") as z coord
 4. with geopot. height as z coordinate
 
+The problem with this code is now that I used timerseries with the model levels as vertical coordinate => would need to
+change the indexing for the code to work (to interpolate the radiosonde data f.e...)
+
 (written by Daniel)
 """
 
@@ -214,6 +217,28 @@ def interpolate_hatpro_radiosonde(hatpro, radio, arome, icon, wrf):
     return hatpro_arome_interp, hatpro_icon_interp, hatpro_wrf_interp
 
 
+def smooth_radiosonde(radio):
+    """
+    smoothes radiosonde data with rolling mean over 10 m geopot. height
+    Needed for computing CAP height (which is determined by 3 levels of dT/dz < 0 K/m)
+    With raw data CAP would be calculated too low (due to small scale "noise") ...
+    :param radio:
+    :return:
+    """
+    # arome_dz = np.abs(np.mean(np.diff(arome.z.values)))
+
+    radio_smoothed = radio.rolling(height=10).mean().dropna(dim="height", how="any")
+    radio_smoothed.attrs["description"] = "Radiosonde data smoothed with rolling mean over 10 levels of geopotential height"
+    # formerly searched for duplicate height levels
+    # unique_heights = np.unique(radio_smoothed.height.values)
+    
+    # delete duplicate height levels if existing
+    _, idx = np.unique(radio_smoothed.height.values, return_index=True)
+    radio_unique = radio_smoothed.isel(height=idx)
+    radio_unique.to_netcdf(confg.radiosonde_smoothed)
+    return radio_unique
+
+
 def edit_vars(df):
     """
 
@@ -296,24 +321,29 @@ def plot_height_levels(arome_heights, icon_heights, um_heights, wrf_heights, rad
 
 
 if __name__ == '__main__':
+    """
+    yes, there's some legacy code in here for transforming & saving hatpro & radiosonde data that I used only once, which
+    is now not needed anymore. But I left it in here for documentation purposes."""
+
     # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
 
-    hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+    hatpro = xr.open_dataset(confg.hatpro_merged)
     hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
-    hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
-    hatpro_sel["height"] = hatpro_sel.height + 612  # the HATPRO station is at 612 m a.s.l., models always have height above m amsl.
+    # hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
+    # hatpro_sel["height"] = hatpro_sel.height + 612  # the HATPRO station is at 612 m a.s.l., models always have height above m amsl.
 
-    arome = xr.open_dataset(confg.dir_AROME + "arome_ibk_uni_timeseries.nc")  # read PCGP around HATPRO for comparing
-    icon = xr.open_dataset(confg.icon_folder_3D + "/icon_ibk_uni_timeseries.nc")
-    # um = xr.open_dataset(confg.ukmo_folder + "um_ibk_uni_timeseries.nc")
-    wrf = xr.open_dataset(confg.wrf_folder + "/wrf_ibk_uni_timeseries.nc")
+    arome = xr.open_dataset(confg.dir_AROME + "/timeseries/" + "arome_ibk_uni_timeseries_height_as_z.nc")  # read PCGP around HATPRO for comparing
+    icon = xr.open_dataset(confg.icon_folder_3D + "/timeseries/" + "/icon_ibk_uni_timeseries_height_as_z.nc")
+    # um = xr.open_dataset(confg.ukmo_folder + "/timeseries/" + "um_ibk_uni_timeseries_height_as_z.nc")
+    wrf = xr.open_dataset(confg.wrf_folder + "/timeseries/" + "/wrf_ibk_uni_timeseries_height_as_z.nc")
     # interpolate_hatpro_arome(hatpro, arome)
-    radio = xr.open_dataset(confg.radiosonde_dataset)  # for the radiosonde data the first (height=0) data point is not valid?!
+    radio = xr.open_dataset(confg.radiosonde_dataset_height_as_z)  # for the radiosonde data the first (height=0) data point is not valid?!
 
     # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],
     #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,
     #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)
 
+    smooth_radiosonde(radio)
 
     (hatpro_arome_interp, hatpro_icon_interp,
      hatpro_wrf_interp) = interpolate_hatpro_radiosonde(hatpro=hatpro_sel, radio=radio, arome=arome, icon=icon, wrf=wrf)  # for interpolating HATPRO data to

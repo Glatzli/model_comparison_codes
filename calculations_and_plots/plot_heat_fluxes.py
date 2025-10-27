@@ -1,6 +1,8 @@
 """
 sensible heat flux spatial plots:
 during night AROME is mostly negative, during
+now added lowest level wind arrows. AROME looks strange? WRF much better up-valley flow?
+espc. AROME has low values near the surface, further up they increase (see Hannes' plots...)
 
 sunset at 16:25 UTC: temp falls already since ~15:30? => heat flux turns around at sunset
 WRF hfs: UPWARD HEAT FLUX AT THE SURFACE
@@ -19,6 +21,8 @@ import xarray as xr
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl, diverging_hcl
 import numpy as np
 import matplotlib.pyplot as plt
+from metpy.plots.declarative import BarbPlot
+import metpy.units as units
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib as mpl
@@ -98,9 +102,10 @@ def read_wrf_for_times(times, variables):
     return wrf
 
 
-def plot_small_multiples(ds, model="WRF"):
+def plot_small_multiples(ds, model="WRF", **kwargs):
     """
-
+    plots small multiples of sensible heat flux with topography contours and wind barbs
+    difficulties: for AROME we have the heat flux in 2D variables, not in the 3D ones => needs extra handling & read
 
     """
     projection = ccrs.Mercator()  # use a mercator projection per default
@@ -113,14 +118,25 @@ def plot_small_multiples(ds, model="WRF"):
         ax = axes[i]
         ds_sel = ds.sel(time=time)  # .sel(lat=slice(confg.lat_min, confg.lat_max), lon=slice(confg.lon_min, confg.lon_max))
         im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel.hfs.values, cmap=colormap, vmin=-100, vmax=100,
-                           transform=projection)
-        if model=="WRF":
+                           transform=projection)  # HF field
+        step = 2
+        if model=="WRF":  # for WRF I need extra handling cause u/v are 3D ...
             z = ds_sel.z_unstag.isel(height=0)
+            u, v = ds_sel.sel(height=1).u.values[::step, ::step], ds_sel.sel(height=1).v.values[::step, ::step]
+
         elif model=="AROME":
             z = ds_sel.hgt
+            # lat, lon = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+            u, v = ds_sel.u.values[::step, ::step], ds_sel.v.values[::step, ::step]
+
+        lat, lon = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+        # add wind quivers (arrows): what length is which speed?
+        quiver = ax.quiver(x=lon, y=lat, u=u, v=v, scale=40, scale_units="inches", transform=projection)
+
         thin_levels = list(range(0, int(z.max()) + 100, 250))
         ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=thin_levels, colors="k", linewidths=0.3,
-                   transform=projection)
+                   transform=projection)  # height contours
+
         ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
         ax.text(0.1, 0.8, f"{time.hour:02d}h", transform=ax.transAxes,  # create hour text label w white box
                 fontsize=10, fontweight="bold", bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
@@ -128,6 +144,8 @@ def plot_small_multiples(ds, model="WRF"):
         ax.set_xlabel(""), ax.set_ylabel("")
         ax.set_xlim([confg.lon_hf_min, confg.lon_hf_max]), ax.set_ylim([confg.lat_hf_min, confg.lat_hf_max])
 
+    fig.subplots_adjust(bottom=0.15)  # Platz für die Legende schaffen
+    qk = ax.quiverkey(quiver, X=1.4, Y=0.25, U=5, label='5 m/s', labelpos='E', coordinates='axes')
     cbar = plt.colorbar(im, ax = axes, label=model + "sensible heat flux at surface [$W/m^2$]")
     cbar.ax.tick_params(size=0)
     # plt.tight_layout()
@@ -203,14 +221,14 @@ if __name__ == '__main__':
     # plot_heatflux(ds=wrf_extent.isel(time=0))
 
     times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=12, end_minute=0, freq="2h")
-
-    arome2d = read_in_arome.read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs"],  # reads all timestamps
+    # i saved lowest level of u&v 3D var as "u_v_from_3d"
+    arome2d = read_in_arome.read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs", "u_v_from_3d"],  # reads all timestamps
                                                     lon=slice(confg.lon_min, confg.lon_max),
                                                     lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
     arome2d = arome2d.sel(time=times)  # select only the times we want to plot
     plot_small_multiples(ds=arome2d, model="AROME")
 
-    wrf_hf = read_wrf_for_times(times=times, variables=["hfs", "z", "z_unstag"])
+    wrf_hf = read_wrf_for_times(times=times, variables=["hfs", "z", "z_unstag", "u", "v"])
     plot_small_multiples(ds=wrf_hf, model="WRF")
     plt.show()
 

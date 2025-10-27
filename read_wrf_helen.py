@@ -448,7 +448,8 @@ if __name__ == '__main__':
 
     # wrf = read_wrf_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
     #                            variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
-    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "temp", "th", "z", "z_unstag"])
+    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "temp", "th", "z", "z_unstag"],
+                                     height_as_z_coord=True)
     wrf_extent
 
     # what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency

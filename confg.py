@@ -22,15 +22,25 @@ ibk_villa = {"name": "ibk_villa", "lat": 47.259998, "lon": 11.384167, "height": 
 # is for Ibk_Villa (2m temp recording)
 ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385, "height": 612}  # hatpro, uni coords rounded to 3 digits after comma
 ibk_airport = {"name": "ibk_airport", "lat": 47.26, "lon": 11.34, "height": 577}
+
+slope_north_patscherkofel = {"name": "slope north patscherkofel", "lat": 47.23, "lon": 11.5, "height": 1750}
 woergl = {"name": "woergl", "lat": 47.494, "lon": 12.059, "height": 504}  # coords for wörgl (504m), lower Inn valley
 kiefersfelden = {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480}  # coords for kiefersfelden (480m), Germany, entrance Inn valley
 telfs = {"name": "telfs", "lat": 47.3, "lon": 11.1, "height": 622}  # 622m
+
+# valley points in wipp & ziller valley for stability plots (where valleys are narrow):
+wipp_valley = {"name": "wipp valley", "lat": 47.13, "lon": 11.45, "height": 1044}  # between Schönberg & Matrei
+ziller_valley = {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565}  # between Zell am Ziller & Zillertal
+ziller_ried = {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
 
 lat_hf_min, lat_hf_max = 47, 47.6
 lon_hf_min, lon_hf_max = 11.1, 12.1
 
 lat_min_vhd, lat_max_vhd = 47, 47.7  # orig: 47, 47.7    # lat & lon values for vhd domain plotting
 lon_min_vhd, lon_max_vhd = 10.8, 12  # 10.8, 12
+
+lat_min_cap_height, lat_max_cap_height = 47, 48.2
+lon_min_cap_height, lon_max_cap_height = 10.6, 13
 
 lat_min, lat_max = 46.5, 48.2
 lon_min, lon_max = 9.2, 13
@@ -41,6 +51,8 @@ radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufst
 radiosonde_edited = f"{data_folder}radiosonde_ibk_2017101603.csv"
 radiosonde_dataset = f"{data_folder}radiosonde_ibk_2017101603.nc"  # for same handling for plots & calcs  save Radiosonde as dataset
 radiosonde_dataset_height_as_z = f"{data_folder}radiosonde_ibk_2017101603_height_as_z.nc"  # same as before, only geopot. height instead of "height values"
+radiosonde_smoothed = f"{data_folder}radiosonde_ibk_smoothed.nc"
+
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
 TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"  # changed dem file: indexed and renamed coords
@@ -98,6 +110,7 @@ lidar_obs_folder = f"{data_folder}/Observations/LIDAR"
 
 # HATPRO obs
 hatpro_folder = f"{data_folder}/Observations/HATPRO_obs/"  # nicht vorhanden?
+hatpro_merged = hatpro_folder + "hatpro_merged.nc"
 hatpro_interp_arome = hatpro_folder + "hatpro_interp_arome.nc"
 hatpro_interp_arome_height_as_z = hatpro_folder + "hatpro_interpolated_arome_height_as_z.nc"
 
