@@ -4,8 +4,15 @@ GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
 - which measure for humidity? plot evtl dewpoint depression
+- cap height calculation wrong?!
+- subtract the terrain height before using geopot. height for the vertical variable...
+- plotting heights: subtract terrain height from geopotential height to make it comparable...
+- is staggering applied really only for ICON and WRF?
+- check if depth of layer taken for VHD calculation is the same over ibk and hafelekar! Wenn es
+  	sehr untersch. ist, könnte VHD in Wipp valley point zB falsch sein, weil es über andere Tiefe berechnet...
 
 - timeseries of depth of CAP:
+  	How show the best over spatial extent if mountains give higher variables???
   	when 3 model levels with dT/dz < 0 => CAP depth
   	works now! compare lower Inn Valley with upper/Innsbruck: how does it change?
   		Looks like CAP is lower in lower Inn valley...
@@ -279,6 +286,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
