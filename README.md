@@ -15,9 +15,10 @@ ToDo:
 
 - timeseries of depth of CAP:
   	How show the best over spatial extent if mountains give higher variables???
-  	when 3 model levels with dT/dz < 0 => CAP depth
-  	works now! compare lower Inn Valley with upper/Innsbruck: how does it change?
-  		Looks like CAP is lower in lower Inn valley...
+  	when temperature decreases over 3 consecutive model levels => take lowest height for cap height
+  	- needs to implemented correctly, is it working now in calc_cap_height?
+  	- calculation of full domain "worked" in calc_vhd, but that's messy => change everything to calc_cap_height and plot_cap_height fct!
+		
   
   	(need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
@@ -288,6 +289,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
