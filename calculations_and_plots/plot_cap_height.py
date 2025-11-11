@@ -1,28 +1,30 @@
 """
 calc_cap_height
-Compute, save and plot CAP height (inversion base) over a full region, similar to plot_vhd.
+compute, save and plot CAP height (inversion base) for all points and plot it as small multiples,
+similar to plot_vhd.
 
 Workflow:
 - Build a list of timestamps
 - For each model and timestamp: read a 3D slice (time, height, lat, lon)
-- Compute dT/dz and CAP height per column (time, lat, lon)
+- Compute dT and CAP height per column (time, lat, lon)
 - Concatenate over time and save to NetCDF per model
 - Plot: (a) timeline at a given point; (b) small multiples maps
+
+Note: Vertical temperature profile plotting has been moved to plot_vertical_profiles.py
 """
 from __future__ import annotations
 
 import datetime
-from typing import Iterable, List, Optional
 import os
+from typing import Iterable, List, Optional
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+import plotly.graph_objects as go
 import xarray as xr
 from colorspace import qualitative_hcl, sequential_hcl
-import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 import confg
@@ -30,7 +32,7 @@ import read_icon_model_3D
 import read_in_arome
 import read_ukmo
 import read_wrf_helen
-from calculations_and_plots.calc_cap_height import cap_height_region
+from calculations_and_plots.calc_cap_height import cap_height_region, calc_dT
 
 # --- Colors (reuse style similar to plot_vhd) ---
 qualitative_colors = qualitative_hcl(palette="Dark 3").colors()
@@ -62,7 +64,41 @@ UM_VARS = ["p", "th", "temp", "z"]
 WRF_VARS = ["p", "th", "temp", "z", "z_unstag"]
 
 
-def read_model_fixed_time(model: str, t: datetime.datetime, height_as_z_coord: bool,
+def read_model_timeseries(model: str, times: Iterable[datetime.datetime],
+                          variant: Optional[str] = None) -> xr.Dataset:
+    """Read a model for multiple timesteps and concatenate along time dimension.
+    
+    This is more efficient than looping because:
+    1. The reading functions may already load multiple times internally
+    2. We can process all times at once with vectorized operations
+    
+    Args:
+        model: one of {"AROME","ICON","ICON2TE","UM","WRF"}
+        times: Iterable of datetime objects
+        variant: for ICON family, either "ICON" or "ICON2TE"
+    
+    Returns:
+        Dataset with time dimension containing all requested timesteps
+    """
+    times_list = list(times)
+    
+    # Read all timesteps and concatenate
+    datasets = []
+    for t in times_list:
+        ds = read_model_fixed_time(model, t, variant=variant)
+        # Ensure time dimension exists
+        if "time" not in ds.dims or ds.sizes.get("time", 0) != 1:
+            ds = ds.expand_dims(time=[np.datetime64(t)])
+        else:
+            ds = ds.assign_coords(time=("time", [np.datetime64(t)]))
+        datasets.append(ds)
+    
+    # Concatenate along time dimension
+    ds_all = xr.concat(datasets, dim="time")
+    return ds_all
+
+
+def read_model_fixed_time(model: str, t: datetime.datetime,
                           variant: Optional[str] = None) -> xr.Dataset:
     """Read a given model at a fixed time, returning at least (time, height, lat, lon) with temp available.
     model: one of {"AROME","ICON","ICON2TE","UM","WRF"}
@@ -82,7 +118,7 @@ def read_model_fixed_time(model: str, t: datetime.datetime, height_as_z_coord: b
 
 
 # --- CAP computation and accumulation over time ---
-def compute_cap_timeseries(model: str, times: Iterable[datetime.datetime], height_as_z_coord: bool) -> xr.DataArray:
+def compute_cap_timeseries(model: str, times: Iterable[datetime.datetime]) -> xr.DataArray:
     """Compute CAP height for a list of times for a model. Returns DataArray (time, lat, lon).
     If saved file exists, load it; otherwise compute and return (without saving here)."""
     # If a saved file exists for this model, load and return it (skip expensive recomputation)
@@ -103,39 +139,30 @@ def compute_cap_timeseries(model: str, times: Iterable[datetime.datetime], heigh
             print(f"Warning: Could not load {out_path}: {e}. Recomputing...")
             # fall back to recompute if reading fails
             pass
-
-    # Compute CAP for all times over the FULL domain
-    print(f"Computing CAP timeseries for {model} over full domain...")  # single status message per model
-    cap_list: List[xr.DataArray] = []
-    for i, t in enumerate(times):
-        # Read full domain (no spatial subsetting here)
-        ds = read_model_fixed_time(model, t, height_as_z_coord=True,
-                                   variant=model if model in ("ICON", "ICON2TE") else None)
-        # compute cap height for this time slice over FULL (lat, lon)
-        cap_ds = cap_height_region(ds, consecutive=3)
-        # extract cap_height DataArray; ensure it has a time coordinate equal to current timestamp
-        if "cap_height" in cap_ds:
-            cap_t = cap_ds["cap_height"]
-        else:
-            raise RuntimeError("cap_height not produced by cap_height_region")
-
-        # If cap_t contains a time dim of length 1, keep it; otherwise set/assign time
-        if "time" in cap_t.dims and cap_t.sizes.get("time", 0) == 1:
-            # ensure the timestamp matches requested time
-            cap_t = cap_t.assign_coords(time=("time", [np.datetime64(t)]))
-        else:
-            # add time dim
-            cap_t = cap_t.expand_dims(time=[np.datetime64(t)])
-
-        cap_list.append(cap_t)
-
-    if len(cap_list) == 0:
-        raise RuntimeError("No times processed for compute_cap_timeseries")
-
-    cap = xr.concat(cap_list, dim="time")
+    
+    # Compute CAP for all times over the FULL domain (vectorized approach)
+    print(f"Computing CAP timeseries for {model} over full domain...")
+    
+    # Read all timesteps at once
+    ds = read_model_timeseries(model, times, variant=model if model in ("ICON", "ICON2TE") else None)
+    
+    # Compute dT for all times at once (vectorized)
+    ds = calc_dT(ds)
+    
+    # Compute cap height for all times at once (vectorized)
+    cap_ds = cap_height_region(ds, consecutive=3)
+    
+    # Extract cap_height DataArray
+    if "cap_height" not in cap_ds:
+        raise RuntimeError("cap_height not produced by cap_height_region")
+    
+    cap = cap_ds["cap_height"]
     cap.name = "cap_height"
-    cap.attrs.update({"description": "First height (bottom-up) where dT_dz < 0 for 3 consecutive levels",
-                      "units": ds["height"].attrs.get("units", "") if "height" in ds.coords else ""})
+    cap.attrs.update({
+        "description": "First height (bottom-up) where dT < 0 for 3 consecutive levels",
+        "units": ds["height"].attrs.get("units", "") if "height" in ds.coords else ""
+    })
+    
     return cap
 
 
@@ -179,7 +206,7 @@ def save_cap(cap: xr.DataArray, path: Optional[str] = None) -> None:
             ds_out = cap[[first]]
     else:
         raise TypeError("cap must be an xarray DataArray or Dataset")
-
+    
     # Make sure directory exists (avoid write errors)
     out_dir = os.path.dirname(out_path)
     if out_dir:
@@ -199,13 +226,9 @@ def plot_cap_timeseries_at_point(cap_dict: dict, lat: float, lon: float, point_n
     
     # Model order and color mapping
     model_order = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[2],
-        "ICON2TE": qualitative_colors[2],  # same color as ICON
-        "UM": qualitative_colors[4],
-        "WRF": qualitative_colors[6]
-    }
+    model_colors = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "ICON2TE": qualitative_colors[2],
+        # same color as ICON
+        "UM": qualitative_colors[4], "WRF": qualitative_colors[6]}
     
     for model in model_order:
         if model not in cap_dict:
@@ -219,37 +242,24 @@ def plot_cap_timeseries_at_point(cap_dict: dict, lat: float, lon: float, point_n
         # Determine line style: dashed for ICON2TE, solid otherwise
         line_dash = "dash" if model == "ICON2TE" else "solid"
         
-        fig.add_trace(go.Scatter(
-            x=series["time"].values,
-            y=series.values,
-            mode='lines',
-            name=model,
-            line=dict(color=model_colors[model], dash=line_dash, width=2)
-        ))
+        fig.add_trace(go.Scatter(x=series["time"].values, y=series.values, mode='lines', name=model,
+            line=dict(color=model_colors[model], dash=line_dash, width=2)))
     
-    fig.update_layout(
-        title=f"CAP height timeline at {point_name}",
-        xaxis_title="Time",
-        yaxis_title="CAP height [m]",
-        hovermode='x unified',
-        template='plotly_white',
-        legend=dict(x=0.01, y=0.99, xanchor='left', yanchor='top')
-    )
+    fig.update_layout(title=f"CAP height timeline at {point_name}", xaxis_title="Time", yaxis_title="CAP height [m]",
+        hovermode='x unified', template='plotly_white', legend=dict(x=0.01, y=0.99, xanchor='left', yanchor='top'))
     
     fig.show()
 
 
 def plot_cap_small_multiples(cap: xr.DataArray, model: str, vmin: Optional[float] = None,
                              vmax: Optional[float] = None) -> None:
-    """Small multiples of CAP height maps (2-hourly from 14:00 to 12:00 next day), similar to plot_vhd_small_multiples."""
+    """Small multiples of CAP height maps (2-hourly from 14:00 to 12:00 next day), similar to
+    plot_vhd_small_multiples."""
     projection = ccrs.Mercator()
     
     # Filter times: 14:00 (day 15) to 12:00 (day 16)
     cap_filtered = cap.where(
-        (cap.time >= np.datetime64("2017-10-15T14:00")) &
-        (cap.time <= np.datetime64("2017-10-16T12:00")),
-        drop=True
-    )
+        (cap.time >= np.datetime64("2017-10-15T14:00")) & (cap.time <= np.datetime64("2017-10-16T12:00")), drop=True)
     
     # Subsample every 2nd time step (2-hourly if data is hourly, or every 4th if 30-min)
     cap_sub = cap_filtered.isel(time=slice(0, None, 4)) if cap_filtered.sizes.get("time", 0) > 1 else cap_filtered
@@ -259,12 +269,12 @@ def plot_cap_small_multiples(cap: xr.DataArray, model: str, vmin: Optional[float
     lon_min, lon_max = confg.lon_min_cap_height, confg.lon_max_cap_height
     # EDITED: Use .values for coordinates to ensure we work with actual coordinate values
     cap_sub = cap_sub.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
-
+    
     nplots, ncols = cap_sub.sizes.get("time", 1), 3
     nrows = int((nplots + ncols - 1) / ncols)
     fig, axes = plt.subplots(nrows, ncols, figsize=(12, 6), layout="compressed", subplot_kw={'projection': projection})
     axes = np.atleast_1d(axes).flatten()
-
+    
     im = None
     for i, t in enumerate(cap_sub.time.values):
         ax = axes[i]
@@ -284,25 +294,15 @@ def plot_cap_small_multiples(cap: xr.DataArray, model: str, vmin: Optional[float
     # Colorbar
     if im is not None:
         cbar = plt.colorbar(im, ax=axes, label=f"{model} CAP height [m]")
-        cbar.ax.tick_params(size=0)
-    # Do NOT show here - let caller handle plt.show()
+        cbar.ax.tick_params(size=0)  # Do NOT show here - let caller handle plt.show()
 
 
 # --- End-to-end runner ---
 MODELS = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
 
 # EDITED: Define all points from confg.py
-ALL_POINTS = [
-    "ibk_villa",
-    "ibk_uni",
-    "ibk_airport",
-    "woergl",
-    "kiefersfelden",
-    "telfs",
-    "wipp_valley",
-    "ziller_valley",
-    "ziller_ried"
-]
+ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley",
+    "ziller_ried"]
 
 
 def compute_save_plot_cap(start_day: int = 15, start_hour: int = 12, end_day: int = 16, end_hour: int = 12,
@@ -313,9 +313,9 @@ def compute_save_plot_cap(start_day: int = 15, start_hour: int = 12, end_day: in
     """
     if point is None:
         point = confg.ibk_villa
-
+    
     times = build_times(start_day, start_hour, end_day, end_hour, step_minutes=30)
-
+    
     cap_by_model = {}
     for model in MODELS:
         cap = compute_cap_timeseries(model, times, height_as_z_coord=True)
@@ -323,7 +323,7 @@ def compute_save_plot_cap(start_day: int = 15, start_hour: int = 12, end_day: in
         cap_by_model[model] = cap
         if save_nc:
             save_cap(cap, path=default_cap_path(model))
-
+    
     # Plot timeseries at the chosen point
     fig = plot_cap_timeseries_at_point_fig(cap_by_model, lat=point["lat"], lon=point["lon"], point_name=point["name"])
     
@@ -337,7 +337,7 @@ def compute_save_plot_cap(start_day: int = 15, start_hour: int = 12, end_day: in
         print(f"Saved CAP timeline to: {html_path}")
     else:
         fig.show()
-
+    
     # Plot small multiples per model (all at once) with uniform colorbar
     for model, cap in cap_by_model.items():
         plot_cap_small_multiples(cap, model=model, vmin=0, vmax=1000)
@@ -360,13 +360,9 @@ def plot_cap_timeseries_at_point_fig(cap_dict: dict, lat: float, lon: float, poi
     
     # Model order and color mapping
     model_order = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[2],
-        "ICON2TE": qualitative_colors[2],  # same color as ICON
-        "UM": qualitative_colors[4],
-        "WRF": qualitative_colors[6]
-    }
+    model_colors = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "ICON2TE": qualitative_colors[2],
+        # same color as ICON
+        "UM": qualitative_colors[4], "WRF": qualitative_colors[6]}
     
     for model in model_order:
         if model not in cap_dict:
@@ -380,22 +376,11 @@ def plot_cap_timeseries_at_point_fig(cap_dict: dict, lat: float, lon: float, poi
         # Determine line style: dashed for ICON2TE, solid otherwise
         line_dash = "dash" if model == "ICON2TE" else "solid"
         
-        fig.add_trace(go.Scatter(
-            x=series["time"].values,
-            y=series.values,
-            mode='lines',
-            name=model,
-            line=dict(color=model_colors[model], dash=line_dash, width=2)
-        ))
+        fig.add_trace(go.Scatter(x=series["time"].values, y=series.values, mode='lines', name=model,
+            line=dict(color=model_colors[model], dash=line_dash, width=2)))
     
-    fig.update_layout(
-        title=f"CAP height timeline at {point_name}",
-        xaxis_title="Time",
-        yaxis_title="CAP height [m]",
-        hovermode='x unified',
-        template='plotly_white',
-        legend=dict(x=0.01, y=0.99, xanchor='left', yanchor='top')
-    )
+    fig.update_layout(title=f"CAP height timeline at {point_name}", xaxis_title="Time", yaxis_title="CAP height [m]",
+        hovermode='x unified', template='plotly_white', legend=dict(x=0.01, y=0.99, xanchor='left', yanchor='top'))
     
     return fig
 
@@ -422,22 +407,13 @@ def plot_cap_timeseries_small_multiples(cap_dict: dict, point_names: List[str]) 
             subplot_titles.append(point_name)
     
     # Create subplots
-    fig = make_subplots(
-        rows=n_rows, cols=n_cols,
-        subplot_titles=subplot_titles,
-        vertical_spacing=0.12,
-        horizontal_spacing=0.1
-    )
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=subplot_titles, vertical_spacing=0.12,
+        horizontal_spacing=0.1)
     
     # Model order and color mapping
     model_order = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[2],
-        "ICON2TE": qualitative_colors[2],
-        "UM": qualitative_colors[4],
-        "WRF": qualitative_colors[6]
-    }
+    model_colors = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "ICON2TE": qualitative_colors[2],
+        "UM": qualitative_colors[4], "WRF": qualitative_colors[6]}
     
     # Plot for each point
     for idx, point_name in enumerate(point_names):
@@ -463,39 +439,27 @@ def plot_cap_timeseries_small_multiples(cap_dict: dict, point_names: List[str]) 
             # Only show legend for first subplot
             show_legend = (idx == 0)
             
-            fig.add_trace(
-                go.Scatter(
-                    x=series["time"].values,
-                    y=series.values,
-                    mode='lines',
-                    name=model,
-                    line=dict(color=model_colors[model], dash=line_dash, width=1.5),
-                    legendgroup=model,
-                    showlegend=show_legend
-                ),
-                row=row, col=col
-            )
+            fig.add_trace(go.Scatter(x=series["time"].values, y=series.values, mode='lines', name=model,
+                line=dict(color=model_colors[model], dash=line_dash, width=1.5), legendgroup=model,
+                showlegend=show_legend), row=row, col=col)
     
-    fig.update_layout(
-        title_text="CAP Height Timelines at Multiple Points",
-        height=350 * n_rows,
-        hovermode='x unified',
-        template='plotly_white',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.01,
-            xanchor="center",
-            x=0.5
-        )
-    )
+    fig.update_layout(title_text="CAP Height Timelines at Multiple Points", height=350 * n_rows, hovermode='x unified',
+        template='plotly_white', legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="center", x=0.5))
     
-    # Update axes labels
+    # Update axes labels and limits
     for i in range(1, n_rows + 1):
         for j in range(1, n_cols + 1):
-            fig.update_yaxes(title_text="CAP height [m]", row=i, col=j)
-            if i == n_rows:
+            # Set uniform y-axis range
+            fig.update_yaxes(range=[500, 1420], row=i, col=j)
+            # Set uniform x-axis range: 14:00 on 15th to 10:00 on 16th
+            fig.update_xaxes(
+                range=[np.datetime64("2017-10-15T14:00"), np.datetime64("2017-10-16T10:00")],
+                row=i, col=j
+            )
+            # Only add axis labels to the first (upper left) subplot
+            if i == 1 and j == 1:
                 fig.update_xaxes(title_text="Time", row=i, col=j)
+                fig.update_yaxes(title_text="CAP height [m]", row=i, col=j)
     
     return fig
 
@@ -507,20 +471,20 @@ def compute_save_plot_cap_all_points(start_day: int = 15, start_hour: int = 12, 
     Saves ONLY the small multiples timeline plot (not individual point files).
     """
     times = build_times(start_day, start_hour, end_day, end_hour, step_minutes=30)
-
+    
     # Compute CAP for all models once (expensive operation)
     cap_by_model = {}
     for model in MODELS:
-        cap = compute_cap_timeseries(model, times, height_as_z_coord=True)
+        cap = compute_cap_timeseries(model, times)
         cap.attrs["model"] = model
         cap_by_model[model] = cap
         if save_nc:
             save_cap(cap, path=default_cap_path(model))
-
+    
     # Ensure plots/cap_depth directory exists
     html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
     os.makedirs(html_dir, exist_ok=True)
-
+    
     # EDITED: Only create and save small multiples plot for all points (no individual files)
     print("\nCreating small multiples plot for all points...")
     fig_small_multiples = plot_cap_timeseries_small_multiples(cap_by_model, ALL_POINTS)
@@ -529,316 +493,6 @@ def compute_save_plot_cap_all_points(start_day: int = 15, start_hour: int = 12, 
     print(f"Saved small multiples plot to: {sm_path}")
 
 
-# EDITED: New function to plot vertical temperature profiles as small multiples
-def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: str = "2017-10-16T04:00:00",
-                                           max_height: float = 3000):
-    """Create small multiples plot of vertical temperature profiles for all points at a given timestamp.
-    Each subplot shows all models for one point, with CAP height markers.
-    point_names: list of point names from confg.py
-    timestamp: ISO format timestamp string (e.g. "2017-10-16T04:00:00")
-    max_height: maximum height in meters to plot (default 3000m)
-    """
-    # Convert timestamp string to numpy datetime64
-    ts = np.datetime64(timestamp)
-    
-    # Calculate grid layout with 2 columns
-    n_points = len(point_names)
-    n_cols = 2
-    n_rows = int(np.ceil(n_points / n_cols))
-    
-    # Create subplot titles
-    subplot_titles = []
-    for point_name in point_names:
-        point = getattr(confg, point_name, None)
-        if point:
-            subplot_titles.append(point["name"])
-        else:
-            subplot_titles.append(point_name)
-    
-    # Create subplots
-    fig = make_subplots(
-        rows=n_rows, cols=n_cols,
-        subplot_titles=subplot_titles,
-        vertical_spacing=0.06,
-        horizontal_spacing=0.08
-    )
-    
-    # Model order and color mapping
-    model_order = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[2],
-        "ICON2TE": qualitative_colors[2],
-        "UM": qualitative_colors[4],
-        "WRF": qualitative_colors[6]
-    }
-    
-    # Variables to read for each model
-    variables = ["p", "th", "temp", "z", "z_unstag"]
-    
-    # Helper function to get timeseries file path
-    def get_timeseries_path(model: str, point_name: str) -> str:
-        """Build path to timeseries file with _height_as_z.nc suffix."""
-        if model == "AROME":
-            base = confg.dir_AROME
-        elif model == "ICON":
-            base = confg.icon_folder_3D
-        elif model == "ICON2TE":
-            base = confg.icon2TE_folder_3D
-        elif model == "UM":
-            base = confg.ukmo_folder
-        elif model == "WRF":
-            base = confg.wrf_folder
-        else:
-            return ""
-        
-        # Construct path: MODEL_FOLDER/timeseries/modelname_pointname_timeseries_height_as_z.nc
-        model_name_lower = model.lower()
-        if model == "ICON2TE":
-            model_name_lower = "icon2te"
-        
-        return os.path.join(base, "timeseries", f"{model_name_lower}_{point_name}_timeseries_height_as_z.nc")
-    
-    # Helper function to save timeseries to file
-    def save_timeseries(ds: xr.Dataset, model: str, point_name: str) -> None:
-        """Save timeseries dataset to file if it doesn't exist yet."""
-        timeseries_path = get_timeseries_path(model, point_name)
-        
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(timeseries_path), exist_ok=True)
-        
-        # Only save if file doesn't exist yet
-        if not os.path.exists(timeseries_path):
-            print(f"Saving {model} timeseries for {point_name} to: {timeseries_path}")
-            try:
-                ds.to_netcdf(timeseries_path)
-            except Exception as e:
-                print(f"Warning: Could not save timeseries file {timeseries_path}: {e}")
-        else:
-            print(f"Timeseries file already exists: {timeseries_path}")
-    
-    # Read data and plot for each point
-    for idx, point_name in enumerate(point_names):
-        point = getattr(confg, point_name, None)
-        if point is None:
-            continue
-        
-        row = idx // n_cols + 1
-        col = idx % n_cols + 1
-        
-        for model in model_order:
-            try:
-                # EDITED: First try to load from saved timeseries file
-                timeseries_path = get_timeseries_path(model, point_name)
-                ds = None
-                
-                if os.path.exists(timeseries_path):
-                    print(f"Loading {model} timeseries from: {timeseries_path}")
-                    try:
-                        ds = xr.open_dataset(timeseries_path)
-                    except Exception as e:
-                        print(f"Warning: Could not load timeseries file {timeseries_path}: {e}")
-                        ds = None
-                
-                # If timeseries file doesn't exist or failed to load, read fresh data
-                if ds is None:
-                    print(f"Reading fresh {model} data for {point_name}...")
-                    if model == "AROME":
-                        ds = read_in_arome.read_in_arome_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
-                    elif model == "ICON":
-                        ds = read_icon_model_3D.read_icon_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variant="ICON", variables=variables, height_as_z_coord=True
-                        )
-                    elif model == "ICON2TE":
-                        ds = read_icon_model_3D.read_icon_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variant="ICON2TE", variables=variables, height_as_z_coord=True
-                        )
-                    elif model == "UM":
-                        ds = read_ukmo.read_ukmo_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
-                    elif model == "WRF":
-                        ds = read_wrf_helen.read_wrf_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
-                    else:
-                        continue
-                    
-                    # Save the timeseries for future use
-                    save_timeseries(ds, model, point_name)
-                
-                # Filter to max_height
-                # Check if height is a coordinate (from timeseries files) or a variable
-                if "height" in ds.coords:
-                    height_var = ds.coords["height"]
-                elif "z_unstag" in ds and model in ["ICON", "WRF"]:
-                    height_var = ds["z_unstag"]
-                elif "z" in ds:
-                    height_var = ds["z"]
-                else:
-                    print(f"Warning: No height coordinate found for {model} at {point_name}")
-                    continue
-                
-                # Select only heights up to max_height
-                ds_filtered = ds.where(height_var <= max_height, drop=True)
-                
-                # Get temperature and height values
-                if "temp" in ds_filtered:
-                    temp = ds_filtered["temp"].sel(time=ts, method="nearest").values
-                    
-                    # Get height values (handle both coordinate and variable cases)
-                    if "height" in ds.coords:
-                        # For timeseries files, height is already a coordinate
-                        height = ds_filtered.coords["height"].values
-                    else:
-                        height = height_var.sel(time=ts, method="nearest").values
-                    
-                    # Filter out NaNs
-                    valid = ~np.isnan(temp) & ~np.isnan(height)
-                    temp = temp[valid]
-                    height = height[valid]
-                    
-                    # Determine line style
-                    line_dash = "dash" if model == "ICON2TE" else "solid"
-                    
-                    # Only show legend for first subplot
-                    show_legend = (idx == 0)
-                    
-                    # Add temperature profile trace
-                    fig.add_trace(
-                        go.Scatter(
-                            x=temp,
-                            y=height,
-                            mode='lines',
-                            name=model,
-                            line=dict(color=model_colors[model], dash=line_dash, width=1.5),
-                            legendgroup=model,
-                            showlegend=show_legend
-                        ),
-                        row=row, col=col
-                    )
-                    
-                    # Add CAP height marker if available
-                    # Try to load cap_height from saved files
-                    try:
-                        cap_path = default_cap_path(model)
-                        if os.path.exists(cap_path):
-                            with xr.open_dataset(cap_path) as cap_ds:
-                                cap_height_da = cap_ds["cap_height"].load()
-                            
-                            # Select point and time
-                            cap_height = cap_height_da.sel(
-                                lat=point["lat"], lon=point["lon"],
-                                time=ts, method="nearest"
-                            ).item()
-                            
-                            if not np.isnan(cap_height) and cap_height <= max_height:
-                                # Get temperature at cap height
-                                # For timeseries files with height as coord, use height directly
-                                if "height" in ds_filtered.coords:
-                                    temp_at_cap = ds_filtered["temp"].sel(
-                                        time=ts, height=cap_height, method="nearest"
-                                    ).item()
-                                else:
-                                    temp_at_cap = ds_filtered["temp"].sel(
-                                        time=ts, method="nearest"
-                                    ).sel(height=cap_height, method="nearest").item()
-                                
-                                # Add marker
-                                fig.add_trace(
-                                    go.Scatter(
-                                        x=[temp_at_cap],
-                                        y=[cap_height],
-                                        mode='markers',
-                                        marker=dict(symbol='x', size=10, color=model_colors[model],
-                                                   line=dict(width=2, color=model_colors[model])),
-                                        name=f"{model} CAP",
-                                        legendgroup=model,
-                                        showlegend=False,
-                                        hovertemplate=f"{model} CAP: {cap_height:.0f}m<extra></extra>"
-                                    ),
-                                    row=row, col=col
-                                )
-                    except Exception as e:
-                        # Skip marker if CAP data not available
-                        pass
-                
-                # Close dataset if it was opened from file
-                if ds is not None and timeseries_path and os.path.exists(timeseries_path):
-                    ds.close()
-                    
-            except Exception as e:
-                print(f"Warning: Could not load {model} data for {point_name}: {e}")
-                continue
-    
-    # Update layout
-    fig.update_layout(
-        title_text=f"Vertical Temperature Profiles at {timestamp}",
-        height=350 * n_rows,
-        hovermode='closest',
-        template='plotly_white',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.01,
-            xanchor="center",
-            x=0.5
-        )
-    )
-    
-    # Update axes
-    for i in range(1, n_rows + 1):
-        for j in range(1, n_cols + 1):
-            # Set y-axis range [0, max_height]
-            fig.update_yaxes(range=[0, max_height], row=i, col=j)
-            
-            # Only show axis titles and ticks for top-left plot
-            if i == 1 and j == 1:
-                fig.update_xaxes(title_text="Temperature [°C]", row=i, col=j)
-                fig.update_yaxes(title_text="Height [m]", row=i, col=j)
-            else:
-                fig.update_xaxes(title_text="", showticklabels=False, row=i, col=j)
-                fig.update_yaxes(title_text="", showticklabels=False, row=i, col=j)
-    
-    return fig
-
-
-# EDITED: New function to save vertical profile plots
-def plot_save_vertical_profiles(timestamp: str = "2017-10-16T04:00:00", max_height: float = 3000) -> None:
-    """Create and save vertical temperature profile small multiples plot for all points.
-    timestamp: ISO format timestamp string (e.g. "2017-10-16T04:00:00")
-    max_height: maximum height in meters to plot (default 3000m)
-    """
-    print(f"\nCreating vertical temperature profile plots for {timestamp}...")
-    
-    # Create small multiples plot
-    fig = plot_vertical_profiles_small_multiples(ALL_POINTS, timestamp=timestamp, max_height=max_height)
-    
-    # Save as HTML
-    html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
-    os.makedirs(html_dir, exist_ok=True)
-    
-    # Create filename from timestamp
-    ts_str = timestamp.replace(":", "").replace("-", "").replace("T", "_")
-    html_path = os.path.join(html_dir, f"vertical_profiles_{ts_str}.html")
-    
-    fig.write_html(html_path)
-    print(f"Saved vertical profile plot to: {html_path}")
-    
-    # Also show in browser
-    fig.show()
-
-
 if __name__ == "__main__":
     # EDITED: Run for all points and save as HTML files
     compute_save_plot_cap_all_points()
-    
-    # EDITED: Also create vertical profile plot for 04 UTC on Oct 16
-    plot_save_vertical_profiles(timestamp="2017-10-16T04:00:00", max_height=2000)

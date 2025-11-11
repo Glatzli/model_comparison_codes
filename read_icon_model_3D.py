@@ -14,7 +14,7 @@ import datetime
 
 
 # 3 Mal ", dims=["height"] entfernt"
-def convert_calc_variables(ds, variables):
+def convert_calc_variables(ds, variables, vars_to_calculate=None):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
 
@@ -26,6 +26,13 @@ def convert_calc_variables(ds, variables):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
+    
+    if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
+        # Calculate wind speed and/or direction from u and v components
+        ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
+        ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+        ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
+        ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
     
     if "p" in variables:
         # Convert pressure from Pa to hPa
@@ -68,10 +75,10 @@ def create_ds_geopot_height_as_z_coordinate(ds):
     
     ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
         data_vars=dict(th=(["time", "height"], ds.th.values), temp=(["time", "height"], ds.temp.values),
-            p=(["time", "height"], ds.p.values), rho=(["time", "height"], ds.rho.values), ),
+                       p=(["time", "height"], ds.p.values), rho=(["time", "height"], ds.rho.values), ),
         coords=dict(height=("height", ds.z.isel(height_3=slice(1, 91)).values),
-            # skip most upper level, different height coordinates => just trust in hannes' notes...
-            time=("time", ds.time.values)),
+                    # skip most upper level, different height coordinates => just trust in hannes' notes...
+                    time=("time", ds.time.values)),
         attrs=dict(description="ICON data with z_ifc geometric height at half level center as vertical coordinate"))
     
     return ds_new
@@ -102,7 +109,7 @@ def rename_icon_variables(ds):
     :param ds: ds with original variable names f.e. z_ifc -> z, pres -> p...
     :return: renamed dataset with consistent variable names
     """
-    ds = ds.rename({"z_ifc": "z", "pres": "p"})
+    ds = ds.rename({"z_ifc": "z", "pres": "p", "qv": "q"})
     return ds
 
 
@@ -143,10 +150,10 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     """
     icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
-    icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z
+    icon_point = rename_icon_variables(ds=icon_point)  # rename z_ifc to z, qv to q, pres to p
     if "z_unstag" in variables:  # if unstaggered geometric height is needed, calc it
         icon_point = unstagger_z_point(ds=icon_point)
-    icon_point = convert_calc_variables(icon_point, variables=variables)
+    icon_point = convert_calc_variables(icon_point, variables=variables, vars_to_calculate=vars_to_calculate)
     icon_selected = icon_point[variables]  # select only the variables wanted
     if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
         icon_selected["height"] = icon_selected.z_unstag.values[::-1]
@@ -211,11 +218,13 @@ if __name__ == '__main__':
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem
     # calc of slope I need .tif file
     
-    # icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
-    #                                    variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)
-    icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
-                                       variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
-    icon_extent
+    icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
+                                       variables=["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"],
+                                       height_as_z_coord=True)  # ["p", "temp", "th", "z", "z_unstag"]
+    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
+    #                                    variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
+    # icon_extent
+    icon_point
     
     # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     # icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")

@@ -1,4 +1,6 @@
 """
+Deprecated! Not used anymore!
+
 This file should include functions for calculating the PBL height using the methods described in
 Wagner et al. 2015: The impact of valley geometry on daytime thermally driven flows and vertical transport processes
 => method for the CBL, not for SBL!
@@ -7,17 +9,14 @@ eif run,
 
 Idea: I would like to search for lat/lons
 """
-import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd  # neu: für 2‑stündige Zeit-Auswahl
 import plotly.graph_objects as go
 import xarray as xr
-from colorspace import qualitative_hcl
-import pandas as pd  # neu: für 2‑stündige Zeit-Auswahl
 
 import confg
-from calc_vhd import open_save_timeseries_main
 
 
 def calc_pbl_heights(ds, model="AROME"):
@@ -249,7 +248,6 @@ def plot_vert_profiles_plotly_multi(point=confg.ibk_uni):
     Plot vertical potential temperature profiles for multiple timesteps (alle 2 Stunden) und Modelle mit Plotly.
     Jeder Zeitstempel ist in der Legende gruppiert, so dass alle Spuren zu diesem Zeitpunkt gemeinsam umschaltbar sind.
     """
-    import datetime
     import os
     import plotly.graph_objects as go
     from colorspace import sequential_hcl  # Assuming you use this package for color generation
@@ -389,22 +387,13 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
             subplot_titles.append(point_name)
     
     # Create subplots
-    fig = make_subplots(
-        rows=n_rows, cols=n_cols,
-        subplot_titles=subplot_titles,
-        vertical_spacing=0.06,
-        horizontal_spacing=0.08
-    )
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=subplot_titles, vertical_spacing=0.06,
+        horizontal_spacing=0.08)
     
     # Model order and color mapping (same as plot_vert_profiles_plotly)
     model_order = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[3],
-        "ICON2TE": qualitative_colors[4],
-        "UM": qualitative_colors[2],
-        "WRF": qualitative_colors[6]
-    }
+    model_colors = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[3], "ICON2TE": qualitative_colors[4],
+        "UM": qualitative_colors[2], "WRF": qualitative_colors[6]}
     
     # Variables to read for each model
     variables = ["p", "th", "temp", "z", "z_unstag"]
@@ -430,10 +419,8 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     if os.path.exists(saved_path):
                         ds = xr.open_dataset(saved_path)
                     else:
-                        ds = read_in_arome.read_in_arome_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
+                        ds = read_in_arome.read_in_arome_fixed_point(lat=point["lat"], lon=point["lon"],
+                            variables=variables, height_as_z_coord=True)
                 
                 elif model == "ICON":
                     saved_path = os.path.join(confg.icon_folder_3D, "timeseries",
@@ -441,10 +428,8 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     if os.path.exists(saved_path):
                         ds = xr.open_dataset(saved_path)
                     else:
-                        ds = read_icon_model_3D.read_icon_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variant="ICON", variables=variables, height_as_z_coord=True
-                        )
+                        ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"],
+                            variant="ICON", variables=variables, height_as_z_coord=True)
                 
                 elif model == "ICON2TE":
                     saved_path = os.path.join(confg.icon2TE_folder_3D, "timeseries",
@@ -452,10 +437,8 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     if os.path.exists(saved_path):
                         ds = xr.open_dataset(saved_path)
                     else:
-                        ds = read_icon_model_3D.read_icon_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variant="ICON2TE", variables=variables, height_as_z_coord=True
-                        )
+                        ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"],
+                            variant="ICON2TE", variables=variables, height_as_z_coord=True)
                 
                 elif model == "UM":
                     saved_path = os.path.join(confg.ukmo_folder, "timeseries",
@@ -463,10 +446,8 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     if os.path.exists(saved_path):
                         ds = xr.open_dataset(saved_path)
                     else:
-                        ds = read_ukmo.read_ukmo_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
+                        ds = read_ukmo.read_ukmo_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
+                            height_as_z_coord=True)
                 
                 elif model == "WRF":
                     saved_path = os.path.join(confg.wrf_folder, "timeseries",
@@ -474,10 +455,8 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     if os.path.exists(saved_path):
                         ds = xr.open_dataset(saved_path)
                     else:
-                        ds = read_wrf_helen.read_wrf_fixed_point(
-                            lat=point["lat"], lon=point["lon"],
-                            variables=variables, height_as_z_coord=True
-                        )
+                        ds = read_wrf_helen.read_wrf_fixed_point(lat=point["lat"], lon=point["lon"],
+                            variables=variables, height_as_z_coord=True)
                 
                 if ds is None:
                     continue
@@ -505,18 +484,9 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                     show_legend = (idx == 0)
                     
                     # Add temperature profile trace
-                    fig.add_trace(
-                        go.Scatter(
-                            x=temp,
-                            y=height,
-                            mode='lines',
-                            name=model,
-                            line=dict(color=model_colors[model], dash=line_dash, width=1.5),
-                            legendgroup=model,
-                            showlegend=show_legend
-                        ),
-                        row=row, col=col
-                    )
+                    fig.add_trace(go.Scatter(x=temp, y=height, mode='lines', name=model,
+                        line=dict(color=model_colors[model], dash=line_dash, width=1.5), legendgroup=model,
+                        showlegend=show_legend), row=row, col=col)
                     
                     # Add CAP height marker if available
                     # Calculate dT/dz and cap_height
@@ -526,25 +496,15 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                         
                         if not np.isnan(cap_height_val) and cap_height_val <= max_height:
                             # Get temperature at cap height
-                            temp_at_cap = ds["temp"].sel(
-                                time=ts, method="nearest"
-                            ).sel(height=cap_height_val, method="nearest").item()
+                            temp_at_cap = ds["temp"].sel(time=ts, method="nearest").sel(height=cap_height_val,
+                                                                                        method="nearest").item()
                             
                             # Add marker
-                            fig.add_trace(
-                                go.Scatter(
-                                    x=[temp_at_cap],
-                                    y=[cap_height_val],
-                                    mode='markers',
-                                    marker=dict(symbol='x', size=10, color=model_colors[model],
-                                               line=dict(width=2, color=model_colors[model])),
-                                    name=f"{model} CAP",
-                                    legendgroup=model,
-                                    showlegend=False,
-                                    hovertemplate=f"{model} CAP: {cap_height_val:.0f}m<extra></extra>"
-                                ),
-                                row=row, col=col
-                            )
+                            fig.add_trace(go.Scatter(x=[temp_at_cap], y=[cap_height_val], mode='markers',
+                                marker=dict(symbol='x', size=10, color=model_colors[model],
+                                            line=dict(width=2, color=model_colors[model])), name=f"{model} CAP",
+                                legendgroup=model, showlegend=False,
+                                hovertemplate=f"{model} CAP: {cap_height_val:.0f}m<extra></extra>"), row=row, col=col)
                     except Exception:
                         # Skip marker if CAP calculation fails
                         pass
@@ -552,25 +512,15 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
                 # Close dataset if it was opened from file
                 if saved_path and os.path.exists(saved_path):
                     ds.close()
-                    
+            
             except Exception as e:
                 print(f"Warning: Could not load {model} data for {point_name}: {e}")
                 continue
     
     # Update layout
-    fig.update_layout(
-        title_text=f"Vertical Temperature Profiles at {timestamp}",
-        height=350 * n_rows,
-        hovermode='closest',
-        template='plotly_white',
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.01,
-            xanchor="center",
-            x=0.5
-        )
-    )
+    fig.update_layout(title_text=f"Vertical Temperature Profiles at {timestamp}", height=350 * n_rows,
+        hovermode='closest', template='plotly_white',
+        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="center", x=0.5))
     
     # Update axes
     for i in range(1, n_rows + 1):
@@ -591,7 +541,7 @@ def plot_vert_profiles_small_multiples(point_names: list, timestamp: str = "2017
 
 # EDITED: Wrapper function to save vertical profile small multiples
 def plot_save_vert_profiles_small_multiples(timestamp: str = "2017-10-16T04:00:00", max_height: float = 3000,
-                                             point_names: list = None) -> None:
+                                            point_names: list = None) -> None:
     """
     Create and save vertical temperature profile small multiples plot for all points.
     timestamp: ISO format timestamp string (e.g. "2017-10-16T04:00:00")
@@ -607,10 +557,8 @@ def plot_save_vert_profiles_small_multiples(timestamp: str = "2017-10-16T04:00:0
             point_names = ALL_POINTS
         except ImportError:
             # Fallback to hardcoded list
-            point_names = [
-                "ibk_villa", "ibk_uni", "ibk_airport", "woergl",
-                "kiefersfelden", "telfs", "wipp_valley", "ziller_valley", "ziller_ried"
-            ]
+            point_names = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley",
+                "ziller_valley", "ziller_ried"]
     
     print(f"\nCreating vertical temperature profile small multiples for {timestamp}...")
     

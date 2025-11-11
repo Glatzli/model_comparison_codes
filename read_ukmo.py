@@ -85,6 +85,14 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):  # , multiple_leve
     :param ds: xarray dataset
     :param vars_to_calc: list of variables to calculate
     """
+    
+    if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+        # Calculate wind speed and/or direction from u and v components
+        ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
+        ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+        ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
+        ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+    
     if "p" in ds:
         ds["p"] = (ds["p"] / 100) * units("hPa")
         ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
@@ -216,16 +224,16 @@ def read_ukmo_fixed_time(day=16, hour=12, min=0, variables=None):
 
     return data.compute()
 
-
+"""
 def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
-    """deprecated
+    deprecated
     read in UKMO Model at fixed point w all levels, either with city_name or with lat/lon, get xarray ds!
 
     city_name: str
     time: str
     lat: float
     lon: float
-    """
+    
 
     if city_name is not None:
         lat, lon = get_coordinates_by_station_name(city_name)
@@ -239,11 +247,11 @@ def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", l
         datasets.append(data)
 
     dat = xr.merge(datasets, compat='override')
-    dat = convert_calc_variables(dat, multiple_levels=True)
+    dat = convert_calc_variables(dat)
     dat = dat.rename({"model_level_number": "height"})
     return dat
 
-"""
+
 def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
     deprecated?
     read all ukmo data (~40GB) as xarray dataset
@@ -314,7 +322,7 @@ if __name__ == '__main__':
 
     um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
                                variables=["p", "temp", "th", "z"], height_as_z_coord=True)  # , "hgt" , "rho" , "z_unstag"
-    um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, height_as_z_coord=True, variables=["p", "temp", "th", "z"])  # , "z_unstag"
+    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])  # , "z_unstag"
     um
 
     # save lowest level as nc file for topo plotting

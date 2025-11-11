@@ -89,7 +89,7 @@ def check_add_needed_variables(variables, vars_to_calculate):
     # check if needed variables are in dataset, if not add them:
     # f.e. wspd or wind dir should be calculated, I need u & v: add that...
     variables = list(set(variables) | {"u", "v"}) if (
-                "udir" in vars_to_calculate or "wspd" in vars_to_calculate) else variables
+            "udir" in vars_to_calculate or "wspd" in vars_to_calculate) else variables
     variables = list(set(variables) | {"p", "th"}) if ("temp" in vars_to_calculate) else variables
     variables = list(set(variables) | {"p", "temp"}) if ("rho" in vars_to_calculate) else variables
     variables = list(set(variables) | {"T", "p", "qv"}) if "Td" in vars_to_calculate else variables
@@ -154,17 +154,20 @@ def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variab
     
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
-    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init.
+    if height_as_z_coord:  # geopotential height above terrain height (skip first 2 hours due to possible model init.
         # issues)
         if not "z" in ds:
             raise ValueError("z (geopotential height) not in dataset, can't set height as z coordinate.")
-        ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values
+        # need to read 2d variable at that point to get terrain height
+        arome2d_hgt = read_2D_variables_AROME(variableList=["hgt"], lat=lat, lon=lon)
+        # set geopot. height as vertical coordinate, subtract height of terrain at that point to compensate column depth
+        ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values - arome2d_hgt.isel(time=0).hgt.values
     ds = ds.compute()
     return ds
 
 
-def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5,
-                             max_lat=48.2, min_lon=9.2, max_lon=13):
+def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2, min_lon=9.2,
+                             max_lon=13):
     """
     read arome data for a fixed time,
     by default indexes the data to the chosen box (icon)
@@ -276,17 +279,18 @@ if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
     
+    #arome2d = read_2D_variables_AROME(variableList=["hgt"], # "hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"
+    #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
+    #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    # arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-    #                                   variables=["u", "v", "udir", "wspd", "z"],
-    #                                   height_as_z_coord=True)  # ["p", "temp", "th", "z", "udir", "wspd"]
-    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"], height_as_z_coord=True)
-    arome
+    arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                                     variables=["p", "th", "z"],
+                                     height_as_z_coord=True)  # ["p", "temp", "th", "z", "udir", "wspd"]
+    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])  #  height_as_z_coord=True not implemented yet?!
+    # arome
     
-    # arome2d = read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"],
-    #                                   lon=slice(confg.lon_hf_min, confg.lon_hf_max),
-    #                                   lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
-    # arome2d
+
+    arome_point
     
     # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
     # arome_z

@@ -14,6 +14,8 @@ read_topos_calc_slope_aspect() and the other few first functions defined in this
 
 Then the VHD should be calculated for the full domain.
 Plotting the VHD (timeseries and spatial extent over time) is done in plot_vhd.py
+
+By ChatGPT: cap_height calculations: Where error?!
 """
 
 import sys
@@ -615,14 +617,12 @@ if __name__ == '__main__':
     # Import calc_cap_height locally to avoid circular import
     from plot_vertical_calc_bl_height import calc_cap_height, calc_dT_dz
     
-
-    
     cap_ds_arome, cap_ds_icon, cap_ds_icon2te, cap_ds_um, cap_ds_wrf = [], [], [], [], []
 
     for timestamp in timerange:
         # AROME
         arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                       variables=["p", "temp", "th", "z"])  # rho not needed
+                                                       variables=["p", "temp", "th", "z", "z_unstag"])  # rho not needed
         # calc dT/dz needed by calc_cap_height (simple differentiate along model levels)
         arome = calc_dT_dz(arome)
         res_arome = calc_cap_height(arome)

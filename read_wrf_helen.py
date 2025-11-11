@@ -203,6 +203,14 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
+    
+    if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+        # Calculate wind speed and/or direction from u and v components
+        ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
+        ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+        ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
+        ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+    
     if "th" in ds:
         # ds["th"] = ds["th"] + 300 # th is original the perturbation potential temp,
         # WRF user manual says https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/output.html
@@ -411,7 +419,10 @@ def read_wrf_fixed_point(lat=47.259998, lon=11.384167, variables=["p", "temp", "
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
     ds = ds[variables]
     if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
+        # ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values - arome2d_hgt.isel(time=0).hgt.values
         ds["height"] = ds.z_unstag.values
+        
+        ds.isel(time=0).hgt.compute().item()
 
     return ds.compute()
 
@@ -446,12 +457,12 @@ if __name__ == '__main__':
     #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    # wrf = read_wrf_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"],
-    #                            variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
-    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "temp", "th", "z", "z_unstag"],
-                                     height_as_z_coord=True)
-    wrf_extent
-
+    wrf = read_wrf_fixed_point(lat=confg.hafelkar["lat"], lon=confg.hafelkar["lon"],
+                               variables=["p", "temp", "th", "rho", "hgt", "z", "z_unstag"], height_as_z_coord=True)
+    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "temp", "th", "z", "z_unstag"])
+    # wrf_extent
+    wrf
+    
     # what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
     # with other models?! ~ 20m difference...
     # wrf_extent.hgt.to_netcdf(confg.wrf_folder + "/WRF_geometric_height_3dlowest_level.nc", mode="w", format="NETCDF4")
