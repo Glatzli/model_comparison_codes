@@ -201,7 +201,7 @@ naming convention:
 - w
 - temp [°C]
 - p [hPa]
-- qv [kg/m^3]
+- q [kg/m^3] 
 - clc [%]
 - tke [m^2 s^-2]
 - slope angle [rad]
@@ -314,7 +314,7 @@ Meteogram:
 - `p` - Air pressure (Units: Pa)
 - `pre` - Precipitation rate (Units: kg m^-2)
 - `ps` - Surface pressure (Units: Pa)
-- `q_mixingratio` - Water vapor mixing ratio (Units: kg kg^-1)
+- `q_mixingratio` - Water vapor mixing ratio (Units: kg kg^-1) -> q
 - `smo_kgkg` - Soil moisture (Units: m^3 m^-3)
 - `ste` - Soil temperature (Units: K)
 - `swd` - Downward shortwave flux at ground surface (Units: W m^-2)
