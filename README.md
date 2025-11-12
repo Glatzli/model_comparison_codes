@@ -4,10 +4,15 @@ GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
 - which measure for humidity? plot evtl dewpoint depression
-- cap height calculation wrong?!
+- cap height calculation:
+  	took differentiate along "height" for dT: checked for icon ibk uni PCGP
+  for ICON it works quite well, what is it doing with WRF data?! far too high!
+  
 - subtract the terrain height before using geopot. height for the vertical variable:
   	Only have terrain height for AROME & WRF. For ICON & UM I only have geometric height/geopotential height...
-  	Difference for AROME, ibk gridpoint: , no difference for WRF between hgt & z!?! -> plot spatial extent to compare...
+  	Difference for AROME, ibk gridpoint: , no difference for WRF between hgt & z!?! -> ToDo: plot spatial extent to compare...
+- vertical plots:
+  works for ICON & WRF right, now with PCGP-selection!
 
 - is staggering applied really only for ICON and WRF?
 - check if depth of layer taken for VHD calculation is the same over ibk and hafelekar! Wenn es
@@ -289,6 +294,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
