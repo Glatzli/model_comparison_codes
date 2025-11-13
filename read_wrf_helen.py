@@ -345,7 +345,9 @@ def unstagger_z_domain(ds):
 
 
 def create_new_dataset(ds):
-    """needed due to regridding, create a new dataset with lat, lon, height and time as coordinates
+    """deprecated?
+    
+    needed due to regridding, create a new dataset with lat, lon, height and time as coordinates
     only used for read wrf fixed time over full domain, for a single point it's not needed!
 
     """
@@ -397,6 +399,15 @@ def generate_filenames():
     return wrf_files
 
 
+def rename_vars(ds):
+    """
+    renames wrf variables to uniform naming scheme
+    :param ds:
+    :return:
+    """
+    ds = ds.rename({"q_mixingratio": "q"})
+    return ds
+
 def read_wrf_fixed_point(lat=47.259998, lon=11.384167, variables=["p", "temp", "th", "rho", "z"], height_as_z_coord=False):
     """calls fct to read and merge WRF files across multiple days and times for a specified location. (used for lidar plots)
     It is also possible to define the lowest_level = True, selects only lowest level
@@ -414,8 +425,10 @@ def read_wrf_fixed_point(lat=47.259998, lon=11.384167, variables=["p", "temp", "
     combined_ds, vars_to_calculate = open_wrf_mfdataset(filepaths=wrf_files, variables=variables)
 
     ds = combined_ds.sel(lat=lat, lon=lon, method= "nearest")  # index given point
+    ds = rename_vars(ds=ds)
     if "z_unstag" in variables:
         ds = unstagger_z_point(ds)
+    
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
     ds = ds[variables]
     if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
@@ -441,6 +454,7 @@ def read_wrf_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "r
                                    f"{time.day:02d}T{time.hour:02d}{time.minute:02d}Z_regrid.nc")
 
     ds, vars_to_calc = open_wrf_mfdataset(filepaths=filepath, variables=variables)
+    ds = rename_vars(ds=ds)
     if "z_unstag" in variables:
         ds = unstagger_z_domain(ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calc)  # calculate variables like temp, rho, etc.
@@ -457,9 +471,9 @@ if __name__ == '__main__':
     #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    wrf = read_wrf_fixed_point(lat=confg.hafelkar["lat"], lon=confg.hafelkar["lon"],
-                               variables=["p", "temp", "th", "rho", "hgt", "z", "z_unstag"], height_as_z_coord=True)
-    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "temp", "th", "z", "z_unstag"])
+    wrf = read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                               variables=["q", "p", "temp", "th", "rho", "hgt", "z", "z_unstag"], height_as_z_coord=True)
+    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "q", "temp", "th", "z", "z_unstag"])
     # wrf_extent
     wrf
     

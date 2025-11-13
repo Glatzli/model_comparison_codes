@@ -321,8 +321,8 @@ if __name__ == '__main__':
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
     um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["p", "temp", "th", "z"], height_as_z_coord=True)  # , "hgt" , "rho" , "z_unstag"
-    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])  # , "z_unstag"
+                               variables=["p", "temp", "th", "z"], height_as_z_coord=True)  # , "hgt" , "rho"
+    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])
     um
 
     # save lowest level as nc file for topo plotting

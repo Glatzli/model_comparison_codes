@@ -46,7 +46,10 @@ MODEL_COLORS = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "
                 }
 
 # Model processing order
-MODEL_ORDER = ["ICON", "WRF"]  # "AROME", "ICON2TE", "UM",
+MODEL_ORDER = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]  #
+
+# Variables needed for all models
+variables = ["udir", "wspd", "q", "p", "th", "temp", "hgt", "z", "z_unstag"]
 
 # All point locations defined in confg.py
 ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley",
@@ -55,10 +58,6 @@ ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", 
 # Observation data paths; is actually in confg!
 # RADIOSONDE_PATH = r"D:\MSc_Arbeit\data\radiosonde_ibk_smoothed.nc"
 # HATPRO_PATH = r"D:\MSc_Arbeit\data\Observations\HATPRO_obs\hatpro_interpolated_arome_height_as_z.nc"
-
-# Observation CAP height paths
-RADIOSONDE_CAP_PATH = None  # Will be set dynamically
-HATPRO_CAP_PATH = None  # Will be set dynamically
 
 
 def get_obs_cap_path(obs_type: str) -> str:
@@ -176,30 +175,23 @@ def load_or_read_timeseries(model: str, point: dict, point_name: str, variables:
     # If no saved file exists or loading failed, read fresh data
     print(f"  Reading fresh {model} data for {point_name}...")
     
-    # AROME & UM aren't staggered!
-    variables_for_model = variables.copy()
-    if model == "AROME" and "z_unstag" in variables_for_model:
-        variables_for_model.remove("z_unstag")
-    elif model == "UM" and "z_unstag" in variables_for_model:
-        variables_for_model.remove("z_unstag")
-    
     # Read data based on model type
     if model == "AROME":
-        ds = read_in_arome.read_in_arome_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables_for_model,
+        ds = read_in_arome.read_in_arome_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
                                                      height_as_z_coord=height_as_z_coord)
     elif model == "ICON":
         ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"], variant="ICON",
-                                                      variables=variables_for_model,
+                                                      variables=variables,
                                                       height_as_z_coord=height_as_z_coord)
     elif model == "ICON2TE":
         ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"], variant="ICON2TE",
-                                                      variables=variables_for_model,
+                                                      variables=variables,
                                                       height_as_z_coord=height_as_z_coord)
     elif model == "UM":
-        ds = read_ukmo.read_ukmo_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables_for_model,
+        ds = read_ukmo.read_ukmo_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
                                              height_as_z_coord=height_as_z_coord)
     elif model == "WRF":
-        ds = read_wrf_helen.read_wrf_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables_for_model,
+        ds = read_wrf_helen.read_wrf_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
                                                  height_as_z_coord=height_as_z_coord)
     else:
         raise ValueError(f"Unknown model: {model}")
@@ -226,18 +218,21 @@ def _load_model_timeseries(model: str, point: dict, point_name: str, variables: 
     print(f"    Reading fresh {model} data")
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=point["lat"], lon=point["lon"])
     
+    # AROME & UM aren't staggered -> remove z_unstag if present
+    # if model is icon or wrf: if statement is false and z_unstag is
+    variables_for_reading = [v for v in variables if not (model in ["AROME", "UM"] and v == "z_unstag")]
+    
     # Map model to appropriate read function and PCGP
+    # yes this is a dict with a function call, a dataset and another dict in it!
+    # enables reading all models in one go
     read_functions = {"AROME": (read_in_arome.read_in_arome_fixed_point, pcgp_arome, {}),
         "ICON": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON"}),
         "ICON2TE": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON2TE"}),
         "UM": (read_ukmo.read_ukmo_fixed_point, pcgp_um, {}),
         "WRF": (read_wrf_helen.read_wrf_fixed_point, pcgp_wrf, {})}
     
-    if model not in read_functions:
-        return None
-    
     read_func, pcgp, extra_kwargs = read_functions[model]
-    ds = read_func(lat=pcgp.y.values, lon=pcgp.x.values, variables=variables, height_as_z_coord=True, **extra_kwargs)
+    ds = read_func(lat=pcgp.y.values, lon=pcgp.x.values, variables=variables_for_reading, height_as_z_coord=True, **extra_kwargs)
     save_timeseries(ds, model, point_name)
     return ds
 
@@ -269,14 +264,18 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
     cap_data = {}
     cap_path = default_cap_path(model)
     
-    # Load or compute CAP height DataArray
+   
+    """
+    # Tried to load full domain-full time presaved CAP-height-file height DataArray
     if os.path.exists(cap_path):
-        with xr.open_dataset(cap_path) as cap_ds:
-            cap_height_da = cap_ds["cap_height"].load()
-    else:
+        print("deleted loading CAP height from file for now")
+        #with xr.open_dataset(cap_path) as cap_ds:
+        #    cap_height_da = cap_ds["cap_height"].load()
+    else:  # if not available compute it from timeseries data at that point
         print(f"    CAP height file not found for {model}, computing from timeseries data...")
-        ds_with_cap = cap_height_profile(ds_filtered, consecutive=3)
-        cap_height_da = ds_with_cap["cap_height"]
+    """
+    ds_with_cap = cap_height_profile(ds_filtered, consecutive=3, model=model)
+    cap_height_da = ds_with_cap["cap_height"]
     
     # Extract CAP heights for each timestamp
     for ts_str, ts in zip(timestamps, ts_array):
@@ -339,9 +338,6 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
     # Create the subplot grid
     fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=subplot_titles, vertical_spacing=0.06,
                         horizontal_spacing=0.08)
-    
-    # Variables needed for all models
-    variables = ["udir", "wspd", "q", "p", "th", "temp", "z", "z_unstag"]
     
     # Loop through each point location
     for idx, point_name in enumerate(point_names):
@@ -592,7 +588,8 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
 
 
 def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_height: float = 5000,
-                                  plot_max_height: float = 2000) -> go.Figure:
+                                  plot_max_height: float = 2000, variables: list = ["udir", "wspd", "q", "p", "th",
+                                                                                    "temp", "hgt", "z", "z_unstag"]) -> go.Figure:
     """
     Create an interactive plot with time slider for a single point location.
     
@@ -616,9 +613,6 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
     
     # Convert timestamp strings to numpy datetime64
     ts_array = [np.datetime64(ts) for ts in timestamps]
-    
-    # Variables needed for all models
-    variables = ["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir"]
     
     # Pre-load all data for all timesteps
     print(f"  Loading data for all models and timesteps...")
@@ -956,7 +950,7 @@ if __name__ == "__main__":
     # plot_save_vertical_profiles(timestamp="2017-10-16T04:00:00", max_height=5000, plot_max_height=2000)
     
     # Create interactive plot with time slider
-    # Shows profiles from midnight to noon on October 16, 2017, with hourly timesteps
+    # Shows profiles from midnight to noon on October 16, 2017
     plot_save_all_points_with_slider(start_time="2017-10-15T15:00:00", end_time="2017-10-16T10:00:00",
-                                     point_names=["ibk_uni", "woergl"], time_step_hours=0.5, max_height=5000,
-                                     plot_max_height=2000)
+                                     time_step_hours=1, max_height=4000,  # point_names=["ibk_uni"]
+                                     plot_max_height=1500)

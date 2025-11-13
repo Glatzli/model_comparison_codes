@@ -1,4 +1,8 @@
 """
+needs to be changed & checked a lot:
+- does it calc the cap height right for a region?
+- save calculated cap heights to netcdf...
+
 calc_cap_height
 compute, save and plot CAP height (inversion base) for all points and plot it as small multiples,
 similar to plot_vhd.
