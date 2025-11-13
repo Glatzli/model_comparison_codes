@@ -6,7 +6,14 @@ ToDo:
 - which measure for humidity? plot evtl dewpoint depression
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
-  for ICON it works quite well, what is it doing with WRF data?! far too high!
+  currently in plot_verticl_prof:
+  ----------------------------------------------------------------------
+Processing: ibk_villa (ibk_villa)
+----------------------------------------------------------------------
+Creating slider plot for ibk_villa with 20 timesteps...
+  Loading data for all models and timesteps...
+✗ Error processing ibk_villa: cannot access local variable 'variables' where it is not associated with a value
+		
   
 - subtract the terrain height before using geopot. height for the vertical variable:
   	Only have terrain height for AROME & WRF. For ICON & UM I only have geometric height/geopotential height...
@@ -294,6 +301,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
