@@ -3,7 +3,7 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile
+- change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile line 688
 - which measure for humidity? plot evtl dewpoint depression
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
@@ -302,6 +302,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
