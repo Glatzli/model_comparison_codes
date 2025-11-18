@@ -7,14 +7,12 @@ ToDo:
 - which measure for humidity? plot evtl dewpoint depression
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
-  currently in plot_verticl_prof:
-  ----------------------------------------------------------------------
-Processing: ibk_villa (ibk_villa)
-----------------------------------------------------------------------
-Creating slider plot for ibk_villa with 20 timesteps...
-  Loading data for all models and timesteps...
-✗ Error processing ibk_villa: cannot access local variable 'variables' where it is not associated with a value
-		
+  	then mask where "dT" is < 0, take rolling window along height with min. 3 values => took mean to find consecutive negatives
+  	then mask for 3 (our desired consecutive neg. values)
+  	and (maybe) shift it to get the lowest index and not the highest (not completely uniform in the models)
+  	=> mask first True for lowest level of min. 3 consecutive dT values along height, then search height -> cap_height
+	
+	for "real" cap height in model we'd need difference between model topography/lowest level geopotential height at that point...	
   
 - subtract the terrain height before using geopot. height for the vertical variable:
   	Only have terrain height for AROME & WRF. For ICON & UM I only have geometric height/geopotential height...
@@ -302,6 +300,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
