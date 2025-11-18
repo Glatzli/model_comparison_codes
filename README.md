@@ -12,7 +12,8 @@ ToDo:
   	and (maybe) shift it to get the lowest index and not the highest (not completely uniform in the models)
   	=> mask first True for lowest level of min. 3 consecutive dT values along height, then search height -> cap_height
 	
-	for "real" cap height in model we'd need difference between model topography/lowest level geopotential height at that point...	
+	for "real" cap height in model we'd need difference between model topography/lowest level geopotential height at that point
+		-> probably take only cap height-first level?
   
 - subtract the terrain height before using geopot. height for the vertical variable:
   	Only have terrain height for AROME & WRF. For ICON & UM I only have geometric height/geopotential height...
@@ -303,6 +304,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
