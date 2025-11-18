@@ -14,9 +14,9 @@ from __future__ import annotations
 import plotly.graph_objects as go
 import xarray as xr
 
-# Model-specific shift because height coords are not completely uniform
-# ICON needs shift by 1 up, WRF by 3 down, etc.
-shift_map = {'AROME': 0, 'ICON': 0, 'ICON2TE': 0, 'WRF': -2, 'UM': -3}
+# Model-specific shift because indexed height of CAP is a bit different (and height coords are differently ordered
+# f.e.ICON & WRF: ICON needs shift by 1 up, WRF by 3 down, etc.
+shift_map = {'AROME': 0, 'ICON': 1, 'ICON2TE': 1, 'WRF': -3, 'UM': -3, 'HATPRO': -3, "radiosonde": 3}
 
 
 def calc_dT(ds: xr.Dataset) -> xr.Dataset:
@@ -146,6 +146,13 @@ def cap_height_profile(ds: xr.Dataset, consecutive: int = 3, model: str = None) 
 
 
 def test_plot(ds, cap_height, timeidx: int = 24):
+    """
+    creates a test-plot of the temp profile with dT and cap_height in it as interactive plotly figure.
+    :param ds:
+    :param cap_height:
+    :param timeidx:
+    :return:
+    """
     import numpy as np
     
     fig = go.Figure()
@@ -168,7 +175,7 @@ def test_plot(ds, cap_height, timeidx: int = 24):
     fig.add_trace(go.Scatter(x=[temp_at_cap], y=[cap_h], mode="markers", name="CAP Height"))
     
     fig.update_layout(xaxis_title="Temperature (°C)", yaxis_title="Height (m)", xaxis_range=[15, 20],
-        yaxis_range=[500, 1500])
+                      yaxis_range=[500, 1500])
     fig.show(renderer='browser')
 
 

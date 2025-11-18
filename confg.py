@@ -61,6 +61,8 @@ radiosonde_dataset_height_as_z = f"{data_folder}radiosonde_ibk_2017101603_height
 # only geopot. height instead of "height values"
 radiosonde_smoothed = f"{data_folder}radiosonde_ibk_smoothed.nc"
 
+all_model_topographies = f"{model_folder}/AROME/all_model_topographies.nc"  # all topography-values extracted (lowest lvl)
+# of geopot. height + "hgt" - vars for AROME & WRF and put into one file
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
 TIROL_DEMFILE = f"{data_folder}/Height/dem.tif"  # changed dem file: indexed and renamed coords
@@ -123,8 +125,10 @@ lidar_obs_folder = f"{data_folder}/Observations/LIDAR"
 # HATPRO obs
 hatpro_folder = f"{data_folder}/Observations/HATPRO_obs/"  # nicht vorhanden?
 hatpro_merged = hatpro_folder + "hatpro_merged.nc"
+hatpro_smoothed = hatpro_folder + "hatpro_smoothed.nc"
 hatpro_interp_arome = hatpro_folder + "hatpro_interp_arome.nc"
 hatpro_interp_arome_height_as_z = hatpro_folder + "hatpro_interpolated_arome_height_as_z.nc"
+hatpro_with_cap_height = hatpro_folder + "hatpro_interpolated_arome_height_as_z_with_cap_height.nc"
 
 # Define colors for the models to use the same in each plot:
 colordict = {"HOBOS": "purple", "ICON": "orange", "RADIOSONDE": "black", "AROME": "red", "HATPRO": "gray",

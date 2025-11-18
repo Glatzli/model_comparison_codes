@@ -32,7 +32,7 @@ import confg
 import xarray as xr
 import numpy as np
 import matplotlib
-from plot_topography import calculate_km_for_lon_extent
+from calculations_and_plots.plot_topography import calculate_km_for_lon_extent
 import xdem
 from pyproj import CRS
 import matplotlib.pyplot as plt
@@ -529,7 +529,7 @@ def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"]):
     vhd_wrf = xr.open_dataset(confg.wrf_folder + "/WRF_vhd_full_domain_full_time.nc")
 
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
-    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought method
+    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought
     # "nearest" isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
     # difference is f.e. 12.064999 for vhd lon value and 12.065000 for pcgp lon value...
     vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item(), method="nearest")

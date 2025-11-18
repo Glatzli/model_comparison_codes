@@ -434,8 +434,7 @@ def read_wrf_fixed_point(lat=47.259998, lon=11.384167, variables=["p", "temp", "
     if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
         # ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values - arome2d_hgt.isel(time=0).hgt.values
         ds["height"] = ds.z_unstag.values
-        
-        ds.isel(time=0).hgt.compute().item()
+        # ds.isel(time=0).hgt.compute().item()
 
     return ds.compute()
 
@@ -444,8 +443,6 @@ def read_wrf_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "r
     """ reads 1 single WRF file at a spec. time over the full domain
 
     :param my_time: selected time
-
-    :param lowest_level: Default False, but if True then select only lowest level
     :param variables: a variable list to keep only certain variables; default are those needed for VHD calc
 
     """
@@ -471,11 +468,11 @@ if __name__ == '__main__':
     #wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     #wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    wrf = read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["q", "p", "temp", "th", "rho", "hgt", "z", "z_unstag"], height_as_z_coord=True)
-    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hfs", "p", "q", "temp", "th", "z", "z_unstag"])
-    # wrf_extent
-    wrf
+    # wrf = read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    #                            variables=["q", "p", "temp", "th", "rho", "hgt", "z", "z_unstag"], height_as_z_coord=True)
+    wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hgt", "hfs", "p", "q", "temp", "th", "z", "z_unstag"])
+    wrf_extent
+    # wrf
     
     # what would be better to take as var for model topography? terrain height hgt or geometric height z for consistency
     # with other models?! ~ 20m difference...

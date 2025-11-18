@@ -188,6 +188,13 @@ def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
     
+    if "hgt" in variables:  # geopotential height above terrain height (skip first 2 hours due to possible model init.
+        # issues)
+        # need to read 2d variable at that point to get terrain height
+        # set geopot. height as vertical coordinate, subtract height of terrain at that point to compensate column depth
+        ds["hgt"] = read_2D_variables_AROME(variableList=["hgt"], slice_lat_lon=True, lat=slice(min_lat, max_lat),
+                                            lon=slice(min_lon, min_lat)).sel(time=timestamp).hgt
+    
     ds = ds.compute()
     return ds
 
@@ -279,18 +286,18 @@ if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
     
-    #arome2d = read_2D_variables_AROME(variableList=["hgt"], # "hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"
+    # arome2d = read_2D_variables_AROME(variableList=["hgt"], # "hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"
     #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
     #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                                     variables=["p", "th", "z"],
-                                     height_as_z_coord=True)  # ["p", "temp", "th", "z", "udir", "wspd"]
-    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])  #  height_as_z_coord=True not implemented yet?!
-    # arome
+    # arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    #                                  variables=["p", "th", "z"],
+    #                                  height_as_z_coord=True)  # ["p", "temp", "th", "z", "udir", "wspd"]
+    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
+                                     max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
+    arome
     
-
-    arome_point
+    # arome_point
     
     # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
     # arome_z

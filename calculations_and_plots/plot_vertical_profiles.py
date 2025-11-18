@@ -28,11 +28,18 @@ import read_icon_model_3D
 import read_in_arome
 import read_ukmo
 import read_wrf_helen
-from calc_vhd import read_dems_calc_pcgp
 from calculations_and_plots.calc_cap_height import cap_height_profile
-# Import CAP height path helper from plot_cap_height
-# (This function is kept in plot_cap_height.py as it's related to CAP computation)
-from calculations_and_plots.plot_cap_height import default_cap_path
+# Import timeseries management functions
+from calculations_and_plots.manage_timeseries import (
+    get_timeseries_path,
+    save_timeseries,
+    load_or_read_timeseries,
+    load_timeseries,
+    MODEL_ORDER,
+    ALL_POINTS,
+    variables
+)
+from calculations_and_plots.calc_vhd import read_dems_calc_pcgp
 
 # --- Color scheme for models (consistent with plot_cap_height) ---
 qualitative_colors = qualitative_hcl(palette="Dark 3").colors()
@@ -44,16 +51,6 @@ MODEL_COLORS = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "
                 # Black for observations
                 "HATPRO": "grey"  # Dark grey for HATPRO
                 }
-
-# Model processing order
-MODEL_ORDER = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]  #
-
-# Variables needed for all models
-variables = ["udir", "wspd", "q", "p", "th", "temp", "hgt", "z", "z_unstag"]
-
-# All point locations defined in confg.py
-ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley",
-              "ziller_ried"]
 
 # Observation data paths; is actually in confg!
 # RADIOSONDE_PATH = r"D:\MSc_Arbeit\data\radiosonde_ibk_smoothed.nc"
@@ -75,166 +72,22 @@ def get_obs_cap_path(obs_type: str) -> str:
     return os.path.join(cap_dir, f"{obs_type}_cap_height.nc")
 
 
-def get_timeseries_path(model: str, point_name: str) -> str:
+def _load_model_timeseries(model: str, point: dict, point_name: str, variables_list: list) -> xr.Dataset | None:
     """
-    Build the file path to a saved timeseries NetCDF file for a specific model and point.
+    Helper function to load timeseries data for a model.
     
-    The timeseries files are stored with the naming convention:
-    MODEL_FOLDER/timeseries/modelname_pointname_timeseries_height_as_z.nc
+    Wrapper around load_or_read_timeseries from manage_timeseries module.
     
     Args:
-        model: Name of the weather model (AROME, ICON, ICON2TE, UM, WRF)
-        point_name: Name of the point location (from confg.py)
-    
-    Returns:
-        Full path to the timeseries file
-    """
-    # Get the base directory for each model
-    if model == "AROME":
-        base = confg.dir_AROME
-    elif model == "ICON":
-        base = confg.icon_folder_3D
-    elif model == "ICON2TE":
-        base = confg.icon2TE_folder_3D
-    elif model == "UM":
-        base = confg.ukmo_folder
-    elif model == "WRF":
-        base = confg.wrf_folder
-    else:
-        return ""
-    
-    # Construct the filename with lowercase model name
-    model_name_lower = model.lower()
-    if model == "ICON2TE":
-        model_name_lower = "icon2te"
-    
-    return os.path.join(base, "timeseries", f"{model_name_lower}_{point_name}_timeseries_height_as_z.nc")
-
-
-def save_timeseries(ds: xr.Dataset, model: str, point_name: str) -> None:
-    """
-    Save a timeseries dataset to a NetCDF file for future reuse.
-    
-    Only saves if the file doesn't already exist to avoid overwriting and permission issues.
-    Creates the necessary directory structure if it doesn't exist.
-    
-    Args:
-        ds: xarray Dataset containing the timeseries data
         model: Name of the weather model
-        point_name: Name of the point location
-    """
-    timeseries_path = get_timeseries_path(model, point_name)
-    
-    # Create the directory if it doesn't exist
-    os.makedirs(os.path.dirname(timeseries_path), exist_ok=True)
-    
-    # Only save if the file doesn't already exist
-    if not os.path.exists(timeseries_path):
-        print(f"  Saving {model} timeseries for {point_name} to: {timeseries_path}")
-        try:
-            ds.to_netcdf(timeseries_path)
-            print(f"  ✓ Successfully saved {model} timeseries")
-        except Exception as e:
-            print(f"  ✗ Warning: Could not save timeseries file {timeseries_path}: {e}")
-    else:
-        print(f"  ℹ Timeseries file already exists, skipping save: {os.path.basename(timeseries_path)}")
-
-
-def load_or_read_timeseries(model: str, point: dict, point_name: str, variables: list,
-                            height_as_z_coord: bool = True) -> xr.Dataset:
-    """
-    Load timeseries from saved file if it exists, otherwise read fresh data and save it.
-    
-    This function implements the core logic for efficient data loading:
-    1. Check if saved timeseries file exists
-    2. If yes: load from file
-    3. If no: read fresh data from model output and save for future use
-    
-    Args:
-        model: Name of the weather model (AROME, ICON, ICON2TE, UM, WRF)
         point: Dictionary with 'lat' and 'lon' keys
-        point_name: Name of the point location (from confg.py)
-        variables: List of variable names to read
-        height_as_z_coord: Whether to use height as z-coordinate (default: True)
+        point_name: Name of the point location
+        variables_list: List of variable names to read
     
     Returns:
-        xarray Dataset with timeseries data
+        xarray Dataset with timeseries data, or None if loading fails
     """
-    # Get path to saved timeseries file
-    timeseries_path = get_timeseries_path(model, point_name)
-    
-    # Try to load from saved file first
-    if timeseries_path and os.path.exists(timeseries_path):
-        print(f"  Loading {model} from saved timeseries: {os.path.basename(timeseries_path)}")
-        try:
-            ds = xr.open_dataset(timeseries_path)
-            return ds
-        except Exception as e:
-            print(f"  ✗ Warning: Could not load saved file, reading fresh data. Error: {e}")
-    
-    # If no saved file exists or loading failed, read fresh data
-    print(f"  Reading fresh {model} data for {point_name}...")
-    
-    # Read data based on model type
-    if model == "AROME":
-        ds = read_in_arome.read_in_arome_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
-                                                     height_as_z_coord=height_as_z_coord)
-    elif model == "ICON":
-        ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"], variant="ICON",
-                                                      variables=variables,
-                                                      height_as_z_coord=height_as_z_coord)
-    elif model == "ICON2TE":
-        ds = read_icon_model_3D.read_icon_fixed_point(lat=point["lat"], lon=point["lon"], variant="ICON2TE",
-                                                      variables=variables,
-                                                      height_as_z_coord=height_as_z_coord)
-    elif model == "UM":
-        ds = read_ukmo.read_ukmo_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
-                                             height_as_z_coord=height_as_z_coord)
-    elif model == "WRF":
-        ds = read_wrf_helen.read_wrf_fixed_point(lat=point["lat"], lon=point["lon"], variables=variables,
-                                                 height_as_z_coord=height_as_z_coord)
-    else:
-        raise ValueError(f"Unknown model: {model}")
-    
-    # Save the freshly read data for future use
-    save_timeseries(ds, model, point_name)
-    
-    return ds
-
-
-def _load_model_timeseries(model: str, point: dict, point_name: str, variables: list) -> xr.Dataset | None:
-    """
-    Load timeseries data for a model - either from saved file or read fresh.
-    Returns None if loading fails.
-    """
-    timeseries_path = get_timeseries_path(model, point_name)
-    
-    # Try loading from saved file first
-    if os.path.exists(timeseries_path):
-        print(f"    Loading {model} timeseries")
-        return xr.open_dataset(timeseries_path)
-    
-    # Read fresh data if no saved file exists
-    print(f"    Reading fresh {model} data")
-    pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=point["lat"], lon=point["lon"])
-    
-    # AROME & UM aren't staggered -> remove z_unstag if present
-    # if model is icon or wrf: if statement is false and z_unstag is
-    variables_for_reading = [v for v in variables if not (model in ["AROME", "UM"] and v == "z_unstag")]
-    
-    # Map model to appropriate read function and PCGP
-    # yes this is a dict with a function call, a dataset and another dict in it!
-    # enables reading all models in one go
-    read_functions = {"AROME": (read_in_arome.read_in_arome_fixed_point, pcgp_arome, {}),
-        "ICON": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON"}),
-        "ICON2TE": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON2TE"}),
-        "UM": (read_ukmo.read_ukmo_fixed_point, pcgp_um, {}),
-        "WRF": (read_wrf_helen.read_wrf_fixed_point, pcgp_wrf, {})}
-    
-    read_func, pcgp, extra_kwargs = read_functions[model]
-    ds = read_func(lat=pcgp.y.values, lon=pcgp.x.values, variables=variables_for_reading, height_as_z_coord=True, **extra_kwargs)
-    save_timeseries(ds, model, point_name)
-    return ds
+    return load_or_read_timeseries(model, point, point_name, variables_list, height_as_z_coord=True)
 
 
 def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datetime64) -> float:
@@ -248,7 +101,6 @@ def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datet
     
     if "lat" in cap_height_da.dims and "lon" in cap_height_da.dims:
         # Spatial + time dimensions
-        # add PCGP-selection!
         return cap_height_da.sel(lat=point["lat"], lon=point["lon"], time=ts).item()
     
     # Only time dimension
@@ -258,22 +110,12 @@ def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datet
 def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dict, timestamps: List[str],
                                  ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
     """
-    Load CAP heights from file or compute from timeseries (point) data.
-    Returns dict mapping timestamp strings to (temp_at_cap, cap_height) tuples.
+    Compute CAP heights from timeseries (point) data.
+    Returns dict mapping timestamp strings to (temp_at_cap, cap_height) tuples (tuple is needed so that the cap-marker is at
+    the right temperature in the plot afterwards).
     """
     cap_data = {}
-    cap_path = default_cap_path(model)
     
-   
-    """
-    # Tried to load full domain-full time presaved CAP-height-file height DataArray
-    if os.path.exists(cap_path):
-        print("deleted loading CAP height from file for now")
-        #with xr.open_dataset(cap_path) as cap_ds:
-        #    cap_height_da = cap_ds["cap_height"].load()
-    else:  # if not available compute it from timeseries data at that point
-        print(f"    CAP height file not found for {model}, computing from timeseries data...")
-    """
     ds_with_cap = cap_height_profile(ds_filtered, consecutive=3, model=model)
     cap_height_da = ds_with_cap["cap_height"]
     
@@ -301,6 +143,7 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
 def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: str = "2017-10-16T04:00:00",
                                            max_height: float = 5000, plot_max_height: float = 2000) -> go.Figure:
     """
+    deprecated?
     Create a small multiples plot of vertical temperature profiles for multiple points.
     
     Each subplot shows temperature vs height for all models at one location.
@@ -315,7 +158,7 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
     
     Returns:
         Plotly figure object with the small multiples plot
-    """
+
     # Convert timestamp string to numpy datetime64 for data selection
     ts = np.datetime64(timestamp)
     
@@ -512,7 +355,7 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
                     ds_hatpro = xr.open_dataset(confg.hatpro_interp_arome_height_as_z)
                     
                     # Select time slice for the given timestamp
-                    ds_hatpro_ts = ds_hatpro.sel(time=ts, method="nearest")
+                    ds_hatpro_ts = ds_hatpro.sel(time=ts)
                     
                     # Filter to max_height (data loading limit, not display limit)
                     ds_hatpro_filtered = ds_hatpro_ts.where(ds_hatpro_ts["height"] <= max_height, drop=True)
@@ -521,14 +364,9 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
                     temp_hatpro = ds_hatpro_filtered["temp"].values
                     height_hatpro = ds_hatpro_filtered["height"].values
                     
-                    # Filter out NaN values
-                    valid = ~np.isnan(temp_hatpro) & ~np.isnan(height_hatpro)
-                    temp_hatpro = temp_hatpro[valid]
-                    height_hatpro = height_hatpro[valid]
-                    
                     # Add HATPRO data trace
                     fig.add_trace(go.Scatter(x=temp_hatpro, y=height_hatpro, mode='lines', name="HATPRO",
-                                             line=dict(color=MODEL_COLORS["HATPRO"], width=2.5, dash="dot"),
+                                             line=dict(color=MODEL_COLORS["HATPRO"], width=1.5, dash="dot"),
                                              legendgroup="HATPRO", showlegend=show_obs_legend), row=row, col=col)
                     
                     # --- Add CAP height marker for HATPRO ---
@@ -585,6 +423,7 @@ def plot_vertical_profiles_small_multiples(point_names: List[str], timestamp: st
                 fig.update_yaxes(title_text="", showticklabels=False, row=i, col=j)
     
     return fig
+    """
 
 
 def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_height: float = 5000,
@@ -678,9 +517,19 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                 if os.path.exists(radiosonde_cap_path):
                     with xr.open_dataset(radiosonde_cap_path) as cap_ds:
                         cap_height = cap_ds["cap_height"].item()
-                    if not np.isnan(cap_height) and cap_height <= max_height:
-                        idx = np.argmin(np.abs(height[valid] - cap_height))
-                        obs_data["radiosonde_cap"] = (temp[valid][idx], cap_height)
+                else:
+                    # Compute CAP height from radiosonde data if file doesn't exist
+                    print(f"    CAP height file not found for radiosonde, computing from data...")
+                    ds_with_cap = cap_height_profile(ds_filtered, model="radiosonde")
+                    cap_height = ds_with_cap["cap_height"].item()
+                    
+                    # Save the computed CAP height for future use
+                    ds_with_cap["cap_height"].to_netcdf(radiosonde_cap_path)
+                    print(f"    Computed and saved radiosonde CAP height to {radiosonde_cap_path}")
+                
+                if not np.isnan(cap_height) and cap_height <= max_height:
+                    idx = np.argmin(np.abs(height[valid] - cap_height))
+                    obs_data["radiosonde_cap"] = (temp[valid][idx], cap_height)
                 
                 ds_radiosonde.close()
         except Exception as e:
@@ -688,25 +537,52 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
         
         # HATPRO (time-dependent)
         try:
-            if os.path.exists(confg.hatpro_interp_arome_height_as_z):
+            # Check for HATPRO file with CAP height first
+            if os.path.exists(confg.hatpro_with_cap_height):
+                # Load HATPRO data with pre-computed CAP height
+                print(f"    Loading HATPRO data with CAP height")
+                ds_hatpro = xr.open_dataset(confg.hatpro_with_cap_height)
+                hatpro_cap_da = ds_hatpro["cap_height"]
+                
+            elif os.path.exists(confg.hatpro_interp_arome_height_as_z):  # used interpolated heights to arome levels -> change to smooth HATPRO!
+                # Load original HATPRO data and compute CAP height
                 print(f"    Loading HATPRO data")
                 ds_hatpro = xr.open_dataset(confg.hatpro_interp_arome_height_as_z)
+                
+                print(f"    Computing CAP height for HATPRO...")
+                # Filter to max_height before computing CAP
+                ds_hatpro_filtered = ds_hatpro.where(ds_hatpro["height"] <= max_height, drop=True)
+                ds_hatpro_with_cap = cap_height_profile(ds_hatpro_filtered, consecutive=3, model="HATPRO")
+                
+                # Add CAP height to original (non-filtered) dataset
+                ds_hatpro["cap_height"] = ds_hatpro_with_cap["cap_height"]
+                hatpro_cap_da = ds_hatpro["cap_height"]
+                
+                # Save complete dataset with CAP height
+                print(f"    Saving HATPRO dataset with CAP height to {confg.hatpro_with_cap_height}")
+                ds_hatpro.to_netcdf(confg.hatpro_with_cap_height)
+                print(f"    ✓ Saved successfully")
+            else:
+                print(f"    Warning: HATPRO file not found")
+                ds_hatpro = None
+                hatpro_cap_da = None
+            
+            if ds_hatpro is not None:
                 obs_data["hatpro"] = {}
                 
                 for ts_str, ts in zip(timestamps, ts_array):
-                    ds_ts = ds_hatpro.sel(time=ts, method="nearest")
+                    ds_ts = ds_hatpro.sel(time=ts)
                     ds_filtered = ds_ts.where(ds_ts["height"] <= max_height, drop=True)
                     
                     temp = ds_filtered["temp"].values
                     height = ds_filtered["height"].values
                     valid = ~np.isnan(temp) & ~np.isnan(height)
-                    obs_data["hatpro"][ts_str] = (temp[valid], height[valid])
+                    obs_data["hatpro"][ts_str] = (temp[valid], height[valid])  # creates large dict w. radiosonde w. cap_height &
+                    # hatpro data for that timestamp
                     
                     # CAP height
-                    hatpro_cap_path = get_obs_cap_path("hatpro")
-                    if os.path.exists(hatpro_cap_path):
-                        with xr.open_dataset(hatpro_cap_path) as cap_ds:
-                            cap_height = cap_ds["cap_height"].sel(time=ts, method="nearest").item()
+                    if hatpro_cap_da is not None:
+                        cap_height = hatpro_cap_da.sel(time=ts, method="nearest").item()
                         if not np.isnan(cap_height) and cap_height <= max_height:
                             idx = np.argmin(np.abs(height[valid] - cap_height))
                             key = f"hatpro_cap_{ts_str}"

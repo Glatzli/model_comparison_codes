@@ -26,29 +26,36 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
-    
-    if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
-        # Calculate wind speed and/or direction from u and v components
-        ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
-        ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
-        ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
-        ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
-    
-    if "p" in variables:
-        # Convert pressure from Pa to hPa
-        ds['p'] = (ds['p'] / 100.0) * units.hPa
-        ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
-    
-    if "th" in variables:
-        # calc pot temp
-        ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
-        ds["th"] = ds['th'].assign_attrs(units="K", description="potential temperature calced from p and temp")
-    
-    if "temp" in variables:
-        # convert temp to °C
-        ds["temp"] = (ds["temp"] - 273.15) * units.degC
-        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
-    
+    try:
+        if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
+            # Calculate wind speed and/or direction from u and v components
+            ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
+            ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+            ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
+            ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+    except Exception as e:
+        print(f"  ✗ Error calculating wind speed/direction: {e}")
+    try:
+        if "p" in variables:
+            # Convert pressure from Pa to hPa
+            ds['p'] = (ds['p'] / 100.0) * units.hPa
+            ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
+    except Exception as e:
+        print(f"  ✗ Error calculating pressure: {e}")
+    try:
+        if "th" in variables:
+            # calc pot temp
+            ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
+            ds["th"] = ds['th'].assign_attrs(units="K", description="potential temperature calced from p and temp")
+    except Exception as e:
+        print(f"  ✗ Error calculating potential temperature: {e}")
+    try:
+        if "temp" in variables:
+            # convert temp to °C
+            ds["temp"] = (ds["temp"] - 273.15) * units.degC
+            ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
+    except Exception as e:
+        print(f"  ✗ Error calculating temperature: {e}")
     # ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
     
     # calculate relative humidity
@@ -164,7 +171,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
 
 
 def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
-    icon_full, vars_to_calculate = read_full_icon(variant=variant)
+    icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
     
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
     icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
@@ -221,8 +228,8 @@ if __name__ == '__main__':
     icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
                                        variables=["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"],
                                        height_as_z_coord=True)  # ["p", "temp", "th", "z", "z_unstag"]
-    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
-    #                                    variables=["p", "temp", "th", "rho", "z", "z_unstag"], height_as_z_coord=True)
+    icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
+                                       variables=["z", "z_unstag"])  # "p", "temp", "th", "rho",
     # icon_extent
     icon_point
     
