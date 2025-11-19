@@ -3,7 +3,7 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile line 688
+- change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile line 688 => only check HATPRO, radio looks good!
 - which measure for humidity? plot evtl dewpoint depression
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
@@ -20,9 +20,6 @@ ToDo:
 WRF z - WRF hgt = 10.6 (mean over chosen domain ), everywhere nearly equal (no difference between valley & mountain or slope!)
 AROME z - AROME hgt = 5.1 (mean), also everywhere equal
 ICON & ICON2TE equal (what a wonder...) -> plots work really fine!
-  
-- vertical plots:
-  works for ICON & WRF right, now with PCGP-selection!
 
 - is staggering applied really only for ICON and WRF?
 - check if depth of layer taken for VHD calculation is the same over ibk and hafelekar! Wenn es
@@ -304,6 +301,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
