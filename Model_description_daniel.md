@@ -3,6 +3,7 @@
 ## model overview
 
 - Radiosonde
+- HATPRO
 - AROME
 - ICON
 - ICON-2TE_BLM-GUF (same var's & setup as ICON)
@@ -21,7 +22,12 @@ changed to:
 - p [hPa]
 - geopot height renamed to z, dropped lat/lon & time
 
+## HATPRO
+original vars:
+temperature, absolute humidity [g/m^3] -> pressure dependent
 
+interpolate AROME values to HATPRO levels and used AROME pressure to calculate
+pot. temp, density and specific humidity (because we want to compare)
 
 ## AROME
 already improved:
