@@ -5,7 +5,8 @@ GOAL: till end of the year/mid Jan 1. draft of full thesis!
 ToDo: 
 - changed AROME height as z read in routine, need to change still for Icon, ...
 - change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile line 688 => only check HATPRO, radio looks good!
-- which measure for humidity? plot evtl dewpoint depression
+- Warning: Could not load Radiosonde: 'radiosonde_humidity' in plot_vertical_profiles -> Why?!
+- radiosonde_humidity not in dataset (line 377)
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
   	then mask where "dT" is < 0, take rolling window along height with min. 3 values => took mean to find consecutive negatives
@@ -302,6 +303,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
