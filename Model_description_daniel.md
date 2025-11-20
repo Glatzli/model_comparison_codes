@@ -2,11 +2,13 @@
 
 ## model overview
 
+- Radiosonde
 - AROME
 - ICON
 - ICON-2TE_BLM-GUF (same var's & setup as ICON)
 - UKMO
 - WRF_ACINN
+
 
 ## Radiosonde
 original vars:
@@ -17,7 +19,7 @@ changed to:
 - temp [°C]
 - Td [°C]
 - p [hPa]
-- geopot height renamed to z, dropped lat/lon, time
+- geopot height renamed to z, dropped lat/lon & time
 
 
 
