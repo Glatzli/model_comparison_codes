@@ -11,6 +11,7 @@ model_folder = "D:/MSc_Arbeit/"
 data_folder = model_folder + "data/"
 # Plot directory (where to save the plots)
 dir_PLOTS = model_folder + "plots/"
+dir_topo_plots = dir_PLOTS + "topography_comparison/"
 
 # -------------------------------------------constants needed for calculations---------------------------------
 hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/4672313 hobo dataset, used for VHD calc
@@ -18,9 +19,10 @@ c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for 
 
 # coordinates of points used for Daniels' Analysis; all points that should include HATPRO plot (VHD) need "ibk" in name
 # heights in m from https://www.freemaptools.com/elevation-finder.htm
-ibk_villa = {"name": "ibk_villa", "lat": 47.259998, "lon": 11.384167,
-             "height": 575}  # same lat & lon of Ibk cosma already used: which
-# is for Ibk_Villa (2m temp recording)
+ibk_villa = {"name": "ibk_villa", "lat": 47.25971, "lon": 11.38420,
+             "height": 579}  # same lat & lon of Ibk cosma already used: which
+# is for Ibk_Villa (2m temp recording); changed point to coords of https://acinn-data.uibk.ac.at/pages/meteodat.html
+# now 4 m higher as Cosma's point (she had 575m ...)
 ibk_uni = {"name": "ibk_uni", "lat": 47.264, "lon": 11.385,
            "height": 612}  # hatpro, uni coords rounded to 3 digits after comma
 ibk_airport = {"name": "ibk_airport", "lat": 47.26, "lon": 11.34, "height": 577}
@@ -52,16 +54,19 @@ lat_min, lat_max = 46.5, 48.2
 lon_min, lon_max = 9.2, 13
 
 # -------------------------------------------------------------------------------------------------------------
-
-radiosonde_csv = f"{data_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
-radiosonde_edited = f"{data_folder}radiosonde_ibk_2017101603.csv"
-radiosonde_dataset = f"{data_folder}radiosonde_ibk_2017101603.nc"  # for same handling for plots & calcs  save
+radiosonde_folder = f"{data_folder}/Observations/Radiosonde/"
+radiosonde_csv = f"{radiosonde_folder}/2017101603_bufr309052.csv"  # radiosonden aufstieg at innsbruck airport
+# deprecated: radiosonde_edited = f"{radiosonde_folder}radiosonde_ibk_2017101603.csv"  # calculated pot. temp & rho
+# from other vars
+radiosonde_dataset = f"{radiosonde_folder}radiosonde_ibk_2017101603.nc"  # for same handling for plots & calcs  save
 # Radiosonde as dataset
-radiosonde_dataset_height_as_z = f"{data_folder}radiosonde_ibk_2017101603_height_as_z.nc"  # same as before,
+# radiosonde_dataset_height_as_z = f"{radiosonde_folder}radiosonde_ibk_2017101603_height_as_z.nc"  # deprecated,
+# use fct in réad_in_hatpro_radiosonde.py
 # only geopot. height instead of "height values"
-radiosonde_smoothed = f"{data_folder}radiosonde_ibk_smoothed.nc"
+# deprecated? radiosonde_smoothed = f"{radiosonde_folder}radiosonde_ibk_smoothed.nc"
 
-all_model_topographies = f"{model_folder}/AROME/all_model_topographies.nc"  # all topography-values extracted (lowest lvl)
+all_model_topographies = f"{model_folder}/AROME/all_model_topographies.nc"  # all topography-values extracted (lowest
+# lvl)
 # of geopot. height + "hgt" - vars for AROME & WRF and put into one file
 JSON_TIROL = f"{data_folder}/Height/gadm41_AUT_1.json"  # tirol json file
 DEMFILE_CLIP = f"{data_folder}/Height/dem_clipped.tif"  # dem file (höhe)
@@ -126,9 +131,13 @@ lidar_obs_folder = f"{data_folder}/Observations/LIDAR"
 hatpro_folder = f"{data_folder}/Observations/HATPRO_obs/"  # nicht vorhanden?
 hatpro_merged = hatpro_folder + "hatpro_merged.nc"
 hatpro_smoothed = hatpro_folder + "hatpro_smoothed.nc"
-hatpro_interp_arome = hatpro_folder + "hatpro_interp_arome.nc"
-hatpro_interp_arome_height_as_z = hatpro_folder + "hatpro_interpolated_arome_height_as_z.nc"
+hatpro_calced_vars = hatpro_folder + "hatpro_calced_vars_from_arome_p_height_as_z.nc"
 hatpro_with_cap_height = hatpro_folder + "hatpro_interpolated_arome_height_as_z_with_cap_height.nc"
+
+# deprecated ones?
+# hatpro_interp_arome = hatpro_folder + "hatpro_interpolated_arome.nc"
+# hatpro_interp_arome_height_as_z = hatpro_folder + "hatpro_interpolated_arome_height_as_z.nc"
+
 
 # Define colors for the models to use the same in each plot:
 colordict = {"HOBOS": "purple", "ICON": "orange", "RADIOSONDE": "black", "AROME": "red", "HATPRO": "gray",

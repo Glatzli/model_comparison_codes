@@ -32,7 +32,8 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
             ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
             ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
             ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
-            ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+            ds["udir"] = ds['udir'].assign_attrs(units="deg",
+                                                 description="wind direction calced from u & v using MetPy")
     except Exception as e:
         print(f"  ✗ Error calculating wind speed/direction: {e}")
     try:
@@ -142,7 +143,8 @@ def unstagger_z_domain(ds):
     return ds
 
 
-def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"], height_as_z_coord=False):
+def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"],
+                          height_as_z_coord="direct"):
     """
     Read ICON 3D model at a fixed point, edit for consistent names etc:
     1. read full icon ds, 2. select given point, 3. rename vars so that given var string are the consistent names with
@@ -153,7 +155,10 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
     :param lon: longitude of the point
     :param variant: model variant, either "ICON" or "ICON2TE"
     :param variables: list of variables to select from the dataset with the consistent names-> document in github readme
-    :param height_as_z_coord: set unstaggered geopot. height as values for the height coordinate
+    :param height_as_z_coord: How to set the vertical coordinate:
+        - "direct": Use geopotential height and set it directly as vertical coord.
+        - "above_terrain": Height above terrain at this point
+        - False/None: Keep original model level indexing
     """
     icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
     icon_point = icon_full.sel(lat=lat, lon=lon, method="nearest")
@@ -162,8 +167,36 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
         icon_point = unstagger_z_point(ds=icon_point)
     icon_point = convert_calc_variables(icon_point, variables=variables, vars_to_calculate=vars_to_calculate)
     icon_selected = icon_point[variables]  # select only the variables wanted
-    if height_as_z_coord:  # set unstaggered geopot. height as height coord. values
+    
+    lowest_model_lvl_above_terrain = 10  # m, constant height of lowest model level above terrain
+    if height_as_z_coord == "direct":
+        # set unstaggered geopot. height as height coord. values
+        if "z" not in icon_selected:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
         icon_selected["height"] = icon_selected.z_unstag.values[::-1]
+        icon_selected["height"] = icon_selected["height"].assign_attrs(units="m",
+                                                                       description="unstaggered geometric height amsl")
+    
+    elif height_as_z_coord == "above_terrain":
+        # Calculate height above terrain at this point (when lowest level is subtracted, we would be on the terrain,
+        # therefore
+        # add terrain height again...)
+        if "z" not in icon_selected:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
+        z_lowest_model_lvl = icon_selected.z_unstag.sel(height=90)
+        # geopot. height of lowest model level (90 cause it's not flipped...)
+        icon_selected["height"] = icon_selected.z_unstag.values[
+                                      ::-1] - z_lowest_model_lvl.values + lowest_model_lvl_above_terrain
+        icon_selected["height"] = icon_selected["height"].assign_attrs(units="m",
+                                                                       description="unstaggered geometric height "
+                                                                                   "above terrain")
+    
+    elif height_as_z_coord not in [False, None]:
+        # Warn if invalid value provided, but continue with default behavior
+        print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
+              f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
     
     icon_selected = icon_selected.compute()
     icon_selected = reverse_height_indices(ds=icon_selected)
@@ -226,10 +259,10 @@ if __name__ == '__main__':
     # calc of slope I need .tif file
     
     icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
-                                       variables=["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"],
-                                       height_as_z_coord=True)  # ["p", "temp", "th", "z", "z_unstag"]
-    icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
-                                       variables=["z", "z_unstag"])  # "p", "temp", "th", "rho",
+                                       variables=["z", "z_unstag", "temp"], height_as_z_coord="above_terrain")
+    # ["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"]
+    # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
+    #                                   variables=["z", "z_unstag"])  # "p", "temp", "th", "rho",
     # icon_extent
     icon_point
     

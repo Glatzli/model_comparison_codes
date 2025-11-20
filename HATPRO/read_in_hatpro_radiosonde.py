@@ -5,7 +5,9 @@ The radiosonde data is calculated/transformed & saved in different formats (last
 1. original, CSV-data: 2017101603_bufr309052.csv
 2. deleted unused data, CSV: radiosonde_ibk_2017101603.csv
 3. with calculated th & rho, transformed to dataset (with "height 0, 1, 2, ...") as z coord
-4. with geopot. height as z coordinate
+
+Function read_radiosonde_dataset reads the radiosonde dataset with 3 different height options (as in the models, see fct
+description):
 
 The problem with this code is now that I used timerseries with the model levels as vertical coordinate => would need to
 change the indexing for the code to work (to interpolate the radiosonde data f.e...)
@@ -16,7 +18,6 @@ change the indexing for the code to work (to interpolate the radiosonde data f.e
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import metpy.calc as mpcalc
-import numpy as np
 import pandas as pd
 import xarray as xr
 from metpy.units import units
@@ -28,19 +29,30 @@ mpl.use('Qt5Agg')
 
 def calc_vars_hatpro_w_pressure(ds):
     """
-    calculate pot temp & density of HATPRO data with added pressure (either from raso or a model)
+    calculate pot temp & density of HATPRO data with added pressure
+    formerly also used to compute it for Raso pressure and that of a model, but sens. analysis showed no difference...
+    Also we have absolute humidity by default from HATPRO, not spec. humidity as for models => convert
     :param ds:
     :return:
     """
-    ds["th_model"] = mpcalc.potential_temperature(ds["p_model"] * units.hPa,
-                                                  ds["temp"] * units("degC"))  # using model p
-    ds["th_raso"] = mpcalc.potential_temperature(ds["p_raso"] * units.hPa, ds["temp"] * units("degC"))  # using raso p
+    ds["th"] = mpcalc.potential_temperature(ds["p"] * units.hPa, ds["temp"] * units("degC"))  # using model p
+    ds["th"] = ds['th'].assign_attrs(units="K", description="pot. temp calced from HATPRO temp & AROME p with metpy")
+    
+    # ds["th_model"] = mpcalc.potential_temperature(ds["p_model"] * units.hPa,
+    #                                               ds["temp"] * units("degC"))  # using model p
+    # ds["th_raso"] = mpcalc.potential_temperature(ds["p_raso"] * units.hPa, ds["temp"] * units("degC"))  # using raso p
+    
     # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
-    ds["rho_model"] = (ds["p_model"] * 100) / (287.05 * (ds["temp"] + 273.15))
-    ds["rho_raso"] = (ds["p_raso"] * 100) / (287.05 * (ds["temp"] + 273.15))
-    ds["rho_model"] = ds['rho_model'].assign_attrs(units="kg/m^3",
-                                                   description="air density calced from HATPRO temp & model p with "
-                                                               "ideal gas law")
+    ds["rho"] = (ds["p"] * 100) / (287.05 * (ds["temp"] + 273.15))
+    # ds["rho_model"] = (ds["p_model"] * 100) / (287.05 * (ds["temp"] + 273.15))
+    # ds["rho_raso"] = (ds["p_raso"] * 100) / (287.05 * (ds["temp"] + 273.15))
+    ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
+                                       description="air density calced from HATPRO temp & AROME p with ideal gas law")
+    # convert absolute humidity [g/m^3] to specific humidity [kg/kg]
+    ds["q"] = ds["absolute_humidity"] / (ds["rho"] * 1000)
+    ds["q"] = ds['q'].assign_attrs(units="kg/kg",
+                                   description="spec. humidity calculated from absolute humidity (HATPRO) & density ("
+                                               "interp. AROME)")
     ds = ds.metpy.dequantify()
     return ds
 
@@ -54,10 +66,13 @@ def calc_vars_radiosonde(df):
     df["th"] = mpcalc.potential_temperature(pressure=(df['p'].values) * units.mbar,
                                             temperature=(df["temp"].values + 273.15) * units.kelvin)
     df["rho"] = (df["p"].values * 100) / (287.05 * (df["temp"].values + 273.15))
+    df["q"] = mpcalc.specific_humidity_from_dewpoint(pressure=df["p"].values * units.hPa,
+                                                     dewpoint=df["Td"].values * units.degC)
     return df
 
 
-def calc_vars_hatpro_radio_wrf(radio_wrf_interp, hatpro_arome_interp, hatpro_icon_interp, hatpro_wrf_interp, arome, wrf):
+def calc_vars_hatpro_radio_wrf(radio_wrf_interp, hatpro_arome_interp, hatpro_icon_interp, hatpro_wrf_interp, arome,
+                               wrf):
     """
     deprecated?
     adds pressure either from the radiosonde data or a model to the HATPRO data
@@ -155,26 +170,31 @@ def merge_save_hatpro():
 
 def interpolate_hatpro_arome(hatpro, arome):
     """
-    interpolate the HATPRO data to the AROME model levels and calculate the potential temperature & density with
-    AROME pressure and save it as a netcdf file
+    interpolate the AROME data to the HATPRO model levels to add pressure levels and calculate the potential
+    temperature & density with AROME pressure, save it as netcdf file
+    :param hatpro: merged HATPRO dataset (temp & humidity, raw data w. 10 min timesteps)
+    :param arome: AROME timeseries dataset at PCGP around HATPRO station (above_terrain height as z coord,
+    lowest lvl is at 5.1 m...)
     :return:
     """
     hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
     hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
+    hatpro_sel = hatpro_sel.rename_vars({"humidity": "absolute_humidity"})  # rename for clarity: it's abs. humidity!
     
-    # try to use pressure from AROME model to calc pot temp from hatpro data...
-    arome[
-        "height_above_hatpro"] = arome.z - 612  # the HATPRO station is at 612 m a.s.l., models always habve height
-    # abor m.s.l
-    # lowest lvl of AROME is still 30m above HATPRO...
-    hatpro_interp = hatpro_sel.interp(height=arome.height_above_hatpro)  # interpolate HATPRO to AROME lvls
-    hatpro_interp = hatpro_interp.assign(z=(("time", "height"), arome.height_above_hatpro.values))  # add geopot height
-    # as variable similar to models
+    # use pressure from AROME model to calc pot temp from hatpro data...
+    # first bring HATPRO height lvl to height above m.s.l.:
+    hatpro_sel["height"] = hatpro_sel.height + confg.ibk_uni["height"] - confg.ibk_villa[
+        "height"]  # = 33m height difference between HATPRO station and normal ibk level
     
-    hatpro_interp["p"] = arome.p  # use AROME pressure in HATPRO data, hatpro also get
-    # up to height = 75 valid values, above only NaNs, cause AROME data goes farther up...
-    hatpro = calc_vars_hatpro_w_pressure(ds=hatpro_interp)
-    hatpro.to_netcdf(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
+    # is it better to interpolate HATPRO to AROME or vice versa? AROME has lowest lvl at 5.1 m, which is far below
+    # lowest HATPRO lvl at 33 m above topography...
+    # => interpolate AROME values to HATPRO levels to get pressure...
+    arome_interp = arome.interp(height=hatpro_sel.height)
+    hatpro_sel["p"] = arome_interp.p
+    
+    # up to height = 75 valid values, above only NaNs, cause AROME data goes further up...
+    hatpro_w_pressure = calc_vars_hatpro_w_pressure(ds=hatpro_sel)
+    hatpro_w_pressure.to_netcdf(confg.hatpro_calced_vars)
 
 
 def interpolate_hatpro_radiosonde(hatpro, radio, arome, icon, wrf):
@@ -228,6 +248,8 @@ def interpolate_hatpro_radiosonde(hatpro, radio, arome, icon, wrf):
 
 def smooth_radiosonde(radio):
     """
+    deprecated -> chose cap height manually...
+    
     Smoothes radiosonde data with rolling mean over specified window size.
     Needed for computing CAP height (which is determined by 3 levels of dT/dz < 0 K/m).
     With raw data CAP would be calculated too low (due to small scale "noise").
@@ -247,10 +269,9 @@ def smooth_radiosonde(radio):
     radio_smoothed.to_netcdf(confg.radiosonde_smoothed)
 
 
-
 def edit_vars(df):
     """
-
+    convert temp to degC, dewpoint to degC, pressure to hPa, rename variables and drop unused vars
     :param df:
     :return:
     """
@@ -266,6 +287,7 @@ def edit_vars(df):
 def read_radiosonde_csv(filepath):
     """
     read in original radiosonde data
+    and edit varibles to uniform units & names
     :param filepath:
     :return:
     """
@@ -288,7 +310,11 @@ def convert_to_dataset(radio):
     #     lat      float32 4B 47.28
     #     lon      float32 4B 11.4
     ds = xr.Dataset({col: ("height", radio[col].values[1::]) for col in radio.columns},
-        coords={"height": radio.index.values[1::]})
+                    coords={"height": radio.index.values[1::]})
+    ds["th"] = ds['th'].assign_attrs(units="K", description="pot. temp calced from p & temp with metpy")
+    ds["q"] = ds['q'].assign_attrs(units="kg/kg", description="spec. hum. calced from p & Td with metpy")
+    ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
+                                       description="air density calced from p & temp with ideal gas law")
     return ds
 
 
@@ -371,6 +397,26 @@ def interpolate_hatpro(arome, icon, wrf):
     hatpro.to_netcdf(confg.hatpro_interp_arome_height_as_z)
 
 
+def read_radiosonde_dataset(height_as_z_coord: str | bool = "direct"):
+    """
+    read in radiosonde dataset with geopot. height as z coordinate either direct or as height above terrain (lowest
+    point
+    1m above ground)
+    :param height_as_z_coord: either "direct", "above_terrain" or False, None (then orig. indices are height var)
+    :return:
+        radiosonde dataset with geopot. height as z coordinate either amsl, above terrain or original height indices
+    """
+    radio = xr.open_dataset(confg.radiosonde_dataset)
+    if height_as_z_coord == "direct":
+        radio["height"] = radio["z"]
+        radio["height"] = radio["height"].assign_attrs(units="m", description="geopotential height amsl")
+    elif height_as_z_coord == "above_terrain":
+        radio["height"] = radio.z - radio.isel(height=0).z + 1
+        radio["height"] = radio["height"].assign_attrs(units="m", description="geopotential height above terrain")
+    
+    return radio.compute()
+
+
 if __name__ == '__main__':
     """
     yes, there's some legacy code in here for transforming & saving hatpro & radiosonde data that I used only once,
@@ -378,39 +424,35 @@ if __name__ == '__main__':
     is now not needed anymore. But I left it in here for documentation purposes."""
     
     # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
-    
     hatpro = xr.open_dataset(confg.hatpro_merged)
     hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
     # hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
     # hatpro_sel["height"] = hatpro_sel.height + 612  # the HATPRO station is at 612 m a.s.l., models always have
     # height above m amsl.
     
-    # arome = xr.open_dataset(
-    #     confg.dir_AROME + "/timeseries/" + "arome_ibk_uni_timeseries_height_as_z.nc")  # read PCGP around HATPRO for
-    # comparing
+    arome = xr.open_dataset(confg.dir_AROME + "/timeseries/" + "arome_ibk_uni_timeseries_height_as_z.nc")
+    # read PCGP around HATPRO for comparing
+    
     # icon = xr.open_dataset(confg.icon_folder_3D + "/timeseries/" + "/icon_ibk_uni_timeseries_height_as_z.nc")
     # um = xr.open_dataset(confg.ukmo_folder + "/timeseries/" + "um_ibk_uni_timeseries_height_as_z.nc")
     # wrf = xr.open_dataset(confg.wrf_folder + "/timeseries/" + "/wrf_ibk_uni_timeseries_height_as_z.nc")
     # interpolate_hatpro_arome(hatpro, arome)
-    radio = xr.open_dataset(
-        confg.radiosonde_dataset_height_as_z)  # for the radiosonde data the first (height=0) data point is not valid?!
     
     # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],
-    #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,
+    #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,  #  #  #  #  #
     #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)
     
-    # smoothing radiosonde and save it:
-    radio_smoothed = smooth_radiosonde(radio)
-    radio_smoothed
+    # (not used anymore) smoothing radiosonde and save it: # radio_smoothed = smooth_radiosonde(radio)
     
-    # lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset  #
-    # radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to
-    # uniform  # units, drop not needed vars  # radio.to_csv(confg.radiosonde_edited, index=False)  # and saved as
-    # dataframe
+    """
+    # lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset
+    radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to
+    # uniform units, drop not needed vars
     
-    # modify radiosonde data (calc th & rho) and save it as dataset  # radio = pd.read_csv(confg.radiosonde_edited)
-    # radio = calc_vars_radiosonde(df = radio)  # radio_ds = convert_to_dataset(radio)  # radio_ds.to_netcdf(
-    # confg.radiosonde_dataset)
+    radio = calc_vars_radiosonde(df=radio_orig)  # calc pot temp, rho & q
+    radio_ds = convert_to_dataset(radio)  # modify radiosonde data (calc th & rho) and save it as dataset
+    radio_ds.to_netcdf(confg.radiosonde_dataset)  # save it as .nc file (dataset)
+    """
     
-    # save radiosonde with geopot. height as z coordinate  # radio = xr.open_dataset(confg.radiosonde_dataset)  #
-    # radio["height"] = radio["z"]  # radio.to_netcdf(confg.radiosonde_dataset_height_as_z)
+    radio = read_radiosonde_dataset(height_as_z_coord="above_terrain")
+    radio

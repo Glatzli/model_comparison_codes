@@ -130,17 +130,16 @@ def cap_height_profile(ds: xr.Dataset, consecutive: int = 3, model: str = None) 
     if "height" not in ds.coords:
         raise ValueError("Dataset must have 'height' as a coordinate")
     
-    height_coord = ds.coords["height"]
-    
     # Find where dT is negative for consecutive levels with model-specific shift
     neg_consecutive = find_consecutive_negative_mask(ds["dT"], consecutive=consecutive, model=model)
     
     # For each profile (or timestep), find the LOWEST height where condition holds
-    height_masked = height_coord.where(neg_consecutive)
+    height_masked = ds.coords["height"].where(neg_consecutive)
     cap_height = height_masked.min(dim="height", skipna=True)
     cap_height.name = "cap_height"
+    
     cap_height.attrs["description"] = f"lowest height where dT/dz < 0 for {consecutive} consecutive levels"
-    cap_height.attrs["units"] = height_coord.attrs.get("units", "m")
+    cap_height.attrs["units"] = ds.coords["height"].attrs.get("units", "m")
     
     return ds.assign(cap_height=cap_height)
 

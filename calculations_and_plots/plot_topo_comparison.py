@@ -148,10 +148,14 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None):
         topo_data: Dictionary with topography data for each model
         save_path: Path to save the figure
     """
+    # Filter out AROME_hgt and WRF_hgt - only show _z values (hgt & z vals are compared in extra plot...)
+    filtered_topo_data = {k: v for k, v in topo_data.items()
+                          if k not in ["AROME_hgt", "WRF_hgt"]}
+    
     # Define plot extent from confg (Hafelekar extent)
     
     # Count number of plots
-    n_plots = len(topo_data)
+    n_plots = len(filtered_topo_data)
     
     # Create figure with subplots (3 columns, 2 rows)
     n_cols = 3
@@ -173,8 +177,8 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None):
     print(f"\nTopography range: {vmin:.1f} m - {vmax:.1f} m")
     
     # Plot each model
-    for idx, (model_name, data) in enumerate(topo_data.items()):
-        ax = axes[idx - 1]
+    for idx, (model_name, data) in enumerate(filtered_topo_data.items()):
+        ax = axes[idx]
         
         # Select data within extent
         # data_subset = data.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
@@ -240,7 +244,7 @@ def plot_topography_comparison_main(day: int = 15, hour: int = 14, minute: int =
     topo_data = check_read_topographies(day=day, hour=hour, minute=minute)
     
     # Create save path
-    save_path = os.path.join(confg.dir_PLOTS, "topography", "topo_comparison.png")
+    save_path = os.path.join(confg.dir_topo_plots, "topo_comparison.png")
     
     # Create plot
     fig, axes = plot_topography_comparison(topo_data, save_path=save_path)
@@ -426,7 +430,7 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
     fig.suptitle('Topography Differences Between Models at 2017-10-15 14:00 UTC', fontsize=14, fontweight='bold',
                  y=0.98)
     
-    plt.savefig(save_path, dpi=600, bbox_inches='tight')
+    plt.savefig(save_path, dpi=400, bbox_inches='tight')
     print(f"\n✓ Figure saved to: {save_path}")
     
     return fig, axes
@@ -435,7 +439,7 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
 def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path: str = None):
     """
     Create a comparison plot for internal model topography differences (z vs hgt) and ICON vs ICON2TE.
-    Plots AROME_z - AROME_hgt, WRF_z - WRF_hgt, and ICON - ICON2TE side by side.
+    Plots AROME_z - AROME_hgt, WRF_z - WRF_hgt side by side.
     
     Args:
         diff_data: Dictionary with difference fields
@@ -443,7 +447,8 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
         save_path: Path to save the figure
     """
     # dict for internal model differences (hgt) and ICON-ICON2TE (again key and then data...)
-    internal_diffs = {k: v for k, v in diff_data.items() if ("hgt" in k or "ICON2TE" in k)}
+    internal_diffs = {k: v for k, v in diff_data.items() if k in ['AROME_z - AROME_hgt', 'WRF_z - WRF_hgt']}
+
     
     if not internal_diffs:
         print("\n✗ No internal model differences found.")
@@ -455,7 +460,7 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
     cmap = diverging_hcl("Blue-Red 2", l=[30, 90], c=80).cmap()
     
     # Create figure with 1 row, 3 columns
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5), subplot_kw={'projection': ccrs.PlateCarree()})
+    fig, axes = plt.subplots(1, 2, figsize=(18, 5), subplot_kw={'projection': ccrs.PlateCarree()})
     
     # Flatten axes array
     axes = np.atleast_1d(axes).flatten()
@@ -529,10 +534,10 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
     cbar.set_label('Height Difference [m]', fontsize=12)
     
     # Overall title
-    fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC',
-                fontsize=13, fontweight='bold', y=0.96)
+    # fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC',
+    #             fontsize=13, fontweight='bold', y=0.96)
     
-    plt.savefig(save_path, dpi=600, bbox_inches='tight')
+    plt.savefig(save_path, dpi=400, bbox_inches='tight')
     print(f"\n✓ Figure saved to: {save_path}")
     
     return fig, axes
@@ -645,7 +650,7 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
                 fontsize=13, fontweight='bold', y=0.96)
     
     # Save figure
-    plt.savefig(save_path, dpi=600, bbox_inches='tight')
+    plt.savefig(save_path, dpi=400, bbox_inches='tight')
     print(f"\n✓ Figure saved to: {save_path}")
     
     return fig, axes

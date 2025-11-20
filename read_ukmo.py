@@ -195,16 +195,49 @@ def read_ukmo(variables=["p", "temp", "th", "rho", "z"]):
     return data, vars_to_calculate
 
 
-def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="True"):
-    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
+def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="direct"):
+    """
+    Read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
+    
+    :param lat: Latitude of the fixed point (default: Innsbruck University).
+    :param lon: Longitude of the fixed point (default: Innsbruck University).
+    :param variables: List of variables to include in the dataset
+    :param height_as_z_coord: How to set the vertical coordinate:
+        - "direct": Use geopotential height and set it directly as vertical coord.
+        - "above_terrain": Height above terrain at this point
+        - False/None: Keep original model level indexing
+    :return: xarray.Dataset with selected variables at the specified point
+    :raises ValueError: If 'z' is not in dataset when height_as_z_coord is set
     """
     data, vars_to_calculate = read_ukmo(variables=variables)
     data = data.sel(lat=lat, lon=lon, method="nearest")  # selects lat, lon
     data = convert_calc_variables(data, vars_to_calc=vars_to_calculate)
     data = data[variables]  # subset to have only the variables wanted before computing
-    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
-        data["height"] = data.z.isel(time=slice(4, 100)).mean(dim="time").values
+    
+    time_idx = 5  # skips first 2 hours of model initialization
+    lowest_model_lvl_above_terrain = 10.0  # m, constant height of lowest model level above terrain (for UM assume 10, as
+    # this was the target value)
+    
+    if height_as_z_coord == "direct":
+        # set geopotential height directly as vertical coordinate
+        if "z" not in data:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. ")
+        data["height"] = data.z.isel(time=time_idx)
+        data["height"] = data["height"].assign_attrs(units="m", description="geopotential height amsl")
+    
+    elif height_as_z_coord == "above_terrain":
+        # Calculate height above terrain at this point
+        if "z" not in data:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. ")
+        z_lowest_model_lvl = data.z.isel(time=time_idx).sel(height=1)  # geopot. height of lowest model level
+        data["height"] = data.z.isel(time=time_idx) - z_lowest_model_lvl + lowest_model_lvl_above_terrain
+        data["height"] = data["height"].assign_attrs(units="m", description="geopotential height above model terrain")
+    
+    elif height_as_z_coord not in [False, None]:
+        # Warn if invalid value provided, but continue with default behavior
+        print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
+              f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
 
     return data.compute()
 
@@ -321,7 +354,7 @@ if __name__ == '__main__':
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
 
     um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["p", "temp", "th", "z"], height_as_z_coord=True)  # , "hgt" , "rho"
+                               variables=["p", "temp", "th", "z"], height_as_z_coord="above_terrain")  # , "hgt" , "rho"
     # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])
     um
 

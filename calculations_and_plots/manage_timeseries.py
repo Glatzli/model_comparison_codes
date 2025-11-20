@@ -25,7 +25,7 @@ import read_wrf_helen
 from calculations_and_plots.calc_vhd import read_dems_calc_pcgp
 
 # Variables needed for all models
-variables = ["udir", "wspd", "q", "p", "th", "temp", "hgt", "z", "z_unstag"]
+variables = ["udir", "wspd", "q", "p", "th", "temp", "z", "z_unstag"]
 
 # All point locations defined in confg.py
 ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley",
@@ -126,7 +126,7 @@ def load_timeseries(model: str, point_name: str) -> xr.Dataset | None:
 
 
 def read_fresh_timeseries(model: str, point: dict, point_name: str, variables_list: list,
-                          height_as_z_coord: bool = True) -> xr.Dataset | None:
+                          height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
     """
     Read fresh timeseries data from model output files.
     
@@ -174,7 +174,7 @@ def read_fresh_timeseries(model: str, point: dict, point_name: str, variables_li
 
 
 def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_list: list = variables,
-                            height_as_z_coord: bool = True) -> xr.Dataset | None:
+                            height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
     """
     Load timeseries from saved file if it exists, otherwise read fresh data and save it.
     
@@ -188,7 +188,7 @@ def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_
         point: Dictionary with 'lat' and 'lon' keys
         point_name: Name of the point location (from confg.py)
         variables_list: List of variable names to read (default: uses global variables list)
-        height_as_z_coord: Whether to use height as z-coordinate (default: True)
+        height_as_z_coord: same as in read in functions...
     
     Returns:
         xarray Dataset with timeseries data, or None if loading/reading fails

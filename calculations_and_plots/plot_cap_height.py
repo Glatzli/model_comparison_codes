@@ -19,6 +19,7 @@ import plotly.graph_objects as go
 import xarray as xr
 from colorspace import qualitative_hcl
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 
 import confg
 from calculations_and_plots.calc_cap_height import cap_height_profile
@@ -77,7 +78,7 @@ def compute_cap_for_point(model: str, point: dict, point_name: str, timestamps: 
     
     # Compute CAP height using the same function as plot_vertical_profiles
     try:
-        ds_with_cap = cap_height_profile(ds_selected, consecutive=3, model=model)
+        ds_with_cap = cap_height_profile(ds_selected, consecutive=3, model=model, subtract=True)
         cap_height_da = ds_with_cap["cap_height"]
     except Exception as e:
         print(f"    Warning: Could not compute CAP height for {model} at {point_name}: {e}")
@@ -134,7 +135,7 @@ def compute_cap_all_points_all_models(point_names: List[str], timestamps: List[s
 
 
 def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArray]],
-                                        point_names: List[str]) -> go.Figure:
+                                        point_names: List[str], ymin: int = 0, ymax: int=600) -> go.Figure:
     """
     Create small multiples plot of CAP height timelines for multiple points.
     
@@ -199,7 +200,7 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
     for i in range(1, n_rows + 1):
         for j in range(1, n_cols + 1):
             # Set uniform y-axis range
-            fig.update_yaxes(range=[500, 1420], row=i, col=j)
+            fig.update_yaxes(range=[ymin, ymax], row=i, col=j)
             # Set uniform x-axis range: 14:00 on 15th to 10:00 on 16th
             fig.update_xaxes(range=[np.datetime64("2017-10-15T14:00"), np.datetime64("2017-10-16T10:00")], row=i, col=j)
             # Only add axis labels to the first (upper left) subplot
@@ -241,13 +242,14 @@ def compute_and_plot_cap_all_points(start_time: str = "2017-10-15T12:00:00", end
     
     # Create small multiples plot
     print("\nCreating small multiples plot...")
-    fig = plot_cap_timeseries_small_multiples(cap_data, point_names)
+    fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=600)
     
     # Save plot
     html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
     os.makedirs(html_dir, exist_ok=True)
     html_path = os.path.join(html_dir, "cap_depth_all_points_small_multiples.html")
     fig.write_html(html_path)
+    fig.show(renderer="browser")
     
     print(f"\n{'=' * 70}")
     print(f"✓ Plot saved to: {html_path}")
@@ -258,3 +260,4 @@ if __name__ == "__main__":
     # Compute and plot CAP heights for all points
     compute_and_plot_cap_all_points(start_time="2017-10-15T12:00:00", end_time="2017-10-16T12:00:00",
         time_step_hours=0.5, max_height=5000)
+

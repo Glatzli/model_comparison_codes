@@ -131,37 +131,69 @@ def rename_vars(data):
     return data
 
 
-def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"],
-                              height_as_z_coord=False):  # , variable_list=
+def read_in_arome_fixed_point(lat: float = confg.ibk_uni["lat"], lon: float = confg.ibk_uni["lon"], method: str = "sel",
+                              variables: list = ["p", "th", "z"], height_as_z_coord: str | bool = "direct"):
     """
     Read the AROME model output for a fixed point at a specific location with full time range.
     The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
 
-    :param lat: Latitude of the fixed point.
-    :param lon: Longitude of the fixed point.
-    :param method: Selection method of point ('sel' or 'interp').
+    :param lat: Latitude of the fixed point (default: Innsbruck University).
+    :param lon: Longitude of the fixed point (default: Innsbruck University).
+    :param method: Selection method ('sel' for nearest neighbor, 'interp' for linear interpolation).
     :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v",
-    "w", "z", "rho"]
-        if "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables"
-    :param: height_as_z_coord: sets mean geopot. height as the coordinate in z (which simplifies some computations)
-    :return: Merged xarray Dataset
+        "w", "z", "rho"]. If "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables".
+        Default: ["p", "th", "z"]
+    :param height_as_z_coord: How to set the vertical coordinate:
+        - "direct": Use geopotential height and set it directly as vertical coord.
+        - "above_terrain": Height above terrain at this point
+        - False/None: Keep original model level indexing (1=lowest, 90=highest)
+    :return: xarray.Dataset with selected variables at the specified point
+    :raises ValueError: If method is invalid, or if 'z' is not in dataset when height_as_z_coord is set
     """
+    
+    # Validate method parameter
+    valid_methods = ["sel", "interp"]
+    if method not in valid_methods:
+        raise ValueError(f"Invalid method '{method}'. Must be one of {valid_methods}")
+    
+    # Read AROME data
     ds, vars_to_calculate = read_in_arome(variables=variables)
-    if method == "interp":  # interpolate to point, uses numpy/scipy interp routines...
+    
+    # Select point using specified method
+    if method == "interp":  # interpolate to point, uses numpy/scipy interp routines
         ds = ds.interp(latitude=lat, longitude=lon)
     elif method == "sel":  # selects nearest point
         ds = ds.sel(latitude=lat, longitude=lon, method="nearest")
     
+    # Rename variables and calculate derived variables
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
-    if height_as_z_coord:  # geopotential height above terrain height (skip first 2 hours due to possible model init.
-        # issues)
-        if not "z" in ds:
-            raise ValueError("z (geopotential height) not in dataset, can't set height as z coordinate.")
-        # need to read 2d variable at that point to get terrain height
-        arome2d_hgt = read_2D_variables_AROME(variableList=["hgt"], lat=lat, lon=lon)
-        # set geopot. height as vertical coordinate, subtract height of terrain at that point to compensate column depth
-        ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values - arome2d_hgt.isel(time=0).hgt.values
+    
+    time_idx = 5  # skips first 2 hours of model initialization
+    lowest_model_lvl_above_terrain = 5.1  # m, constant height of lowest model level above terrain
+    if height_as_z_coord == "direct":
+        # set geopotential height directly as vertical coordinate
+        if "z" not in ds:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
+        ds["height"] = ds.z.isel(time=time_idx)
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height amsl")
+    
+    elif height_as_z_coord == "above_terrain":
+        # Calculate height above terrain at this point (when lowest level is subtracted, we would be on the terrain, therefore
+        # add terrain height again...)
+        if "z" not in ds:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
+        z_lowest_model_lvl = ds.z.isel(time=time_idx).sel(height=1)  # geopot. height of lowest model level
+        ds["height"] = ds.z.isel(time=time_idx) - z_lowest_model_lvl + lowest_model_lvl_above_terrain
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height above terrain")
+    
+    elif height_as_z_coord not in [False, None]:
+        # Warn if invalid value provided, but continue with default behavior
+        print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
+              f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
+    
     ds = ds.compute()
     return ds
 
@@ -290,20 +322,18 @@ if __name__ == '__main__':
     #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
     #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    # arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-    #                                  variables=["p", "th", "z"],
-    #                                  height_as_z_coord=True)  # ["p", "temp", "th", "z", "udir", "wspd"]
-    arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
-                                     max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
-    arome
+    arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                                            variables=["p", "th", "z"],
+                                            height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
+    # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
+    #                                  max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
+    # arome
+    arome_point
     
-    # arome_point
-    
-    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
-    # arome_z
-    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
-    # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z
+    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +
+    # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
     
     # arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
     
-    extract_3d_variable_define_2D(variables=["hfs"])  # used to save u & v like 2D variables
+    # extract_3d_variable_define_2D(variables=["hfs"])  # used to save u & v like 2D variables
