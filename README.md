@@ -3,36 +3,17 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- changed AROME height as z read in routine, need to change still for Icon, ...
-- change smoothing for HATPRO and radiosonde! then continue w hatpro/radiosonde cap height calc check in plot_vertical_profile line 688 => only check HATPRO, radio looks good!
-- Warning: Could not load Radiosonde: 'radiosonde_humidity' in plot_vertical_profiles -> Why?!
-- radiosonde_humidity not in dataset (line 377)
+- Add LIDAR data to vertical profile plots
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
   	then mask where "dT" is < 0, take rolling window along height with min. 3 values => took mean to find consecutive negatives
   	then mask for 3 (our desired consecutive neg. values)
   	and (maybe) shift it to get the lowest index and not the highest (not completely uniform in the models)
   	=> mask first True for lowest level of min. 3 consecutive dT values along height, then search height -> cap_height
-	
-	for "real" cap height in model we'd need difference between model topography/lowest level geopotential height at that point
-		-> probably take only cap height-first level?
-  
-- subtract the terrain height before using geopot. height for the vertical variable:
-	WRF z - WRF hgt = 10.6 (mean over chosen domain ), everywhere nearly equal (no difference between valley & mountain or slope!)
-	AROME z - AROME hgt = 5.1 (mean), also everywhere equal
-	ICON & ICON2TE: 10m ()
-	UM: ???? m -> took also 10 m for consistency
-
-- is staggering applied really only for ICON and WRF?
-- check if depth of layer taken for VHD calculation is the same over ibk and hafelekar! Wenn es
-  	sehr untersch. ist, könnte VHD in Wipp valley point zB falsch sein, weil es über andere Tiefe berechnet...
 
 - timeseries of depth of CAP:
-  	How show the best over spatial extent if mountains give higher variables???
   	when temperature decreases over 3 consecutive model levels => take lowest height for cap height
-  	- needs to implemented correctly, is it working now in calc_cap_height?
   	- calculation of full domain "worked" in calc_vhd, but that's messy => change everything to calc_cap_height and plot_cap_height fct!
-		
   
   	(need to define a threshold -> paper: defined a threshhold for a stable layer
   		=> works only for a CBL!
@@ -44,16 +25,11 @@ ToDo:
   	smoothly increasing in pot temp. with height, there's no significant change in height...
   - probably I should plot vert. profile with wspds & specific humidity and not only pot. temp!
     	=> But how best?
-    	w MetPy I would need to change read in routines to have units included...
-    	=> write new function that reads & saves timeseries for every point with humidity & wind speed+direction (with units for metpy plots...)?
-    	and plots it as MetPy plot
-    1. first plot T! evtl plot dT/dz
-    3. plot gradient dtheta/dz to find threshhold? -> normally one uses dT/dz for stability and dtheta/dz only > 0, < 0 ...
+    
     or evtl gradient Richardson Number?
     and Metpy radiosonde plot...)
 
-	add wind speed & dir profiles to vert. plots as line & dot plots!
-	=> würde zunehmende CAP depth beim Taleingang erwarten => aufgrund stärkerer Inversionen um 04UTC
+- => würde zunehmende CAP depth beim Taleingang erwarten => aufgrund stärkerer Inversionen um 04UTC
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF
@@ -303,6 +279,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
