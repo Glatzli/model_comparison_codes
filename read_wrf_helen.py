@@ -165,7 +165,9 @@ def open_wrf_mfdataset(filepaths, variables):
 
 
 def salem_example_plots(ds):
-    """Make some example plots with salem plotting functions need to have some slice of lat lon
+    """
+    deprecated due to regridding
+    Make some example plots with salem plotting functions need to have some slice of lat lon
     Could be used in future to plot 2D maps with a certain variable and a certain extent
     """
     hmap = ds.salem.get_map(cmap='topo')
@@ -206,48 +208,74 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
     - A xarray Dataset with the original data and new columns:
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
-    
-    if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
-        # Calculate wind speed and/or direction from u and v components
-        ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
-        ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
-        ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
-        ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
-    
-    if "th" in ds:
-        # ds["th"] = ds["th"] + 300 # th is original the perturbation potential temp,
-        # WRF user manual says https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/output.html
-        ds["th"] = ds['th'].assign_attrs(units="K",
-                                         description="potential temperature, calced from pert. pot. temp + 300K")
-    
-    if "p" in ds:
-        # Convert pressure from Pa to hPa
-        ds["p"] = (ds["p"] / 100) * units.hPa
-        ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
+    R_dryair = 287.05  # J / kgK
+    try:
+        if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+            u_wind = ds["u"].compute() * units("m/s")
+            v_wind = ds["v"].compute() * units("m/s")
+            # Calculate wind speed and/or direction from u and v components
+            ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
+            ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+            ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
+            ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+    except Exception as e:
+        print(f"  ✗ Error calculating wind speed/direction: {e}")
+
+    try:
+        if "th" in ds:
+            # ds["th"] = ds["th"] + 300 # th is original the perturbation potential temp,
+            # WRF user manual says https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/output.html
+            ds["th"] = ds['th'].assign_attrs(units="K",
+                                             description="potential temperature, calced from pert. pot. temp + 300K")
+    except Exception as e:
+        print(f"  ✗ Error processing potential temperature: {e}")
+
+    try:
+        if "p" in ds:
+            # Convert pressure from Pa to hPa
+            ds["p"] = (ds["p"] / 100) * units.hPa
+            ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
+    except Exception as e:
+        print(f"  ✗ Error transforming pressure units: {e}")
+
+    try:
         if "temp" in vars_to_calc:
             # calculate temp in K
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
-            if "rho" in vars_to_calc:
-                ds["rho"] = (ds["p"] * 100) / (287.05 * ds[
-                    "temp"])  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
-                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
-                                                   description="air density, calced w R_dryair = 287.05")
-    
+    except Exception as e:
+        print(f"  ✗ Error calculating temperature: {e}")
+
+    try:
+        if "rho" in vars_to_calc:
+            ds["rho"] = (ds["p"] * 100) / (R_dryair * ds[
+                "temp"])  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
+            ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
+                                               description="air density, calced w R_dryair = 287.05 J/kgK")
+    except Exception as e:
+        print(f"  ✗ Error calculating density: {e}")
+
     # ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["p"], ds["temperature"], ds["q_mixingratio"] * units(
     # "kg/kg")) * 100  # for percent
     # ds["Td"] = mpcalc.dewpoint_from_relative_humidity(ds["temp"], ds["rh"])  # I don't need it now, evtl. there is
     # an error in calc of rh...
     
     ds = ds.metpy.dequantify()
-    if "temp" in vars_to_calc:
-        ds["temp"] = ds["temp"] - 273.15  # convert temp to °C
-        ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature")
-    
+
+    try:
+        if "temp" in vars_to_calc:
+            ds["temp"] = ds["temp"] - 273.15  # convert temp to °C
+            ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature")
+    except Exception as e:
+        print(f"  ✗ Error converting temperature to Celsius: {e}")
+
     return ds
 
 
 def create_ds_geopot_height_as_z_coordinate(ds):
     """
+    used for very first plot -> now deprecated, still need to look at it again to make plotting routine work w. new data
+    setup...
+
     create a new dataset with geopotential height as vertical coordinate for temperature for plotting
     :param ds:
     :return:
@@ -489,15 +517,14 @@ def read_wrf_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "r
 
 if __name__ == '__main__':
     import matplotlib
-    
     matplotlib.use('Qt5Agg')
     
     # wrf_plotting = create_ds_geopot_height_as_z_coordinate(wrf)
     # wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     # wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
-    
+    variables = ["udir", "wspd", "q", "p", "th", "rho", "temp", "z", "z_unstag"]
     wrf = read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["p", "temp", "th", "rho", "hgt", "z", "z_unstag"],
+                               variables=variables,  # ["p", "temp", "th", "rho", "hgt", "z", "z_unstag"],
                                height_as_z_coord="above_terrain")
     # wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hgt", "hfs", "p", "q", "temp", "th", "z",
     # "z_unstag"])

@@ -278,7 +278,7 @@ def edit_vars(df):
     df["temp"] = df["temperature"] - 273.15
     df["Td"] = df["dewpoint"] - 273.15
     df["p"] = df["pressure"] / 100  # pressure in hPa
-    df = df.rename(columns={"geopotential height": "z", "wind direction": "wind_dir", "windspeed": "wspd"})
+    df = df.rename(columns={"geopotential height": "z", "wind direction": "udir", "windspeed": "wspd"})
     df.drop(["time", "pressure", "latitude offset", "longitude offset", "temperature", "dewpoint"], axis=1,
             inplace=True)
     return df
@@ -444,7 +444,7 @@ if __name__ == '__main__':
     
     # (not used anymore) smoothing radiosonde and save it: # radio_smoothed = smooth_radiosonde(radio)
     
-    """
+
     # lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset
     radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to
     # uniform units, drop not needed vars
@@ -452,7 +452,7 @@ if __name__ == '__main__':
     radio = calc_vars_radiosonde(df=radio_orig)  # calc pot temp, rho & q
     radio_ds = convert_to_dataset(radio)  # modify radiosonde data (calc th & rho) and save it as dataset
     radio_ds.to_netcdf(confg.radiosonde_dataset)  # save it as .nc file (dataset)
-    """
+
     
     radio = read_radiosonde_dataset(height_as_z_coord="above_terrain")
     radio

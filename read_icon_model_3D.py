@@ -18,20 +18,22 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
 
-    Parameters:
-    - df: A xarray Dataset containing the columns 'p' for pressure in Pa
-          and 'th' for potential temperature in Kelvin.
+    :param:
+    ds: xarray Dataset containing the necessary input variables.
+    variables: List of variable names to be converted or calculated.
+    vars_to_calculate: Set of variable names that need to be calculated (if any).
 
     Returns:
-    - A xarray Dataset with the original data and new columns:
-      'pressure' in hPa and 'temperature' in degrees Celsius.
+    ds: xarray Dataset with added/converted variables.
     """
     try:
         if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
+            u_wind = ds["u"].compute() * units("m/s")
+            v_wind = ds["v"].compute() * units("m/s")
             # Calculate wind speed and/or direction from u and v components
-            ds["wspd"] = mpcalc.wind_speed(ds["u"] * units("m/s"), ds["v"] * units("m/s"))
+            ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
             ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
-            ds["udir"] = mpcalc.wind_direction(ds["u"].compute() * units("m/s"), ds["v"].compute() * units("m/s"))
+            ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
             ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                  description="wind direction calced from u & v using MetPy")
     except Exception as e:
@@ -57,15 +59,6 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
             ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
     except Exception as e:
         print(f"  ✗ Error calculating temperature: {e}")
-    # ds['qv'] = ds["qv"] * units("kg/kg")  # originally has kg/kg
-    
-    # calculate relative humidity
-    # ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['pressure'], ds["temp"], ds['qv']) * 100  # for
-    # percent
-    
-    # calculate dewpoint
-    # ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
-    #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
     
     return ds.metpy.dequantify()  # remove units from the dataset
 
@@ -259,7 +252,7 @@ if __name__ == '__main__':
     # calc of slope I need .tif file
     
     icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
-                                       variables=["z", "z_unstag", "temp"], height_as_z_coord="above_terrain")
+                                       variables=["z", "z_unstag", "temp", "wspd", "udir", "u", "v"], height_as_z_coord="above_terrain")
     # ["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"]
     # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
     #                                   variables=["z", "z_unstag"])  # "p", "temp", "th", "rho",

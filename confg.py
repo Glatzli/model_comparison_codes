@@ -111,6 +111,29 @@ icon2TE_folder_3D = f"{model_folder}ICON2TE"
 # absolute Path UKMO
 ukmo_folder = f"{model_folder}ukmo/"
 
+# ------------------------------colormaps for plotting ---------------------------------------------
+from colorspace import qualitative_hcl
+# --- Color scheme for models (consistent with plot_cap_height) ---
+qualitative_colors_temp = qualitative_hcl(palette="Dark 3").colors()
+qualitative_colors_wind = qualitative_colors_temp
+qualitative_colors_humidity = qualitative_hcl(palette="Dark 3").colors()
+
+# Model color mapping for temperature - ICON and ICON2TE share the same color
+model_colors_temp_wind = {"AROME": qualitative_colors_temp[0], "ICON": qualitative_colors_temp[2],
+                          "ICON2TE": qualitative_colors_temp[2], "UM": qualitative_colors_temp[4],
+                          "WRF": qualitative_colors_temp[6], "Radiosonde": qualitative_colors_temp[10],
+                          "HATPRO": qualitative_colors_temp[8]}
+
+# Model color mapping for humidity
+model_colors_humidity = {"AROME": qualitative_colors_humidity[0], "ICON": qualitative_colors_humidity[2],
+                         "ICON2TE": qualitative_colors_humidity[2], "UM": qualitative_colors_humidity[4],
+                         "WRF": qualitative_colors_humidity[6], "Radiosonde": qualitative_colors_humidity[10],
+                         "HATPRO": qualitative_colors_humidity[8]}
+
+# define linestyle for ICON2TE
+icon_2te_hatpro_linestyle = "dot"
+
+
 # -------------------------------Data and Plot paths -----------------------------------------------
 
 # EC stations

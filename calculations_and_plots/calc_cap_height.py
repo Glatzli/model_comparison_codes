@@ -74,7 +74,11 @@ def find_consecutive_negative_mask(dT: xr.DataArray, consecutive: int = 3, model
 
 
 def cap_height_region(ds: xr.Dataset, consecutive: int = 3, model: str = None) -> xr.Dataset:
-    """Compute CAP height per (time, lat, lon) grid cell.
+    """
+    deprecated? used single profile version only, maybe I don't need to plot cap height over the region because it's
+    hard/impossible to interpret.
+
+    Compute CAP height per (time, lat, lon) grid cell.
 
     Args:
         ds: Input dataset with 'dT' or 'temp', and 'z' or 'z_unstag'
