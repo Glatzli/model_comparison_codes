@@ -179,18 +179,18 @@ if __name__ == '__main__':
     # calc_and_plot_vhds_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], point_name=confg.ibk_uni["name"])  # old stuff, prob überflüssig
 
     # define point for which VHD timeline should be calculated
-    point = confg.telfs
-    """
+    point = confg.ibk_villa
+
     # via single point VHD calculation
-    (vhd_arome_single, vhd_icon_single, vhd_icon2te_single,
-     vhd_um_single, vhd_wrf_single, vhd_hatpro, vhd_radio) = calc_vhd_single_point_main(lat=point["lat"], lon=point["lon"],
-                                                                  point_name=point["name"])  # call main fct which calls others
+    vhd_arome_single, vhd_icon_single, vhd_icon2te_single, vhd_um_single, vhd_wrf_single, vhd_hatpro, vhd_radio \
+        = calc_vhd_single_point_main(lat=point["lat"], lon=point["lon"], point_name=point["name"])  # call main fct which calls others
     plot_vhds_point(vhd_arome=vhd_arome_single, vhd_icon=vhd_icon_single, vhd_icon2te=vhd_icon2te_single,
                     vhd_um=vhd_um_single, vhd_wrf=vhd_wrf_single, point_name=point["name"], vhd_origin="point",
                     vhd_hatpro=vhd_hatpro, vhd_radio=vhd_radio)
 
     # via full domain VHD calculation
-    vhd_arome_domain, vhd_icon_domain, vhd_icon2te_domain, vhd_um_domain, vhd_wrf_domain = select_pcgp_vhd(lat=point["lat"], lon=point["lon"])
+    vhd_arome_domain, vhd_icon_domain, vhd_icon2te_domain, vhd_um_domain, vhd_wrf_domain \
+        = select_pcgp_vhd(lat=point["lat"], lon=point["lon"])
     plot_vhds_point(vhd_arome=vhd_arome_domain, vhd_icon=vhd_icon_domain, vhd_icon2te=vhd_icon2te_domain,
                     vhd_um=vhd_um_domain, vhd_wrf=vhd_wrf_domain, point_name=point["name"], vhd_origin="domain")
 
@@ -206,6 +206,6 @@ if __name__ == '__main__':
     plot_vhd_small_multiples(vhd_icon2te, model="ICON2TE")
     plot_vhd_small_multiples(vhd_um, model="UM")
     plot_vhd_small_multiples(vhd_wrf, model="WRF")
-
+    """
     plt.show()
 

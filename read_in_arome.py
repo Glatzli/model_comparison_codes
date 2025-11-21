@@ -2,27 +2,22 @@
 re-written by Daniel
 """
 
+import importlib
 
 import confg
-import importlib
+
 importlib.reload(confg)
 import os
 import pandas as pd
 import xarray as xr
-import glob
 # import numpy as np
 from metpy.units import units
-import metpy
 import metpy.calc as mpcalc
-import tarfile
-import matplotlib.pyplot as plt
 import matplotlib
 import datetime
-from pathlib import Path
 from confg import variables_units_2D_AROME
 
 matplotlib.use('Qt5Agg')
-
 
 
 def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
@@ -38,54 +33,88 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
     return:
     :ds: xarray Dataset with the calculated variables: p, temp [°C], rH [%] ...
     """
-    if "p" in ds:
-        # Convert pressure from Pa to hPa
-        ds['p'] = (ds['p'] / 100.0) * units.hPa
-        ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
+    # Constants
+    R_dryair = 287.05  # J/(kg*K), specific gas constant for dry air
+
+    # Calculate wind speed and/or direction
+    try:
+        if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+            u_wind = ds["u"].compute() * units("m/s")
+            v_wind = ds["v"].compute() * units("m/s")
+            ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
+            ds["wspd"] = ds['wspd'].assign_attrs(units="m/s",
+                                                 description="wind speed calced from u & v using MetPy")
+            ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
+            ds["udir"] = ds['udir'].assign_attrs(units="deg",
+                                                 description="wind direction calced from u & v using MetPy")
+    except Exception as e:
+        print(f"  ✗ Error calculating wind speed/direction: {e}")
+
+    # Convert pressure from Pa to hPa
+    try:
+        if "p" in ds:
+            ds['p'] = (ds['p'] / 100.0) * units.hPa
+            ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
+    except Exception as e:
+        print(f"  ✗ Error calculating pressure: {e}")
+
+    # Calculate temperature from potential temperature
+    try:
         if "temp" in vars_to_calc:
-            # calc temp
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
+    except Exception as e:
+        print(f"  ✗ Error calculating temperature: {e}")
 
-            if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
-                ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
-                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")
-        if "rh" in vars_to_calc:
-            # not checked yet
-            ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q']* units("kg/kg")) * 100  # for percent
-            ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
+    # Calculate air density using ideal gas law
+    try:
+        if "rho" in vars_to_calc:
+            # rho [kg/m^3] = p [Pa] / (R * T [K])
+            ds["rho"] = (ds["p"] * 100) / (R_dryair * ds["temp"])
+            ds["rho"] = ds['rho'].assign_attrs(
+                units="kg/m^3",
+                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))"
+            )
+    except Exception as e:
+        print(f"  ✗ Error calculating density: {e}")
 
-    # calculate dewpoint
-    #ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure = ds['pressure'],
-    #                                                  specific_humidity = ds['qv']) # , temperature = ds["temp"]
+    # Calculate dewpoint temperature
+    try:
+        if "Td" in vars_to_calc:
+            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(ds["p"] * units.hPa, ds["T"] * units.degC, ds["qv"])
+            ds["Td"] = ds['Td'].assign_attrs(units="degC",
+                                             description="dewpoint Temp calculated from p, T & qv using MetPy")
+    except Exception as e:
+        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+
+    # Dequantify metpy units
     ds = ds.metpy.dequantify()
-    if "temp" in vars_to_calc:
-        # convert temp to °C
-        ds["temp"] = ds["temp"] - 273.15
-        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
+
+    # Convert temperature to Celsius
+    try:
+        if "temp" in vars_to_calc and "temp" in ds:
+            ds["temp"] = ds["temp"] - 273.15
+            ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
+    except Exception as e:
+        print(f"  ✗ Error converting temperature to Celsius: {e}")
+
     return ds
 
 
-def create_ds_geopot_height_as_z_coordinate(ds):
+def check_add_needed_variables(variables, vars_to_calculate):
     """
-    create a new dataset with geopotential height as vertical coordinate for temperature for plotting
-    :param ds:
-    :return:
-    :ds_new: new dataset with geopotential height as vertical coordinate
+    checks if needed variables for calculation are in the variable list, if not adds them
+    :param variables: list of variables to read in
+    :param vars_to_calculate: list of variables to calculate
+    :return: updated variable list
     """
-    geopot_height = ds.z.isel(time=20).compute()
-
-    ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
-        data_vars=dict(
-            th=(["time", "height"], ds.th.values),
-            p=(["time", "height"], ds.p.values),
-        ),
-        coords=dict(
-            height=("height", geopot_height.values),
-            time=("time", ds.time.values)
-        ),
-        attrs=dict(description="AROME data with geopotential height at mid of ds as vertical coordinate"))
-
-    return ds_new
+    # check if needed variables are in dataset, if not add them:
+    # f.e. wspd or wind dir should be calculated, I need u & v: add that...
+    variables = list(set(variables) | {"u", "v"}) if (
+            "udir" in vars_to_calculate or "wspd" in vars_to_calculate) else variables
+    variables = list(set(variables) | {"p", "th"}) if ("temp" in vars_to_calculate) else variables
+    variables = list(set(variables) | {"p", "temp"}) if ("rho" in vars_to_calculate) else variables
+    variables = list(set(variables) | {"T", "p", "qv"}) if "Td" in vars_to_calculate else variables
+    return variables
 
 
 def read_in_arome(variables=["p", "th", "z"]):
@@ -94,17 +123,21 @@ def read_in_arome(variables=["p", "th", "z"]):
 
     (fast) by Daniel
     exception for "rho", which is calculated later
-    :param variables: list of variables to read in, possible are: ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]
+    :param variables: list of variables to read in, possible are: ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v",
+    "w", "z"]
         and ["rho", "temp"]
     :return: ds with all variables in the list
     """
     data_vars = ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z"]  # saved file vars
     vars_to_calculate = set(variables) - set(data_vars)  # need to calculate the var's that are not in ds and are given
 
+    variables = check_add_needed_variables(variables, vars_to_calculate)
+
     arome_paths = [confg.dir_3D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_{var}.nc" for var in
-                   variables if var in data_vars]  # only read in variables that are saved as files, others need to be calc.
-    ds = xr.open_mfdataset(arome_paths, combine="by_coords", data_vars='minimal',
-                           coords='minimal', compat='override', decode_timedelta=True)
+                   variables if
+                   var in data_vars]  # only read in variables that are saved as files, others need to be calc.
+    ds = xr.open_mfdataset(arome_paths, combine="by_coords", data_vars='minimal', coords='minimal', compat='override',
+                           decode_timedelta=True)
     return ds, vars_to_calculate
 
 
@@ -119,49 +152,102 @@ def rename_vars(data):
     return data
 
 
-def read_in_arome_fixed_point(lat=47.259998, lon=11.384167, method="sel", variables=["p", "th", "z"], height_as_z_coord=False):  # , variable_list=
+def read_in_arome_fixed_point(lat: float = confg.ibk_uni["lat"], lon: float = confg.ibk_uni["lon"], method: str = "sel",
+                              variables: list = ["p", "th", "z"], height_as_z_coord: str | bool = "direct"):
     """
     Read the AROME model output for a fixed point at a specific location with full time range.
     The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
 
-    :param lat: Latitude of the fixed point.
-    :param lon: Longitude of the fixed point.
-    :param method: Selection method of point ('sel' or 'interp').
-    :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v", "w", "z", "rho"]
-        if "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables"
-    :param: height_as_z_coord: sets mean geopot. height as the coordinate in z (which simplifies some computations)
-    :return: Merged xarray Dataset
+    :param lat: Latitude of the fixed point (default: Innsbruck University).
+    :param lon: Longitude of the fixed point (default: Innsbruck University).
+    :param method: Selection method ('sel' for nearest neighbor, 'interp' for linear interpolation).
+    :param variables: List of variables to include in the dataset ["ciwc", "clwc", "p", "q", "th", "tke", "u", "v",
+        "w", "z", "rho"]. If "rho" is needed, it will be calculated using ideal gas law in "convert_calc_variables".
+        Default: ["p", "th", "z"]
+    :param height_as_z_coord: How to set the vertical coordinate:
+        - "direct": Use geopotential height and set it directly as vertical coord.
+        - "above_terrain": Height above terrain at this point
+        - False/None: Keep original model level indexing (1=lowest, 90=highest)
+    :return: xarray.Dataset with selected variables at the specified point
+    :raises ValueError: If method is invalid, or if 'z' is not in dataset when height_as_z_coord is set
     """
+
+    # Validate method parameter
+    valid_methods = ["sel", "interp"]
+    if method not in valid_methods:
+        raise ValueError(f"Invalid method '{method}'. Must be one of {valid_methods}")
+
+    # Read AROME data
     ds, vars_to_calculate = read_in_arome(variables=variables)
-    if method == "interp":  # interpolate to point, uses numpy/scipy interp routines...
+
+    # Select point using specified method
+    if method == "interp":  # interpolate to point, uses numpy/scipy interp routines
         ds = ds.interp(latitude=lat, longitude=lon)
-    elif method == "sel":   # selects nearest point
+    elif method == "sel":  # selects nearest point
         ds = ds.sel(latitude=lat, longitude=lon, method="nearest")
 
+    # Rename variables and calculate derived variables
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
-    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
-        ds["height"] = ds.z.isel(time=slice(4, 100)).mean(dim="time").values
+
+    time_idx = 5  # skips first 2 hours of model initialization
+    lowest_model_lvl_above_terrain = 5.1  # m, constant height of lowest model level above terrain
+    if height_as_z_coord == "direct":
+        # set geopotential height directly as vertical coordinate
+        if "z" not in ds:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
+        ds["height"] = ds.z.isel(time=time_idx)
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height amsl")
+
+    elif height_as_z_coord == "above_terrain":
+        # Calculate height above terrain at this point (when lowest level is subtracted, we would be on the terrain, therefore
+        # add terrain height again...)
+        if "z" not in ds:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. "
+                             "Cannot set height as z coordinate. Add 'z' to variables list.")
+        z_lowest_model_lvl = ds.z.isel(time=time_idx).sel(height=1)  # geopot. height of lowest model level
+        ds["height"] = ds.z.isel(time=time_idx) - z_lowest_model_lvl + lowest_model_lvl_above_terrain
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height above terrain")
+
+    elif height_as_z_coord not in [False, None]:
+        # Warn if invalid value provided, but continue with default behavior
+        print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
+              f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
+
     ds = ds.compute()
     return ds
 
 
-def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2,
-                             min_lon=9.2, max_lon=13):
+def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2, min_lon=9.2,
+                             max_lon=13):
     """
     read arome data for a fixed time,
     by default indexes the data to the chosen box (icon)
-    :param time: time as string f.e. "2017-10-15T12:00:00", you can use pd.to_datetime() to convert a string to a timestamp
-    :return:
-    ds of arome data with only wanted timestamp (~2GB)
+    :param day:
+    :param hour:
+    :param min:
+    :param variables: List of variables to include in the dataset ["p", "th"]
+    :param min_lat, max_lat, min_lon, max_lon: per default select the defined subset (for which also ICON was
+    regridded...)
+    :return: ds with all variables in the list
     """
     ds, vars_to_calculate = read_in_arome(variables=variables)
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
     ds = ds.sel(time=timestamp)  # select just needed timestep
-    ds = ds.sel(latitude=slice(min_lat, max_lat + 0.01), longitude=slice(min_lon, max_lon + 0.01))  # include lon=13.0° & lat=48.2°
+    ds = ds.sel(latitude=slice(min_lat, max_lat + 0.01),
+                longitude=slice(min_lon, max_lon + 0.01))  # include lon=13.0° & lat=48.2°
 
     ds = rename_vars(data=ds)
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
+
+    if "hgt" in variables:  # geopotential height above terrain height (skip first 2 hours due to possible model init.
+        # issues)
+        # need to read 2d variable at that point to get terrain height
+        # set geopot. height as vertical coordinate, subtract height of terrain at that point to compensate column depth
+        ds["hgt"] = read_2D_variables_AROME(variableList=["hgt"], slice_lat_lon=True, lat=slice(min_lat, max_lat),
+                                            lon=slice(min_lon, min_lat)).sel(time=timestamp).hgt
+
     ds = ds.compute()
     return ds
 
@@ -180,15 +266,17 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
     datasets = []  # List to hold the interpolated datasets for each variable
 
     for variable in variableList:
-        file_path = os.path.join(confg.dir_2D_AROME, f"AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variable}.nc")
+        file_path = os.path.join(confg.dir_2D_AROME,
+                                 f"AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variable}.nc")
 
         ds = xr.open_dataset(file_path)
-
+        if not variable == "u_v_from_3d":  # create exception for afterwards saved u & v from 3D vars:
+            ds = ds.rename({"latitude": "lat", "longitude": "lon"})  # they already have short lat & lon names!
         # Use no method if lat or lon are slice objects
         if slice_lat_lon:
-            ds = ds.sel(longitude=lon, latitude=lat).isel(time=slice(4, None))  # , method="nearest"
+            ds = ds.sel(lon=lon, lat=lat).isel(time=slice(4, None))  # , method="nearest"
         else:
-            ds = ds.sel(longitude=lon, latitude=lat, method="nearest").isel(time=slice(4, None))
+            ds = ds.sel(lon=lon, lat=lat, method="nearest").isel(time=slice(4, None))
 
         for var, units in variables_units_2D_AROME.items():
             if var in ds:
@@ -196,16 +284,19 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
 
         # ds_quantified = ds.metpy.quantify()
         datasets.append(ds)
-    data = xr.merge(datasets, join="exact")
+    data = xr.merge(datasets, join="override")  # former: join="exact"
+    # downgrade coords to float32, for uniformity with 3D data! anyways not needed that precise...
+    data = data.assign_coords(lat=data.lat.astype("float32"), lon=data.lon.astype("float32"))
     if "hfs" in data:
         data["hfs"] = -data["hfs"]  # invert sign of sensible heat flux to be consistent with WRF
         data["hfs"].attrs['description'] = "sensible heat flux, positive: heat transport toward surface"
-    data = data.rename({"latitude": "lat", "longitude": "lon"})
+
     return data
 
 
 def save_arome_topography(arome3d):
     """
+    deprecated?
     saves the geopotential height of the lowest level of AROME as a 2D .netcdf file for topography plotting and as .tif
     file for aspect calculation with xdem (for PCGP)...
     :return:
@@ -218,29 +309,53 @@ def save_arome_topography(arome3d):
     arome["lat"] = arome["lat"].round(4)
     arome["lon"] = arome["lon"].round(4)
     # rename coords for xdem/rasterio compatibility, for slope and aspect calculation
-    arome.rename({"lat":"y", "lon":"x"}).rio.to_raster(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.tif")
+    arome.rename({"lat": "y", "lon": "x"}).rio.to_raster(confg.dir_AROME + "AROME_geopot_height_3dlowest_level.tif")
+
+
+def extract_3d_variable_define_2D(variables=["u", "v"]):
+    """
+    extract 3D variables and save it like 2D variables (espc needed for heat flux plotting to avoid reading 3D
+    files again and again...)
+    :param arome3d:
+    :return:
+    """
+    timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
+    timestamp_ds = []
+    for timestamp in timerange:
+        arome = read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                         variables=variables)  # subset lat/lon per default
+        timestamp_ds.append(arome.sel(height=1))
+
+    arome2d_new = xr.concat(timestamp_ds, dim="time")
+    # arome2d_new = arome2d_new.assign_coords(lat=arome2d_new.lat.astype("float32"), lon=arome2d_new.lon.astype(
+    # "float32"))
+    # problem: 2D data have float 32 lat/lon coords, 3D have float 64
+    # need to chang
+
+    arome2d_new.to_netcdf(
+        confg.dir_2D_AROME + f"/AROME_Geosphere_20171015T1200Z_CAP02_2D_30min_1km_best_{variables}_float32.nc")
 
 
 if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
-
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
 
-    # arome = read_in_arome_fixed_point(lon= confg.lon_ibk, lat= confg.lat_ibk, variables=["p", "th", "temp", "rho"], method="sel")
+    # arome2d = read_2D_variables_AROME(variableList=["hgt"], # "hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"
+    #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
+    #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    # arome = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "z"], height_as_z_coord=True)
-    # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z", "rho"])
+    arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+                                            variables=["p", "th", "z"],
+                                            height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
+    # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
+    #                                  max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
     # arome
+    arome_point
 
-    arome2d = read_2D_variables_AROME(variableList=["hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"],
-                                      lon=slice(confg.lon_hf_min, confg.lon_hf_max),
-                                      lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
-    arome2d
-    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")
-    # arome_z
-    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")
-    # arome_path = Path(confg.model_folder + "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z
+    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +
+    # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
     # arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
 
-
+    # extract_3d_variable_define_2D(variables=["hfs"])  # used to save u & v like 2D variables

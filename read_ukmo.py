@@ -24,7 +24,9 @@ from confg import station_files_zamg, stations_ibox, MOMMA_stations_PM, ukmo_fol
 
 
 def get_coordinates_by_station_name(station_name):
-    """extract latitude and longitude by station_name"""
+    """
+    deprecated?
+    extract latitude and longitude by station_name"""
     # Iterate over all station entries in the dictionary
     if station_name in ["Innsbruck Uni", "Kufstein", "Jenbach", "Innsbruck Airport"]:
         for station_code, station_info in station_files_zamg.items():
@@ -44,37 +46,6 @@ def get_coordinates_by_station_name(station_name):
         raise AssertionError("No station found with this name!")
 
 
-def get_rotated_index_of_lat_lon(latitude, longitude):
-    """deprecated
-    Function to get the index of the selected latitude and longitude"""
-    dat = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_v.nc", decode_timedelta = True)
-
-    # Define the rotated pole coordinates and the regular longitude-latitude projection
-    lon0, lat0 = -168.6, 42.7
-    proj_rot = ccrs.RotatedPole(pole_longitude=lon0, pole_latitude=lat0)
-    proj_ll = ccrs.PlateCarree()
-
-    # Extract rotated latitude and longitude values and create 2D grids
-    lonr, latr = dat["grid_longitude"].values, dat["grid_latitude"].values
-    lonr2d, latr2d = np.meshgrid(lonr, latr)
-    lonlat = proj_ll.transform_points(proj_rot, lonr2d, latr2d)
-    regular_lon, regular_lat = lonlat[..., 0], lonlat[..., 1]
-
-    # Calculate distances and find the index of the nearest grid point
-    distances = np.sqrt((regular_lon - longitude) ** 2 + (regular_lat - latitude) ** 2)
-    yi, xi = np.unravel_index(np.argmin(distances),
-                              distances.shape)  # kriege hier yi und xi her das ist der wichtige schritt, somit kann ich alle rausholen
-
-    # Output the nearest x and y projection coordinates
-    # print(f"Value at nearest xpoint: {dat['projection_x_coordinate'][yi, xi].values}")
-    # print(f"Value at nearest ypoint: {dat['projection_y_coordinate'][yi, xi].values}")
-
-    assert np.isclose(dat['projection_x_coordinate'][yi, xi].values, longitude, atol=0.3)  # renamed from projection_x_coordinate to lon_proj
-    assert np.isclose(dat['projection_y_coordinate'][yi, xi].values, latitude, atol=0.3)
-
-    return xi, yi
-
-
 def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):  # , multiple_levels=True
     """converts & calculates variables using metpy, ideal gas law etc
     UM is quite similar as AROME, but there will be some differences (wind level staggering etc), therefore leave extra
@@ -85,44 +56,69 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):  # , multiple_leve
     :param ds: xarray dataset
     :param vars_to_calc: list of variables to calculate
     """
-    if "p" in ds:
-        ds["p"] = (ds["p"] / 100) * units("hPa")
-        ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
+    # Constants
+    R_dryair = 287.05  # J/(kg*K), specific gas constant for dry air
+
+    # Calculate wind speed and/or direction
+    try:
+        if "wspd" in vars_to_calc or "udir" in vars_to_calc:
+            u_wind = ds["u"].compute() * units("m/s")  # somehow sometimes brought error if not computed before...
+            v_wind = ds["v"].compute() * units("m/s")
+            if "wspd" in vars_to_calc:
+                ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
+                ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
+            if "udir" in vars_to_calc:
+                ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
+                ds["udir"] = ds['udir'].assign_attrs(units="deg", description="wind direction calced from u & v using MetPy")
+    except Exception as e:
+        print(f"  ✗ Error calculating wind speed/direction: {e}")
+
+    # Convert pressure from Pa to hPa
+    try:
+        if "p" in ds:
+            ds["p"] = (ds["p"] / 100) * units("hPa")
+            ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
+    except Exception as e:
+        print(f"  ✗ Error calculating pressure: {e}")
+
+    # Calculate temperature from potential temperature
+    try:
         if "temp" in vars_to_calc:
-            ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] *
-                                                                              units("K"))  # calc temp in K
-            if "rho" in vars_to_calc:  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
-                ds["rho"] = (ds["p"] * 100) / (287.05 * ds["temp"])
-                ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3", description="air density calced from p & temp (ideal gas law)")
-            if "rh" in vars_to_calc:
-                # not checked
-                ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q'] * units(
-                    "kg/kg")) * 100  # for percent
-                ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
+            ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
+    except Exception as e:
+        print(f"  ✗ Error calculating temperature: {e}")
 
-    # qv = ds["specific_humidity"] * units("kg/kg")  # from kg / kg in g/kg
-    # u_icon = ds["transformed_x_wind"] * units("m/s")  # I don't need this now...
-    # v_icon = ds["transformed_y_wind"] * units("m/s")
+    # Calculate air density using ideal gas law
+    try:
+        if "rho" in vars_to_calc:
+            # rho [kg/m^3] = p [Pa] / (R * T [K])
+            ds["rho"] = (ds["p"] * 100) / (R_dryair * ds["temp"])
+            ds["rho"] = ds['rho'].assign_attrs(
+                units="kg/m^3",
+                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))")
+    except Exception as e:
+        print(f"  ✗ Error calculating density: {e}")
 
-    # ds['wind_dir'] = mpcalc.wind_direction(u_icon, v_icon, convention='from')
-    # ds["windspeed"] = mpcalc.wind_speed(u_icon, v_icon)
+    # Calculate relative humidity; not used...
+    try:
+        if "rh" in vars_to_calc:
+            ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q'] * units("kg/kg")
+            ) * 100  # convert to percent
+            ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
+    except Exception as e:
+        print(f"  ✗ Error calculating relative humidity: {e}")
 
-    # ds["rh"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], ds["temperature"], qv)
-    # o.k. if interpolation is not necessary
-
-    #if multiple_levels:
-    #    ds = ds.rename_vars(name_dict={"level_height": "level_height_u_v_wind"})
-        # Wind is defined on another level than pressure, but I need the pressure at the wind level, so extrapolate it
-        # Use this function to calculate pressures at wind levels,
-        # ds = ds.interp(pressure=ds["level_height_u_v_wind"], method="linear", kwargs={"fill_value": "extrapolate"})
-        # but they are saved in the dataset within the same height coord?!?
-
-    #else: ds["relative_humidity"] = mpcalc.relative_humidity_from_specific_humidity(ds["pressure"], temp, qv).to("percent")
+    # Dequantify metpy units
     ds = ds.metpy.dequantify()
-    if "temp" in vars_to_calc:
-        # convert temp to °C
-        ds["temp"] = ds["temp"] - 273.15
-        ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
+
+    # Convert temperature to Celsius
+    try:
+        if "temp" in vars_to_calc and "temp" in ds:
+            ds["temp"] = ds["temp"] - 273.15
+            ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
+    except Exception as e:
+        print(f"  ✗ Error converting temperature to Celsius: {e}")
+
     return ds
 
 
@@ -187,16 +183,49 @@ def read_ukmo(variables=["p", "temp", "th", "rho", "z"]):
     return data, vars_to_calculate
 
 
-def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="True"):
-    """read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
+def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="direct"):
+    """
+    Read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
+    
+    :param lat: Latitude of the fixed point (default: Innsbruck University).
+    :param lon: Longitude of the fixed point (default: Innsbruck University).
+    :param variables: List of variables to include in the dataset
+    :param height_as_z_coord: How to set the vertical coordinate:
+        - "direct": Use geopotential height and set it directly as vertical coord.
+        - "above_terrain": Height above terrain at this point
+        - False/None: Keep original model level indexing
+    :return: xarray.Dataset with selected variables at the specified point
+    :raises ValueError: If 'z' is not in dataset when height_as_z_coord is set
     """
     data, vars_to_calculate = read_ukmo(variables=variables)
     data = data.sel(lat=lat, lon=lon, method="nearest")  # selects lat, lon
     data = convert_calc_variables(data, vars_to_calc=vars_to_calculate)
     data = data[variables]  # subset to have only the variables wanted before computing
-    if height_as_z_coord:  # take mean over all geopot. height vars (skip first 2 hours due to possible model init. issues)
-        data["height"] = data.z.isel(time=slice(4, 100)).mean(dim="time").values
+    
+    time_idx = 5  # skips first 2 hours of model initialization
+    lowest_model_lvl_above_terrain = 10.0  # m, constant height of lowest model level above terrain (for UM assume 10, as
+    # this was the target value)
+    
+    if height_as_z_coord == "direct":
+        # set geopotential height directly as vertical coordinate
+        if "z" not in data:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. ")
+        data["height"] = data.z.isel(time=time_idx)
+        data["height"] = data["height"].assign_attrs(units="m", description="geopotential height amsl")
+    
+    elif height_as_z_coord == "above_terrain":
+        # Calculate height above terrain at this point
+        if "z" not in data:
+            raise ValueError("Variable 'z' (geopotential height) not in dataset. ")
+        z_lowest_model_lvl = data.z.isel(time=time_idx).sel(height=1)  # geopot. height of lowest model level
+        data["height"] = data.z.isel(time=time_idx) - z_lowest_model_lvl + lowest_model_lvl_above_terrain
+        data["height"] = data["height"].assign_attrs(units="m", description="geopotential height above model terrain")
+    
+    elif height_as_z_coord not in [False, None]:
+        # Warn if invalid value provided, but continue with default behavior
+        print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
+              f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
 
     return data.compute()
 
@@ -216,16 +245,16 @@ def read_ukmo_fixed_time(day=16, hour=12, min=0, variables=None):
 
     return data.compute()
 
-
+"""
 def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
-    """deprecated
+    deprecated
     read in UKMO Model at fixed point w all levels, either with city_name or with lat/lon, get xarray ds!
 
     city_name: str
     time: str
     lat: float
     lon: float
-    """
+    
 
     if city_name is not None:
         lat, lon = get_coordinates_by_station_name(city_name)
@@ -239,11 +268,11 @@ def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", l
         datasets.append(data)
 
     dat = xr.merge(datasets, compat='override')
-    dat = convert_calc_variables(dat, multiple_levels=True)
+    dat = convert_calc_variables(dat)
     dat = dat.rename({"model_level_number": "height"})
     return dat
 
-"""
+
 def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
     deprecated?
     read all ukmo data (~40GB) as xarray dataset
@@ -270,29 +299,6 @@ def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
     return um
     """
 
-def get_ukmo_height_of_specific_lat_lon(lat, lon):
-    """Get ukmo height for a specific lat lon"""
-    # They have no time, hgt = Terrain height
-
-    xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
-
-    # ignore lct (land binary mask) we are only looking at land
-    for var in ["hgt"]:
-        dat = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_2D_30min_1km_optimal_{var}.nc")
-
-        data_final = dat.isel(grid_latitude=yi, grid_longitude=xi)
-
-        if var == "hgt":
-            altitude = data_final["surface_altitude"].values
-
-    return altitude
-
-
-def get_ukmo_height_of_city_name(city_name):
-    """get the altitude of a specific city"""
-    lat, lon = get_coordinates_by_station_name(city_name)
-    return get_ukmo_height_of_specific_lat_lon(lat=lat, lon=lon)
-
 
 def save_um_topography(ds):
     """
@@ -311,16 +317,14 @@ if __name__ == '__main__':
     # get values on lowest level
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
-
+    variables = ["udir", "wspd", "q", "p", "th", "temp", "z"]
     um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-                               variables=["p", "temp", "th", "z", "z_unstag"], height_as_z_coord=True)  # , "hgt" , "rho"
-    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variable_list=["hgt"])
+                               variables=variables, height_as_z_coord="above_terrain")  # , "hgt" , "rho"
+    # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])
     um
 
     # save lowest level as nc file for topo plotting
-
     # save_um_topography(ds=um_extent)
-
 
     # um_geopot = create_ds_geopot_height_as_z_coordinate(um)
 
@@ -328,7 +332,6 @@ if __name__ == '__main__':
     # um_path = Path(confg.ukmo_folder + "/UKMO_temp_timeseries_ibk.nc")
     # um_geopot.to_netcdf(um_path, mode="w", format="NETCDF4")
     # um
-
 
  # are these the correct lats&lons of the UM model? just thought by myself, not sure if this is correct
     # lat = um.rotated_latitude_longitude.grid_north_pole_latitude + um.grid_latitude

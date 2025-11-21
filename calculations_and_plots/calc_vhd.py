@@ -14,13 +14,14 @@ read_topos_calc_slope_aspect() and the other few first functions defined in this
 
 Then the VHD should be calculated for the full domain.
 Plotting the VHD (timeseries and spatial extent over time) is done in plot_vhd.py
+
+By ChatGPT: cap_height calculations: Where error?!
 """
 
 import sys
 from pathlib import Path
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import read_in_arome
-import cartopy.crs as ccrs
 import richdem as rd
 import read_icon_model_3D
 import read_ukmo
@@ -31,7 +32,7 @@ import confg
 import xarray as xr
 import numpy as np
 import matplotlib
-from plot_topography import calculate_km_for_lon_extent
+from calculations_and_plots.plot_topography import calculate_km_for_lon_extent
 import xdem
 from pyproj import CRS
 import matplotlib.pyplot as plt
@@ -220,30 +221,39 @@ def define_ds_below_hafelekar(ds, model="AROME"):
     :param model:
     :return:
     """
-    if model == "AROME":
+    # ds_below_hafelekar = ds.sel(height=slice(confg.hafelekar_height, 1))  # now I just use geopot height as z coordinate
+    # and hardcoded indexes aren't needed anymore...
+    """
+    if model in ["AROME", "ICON", "ICON2TE"]:
+        ds_below_hafelekar = ds.sel(height=slice(confg.hafelekar_height, 1))
+    elif model in ["UM", "WRF", "HATPRO", "radio"]:
+        ds_below_hafelekar = ds.sel(height=slice(1, confg.hafelekar_height))
+    """
+    if model == "AROME":  # back then I haven't had geopot height as z coord...
         # select full dataset below Hafelekar for AROME (and all else...)
         # ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # for searching HAF height
-        ds_below_hafelekar = ds.sel(height=slice(37, 1))  # use uniformely level of HAF for Ibk gridpoint -> the same?
+        ds_below_hafelekar = ds.isel(height=slice(53, 100))
+        # use uniformely level of HAF for Ibk gridpoint from bottom up till lvl 37, 90 (total vert. lvls) - 37 = 53...
 
     elif model in ["ICON", "ICON2TE"]:
         # for ICON we have different height coordinates (staggered & unstaggered), therefore I chose the height level
-        # of Hafelekar with the height var of z (orig z_ifc, which is unstaggered or staggered?!?) and indexed with it
-        # the "height" coord which is the coord for the other variables like th, rho, p etc
-        # distance between vert. model levels is ~100m, so error is of max. 50m, which is acceptable
-        # (which is ~ 10% error for AROME, just took hafelekar height +50m and looked at VHD...)
-        # ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).height_3.values)
-        ds_below_hafelekar = ds.sel(height=slice(32, 1))
+        # below Hafelekar with the height var of z (original z_ifc) and used index to be geopot height change-independent
+        # (and with that uniformly in space and time)
+
+        # (there is ~ 10% VHD error when taking an additional level for the computation for AROME, just took hafelekar
+        # height +50m and looked at VHD...)
+
+        ds_below_hafelekar = ds.isel(height=slice(59, 100))
     elif model == "UM":
         ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # maybe the others are uselessly
-        ds_below_hafelekar = ds.sel(height=slice(1, 22))
+        ds_below_hafelekar = ds.isel(height=slice(0, 21))
         # complicated? check again for errors...
     elif model == "WRF":
-        ds_below_hafelekar = ds.sel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).bottom_top_stag.values)
-        ds_below_hafelekar = ds.sel(height=slice(1, 31))
-    elif model == "HATPRO":
-        ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # for HATPRO
-    elif model in ["radio", "radiosonde"]:
-        ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)
+        ds_below_hafelekar = ds.isel(height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).bottom_top_stag.values)
+        ds_below_hafelekar = ds.isel(height=slice(0, 30))
+    elif model in ["HATPRO", "radio", "radiosonde"]:
+        ds_below_hafelekar = ds.sel(height=slice(0, confg.hafelekar_height))   # for HATPRO
+
     return ds_below_hafelekar
 
 
@@ -381,11 +391,11 @@ def read_dems_calc_pcgp(lat=None, lon=None):
 
 
 def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, variables=None,
-                    paths={"AROME": Path(confg.dir_AROME + "/arome_ibk_uni_timeseries.nc"),
-                           "ICON": Path(confg.icon_folder_3D + "/icon_ibk_uni_timeseries.nc"),
-                           "ICON2TE": Path(confg.icon2TE_folder_3D + "/icon_2te_ibk_uni_timeseries.nc"),
-                           "UM": Path(confg.ukmo_folder + "/um_ibk_uni_timeseries.nc"),
-                           "WRF": Path(confg.wrf_folder + "/wrf_ibk_uni_timeseries.nc")}, height_as_z_coord=False):
+                    paths={"AROME": Path(confg.dir_AROME + "/timeseries/" +  "/arome_ibk_uni_timeseries.nc"),
+                           "ICON": Path(confg.icon_folder_3D + "/timeseries/" +  "/icon_ibk_uni_timeseries.nc"),
+                           "ICON2TE": Path(confg.icon2TE_folder_3D + "/timeseries/" +  "/icon_2te_ibk_uni_timeseries.nc"),
+                           "UM": Path(confg.ukmo_folder + "/timeseries/" +  "/um_ibk_uni_timeseries.nc"),
+                           "WRF": Path(confg.wrf_folder + "/timeseries/" +  "/wrf_ibk_uni_timeseries.nc")}, height_as_z_coord=False):
     """
     checks if timeseries already exists for the given point, if not it reads the timeseries at the given PCGP-point
     and saves the timeseries as .nc files.
@@ -394,7 +404,7 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, v
     """
     if not paths["AROME"].exists():
         print("AROME timeseries need to be read in first for that point, please wait...")
-        if variables[-1] == "z_unstag":  #
+        if variables[-1] == "z_unstag":  # only ICON & WRF are staggered and need to be unstaggered...
             model_timeseries = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
                                                                        variables=variables[:-1], height_as_z_coord=height_as_z_coord)
         else:
@@ -440,12 +450,12 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
     :return:
     """
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
-    timeseries_paths = {"AROME": Path(confg.dir_AROME + f"/arome_{point_name}_timeseries.nc"),
+    timeseries_paths = {"AROME": Path(confg.dir_AROME + "/timeseries/" + f"/arome_{point_name}_timeseries.nc"),
                         # define timeseries paths
-                        "ICON": Path(confg.icon_folder_3D + f"/icon_{point_name}_timeseries.nc"),
-                        "ICON2TE": Path(confg.icon2TE_folder_3D + f"/icon_2te_{point_name}_timeseries.nc"),
-                        "UM": Path(confg.ukmo_folder + f"/um_{point_name}_timeseries.nc"),
-                        "WRF": Path(confg.wrf_folder + f"/wrf_{point_name}_timeseries.nc"),
+                        "ICON": Path(confg.icon_folder_3D + "/timeseries/" +  f"/icon_{point_name}_timeseries.nc"),
+                        "ICON2TE": Path(confg.icon2TE_folder_3D + "/timeseries/" +  f"/icon_2te_{point_name}_timeseries.nc"),
+                        "UM": Path(confg.ukmo_folder + "/timeseries/" +  f"/um_{point_name}_timeseries.nc"),
+                        "WRF": Path(confg.wrf_folder + "/timeseries/" +  f"/wrf_{point_name}_timeseries.nc"),
                         "HATPRO": Path(confg.hatpro_folder + f"/hatpro_interpolated_arome.nc")}
     if height_as_z_coord:  # if geopot. height as z coordinate needed: modify the dictionary accordingly
         timeseries_paths = {
@@ -468,14 +478,14 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
     hatpro_timeseries = xr.open_dataset(timeseries_paths["HATPRO"])
 
     if height_as_z_coord:  # if geopot height wanted as z coordinate read the accordingly saved radiosonde data
-        radio = xr.open_dataset(confg.radiosonde_dataset_height_as_z)
+        radio = xr.open_dataset(confg.radiosonde_smoothed)  # smoothed radiosonde data has also geopot height as z coord
     else:
         radio = xr.open_dataset(confg.radiosonde_dataset)
 
     return arome_timeseries, icon_timeseries, icon2te_timeseries, um_timeseries, wrf_timeseries, hatpro_timeseries, radio
 
 
-def calc_vhd_single_point_main(lat=None, lon=None, point_name=None):
+def calc_vhd_single_point_main(lat=None, lon=None, point_name=None, height_as_z_coord=True):
     """
     does some things after each other (not a very testable function...)
     1. calls function that calcs PCGP aroung given NGP, calculates timeseries for every model at that point (only if
@@ -487,14 +497,14 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=None):
     :param lat: latitude of point
     :param lon: longitude of point
     :param point_name: name of point defined in confg.py
+    :height_as_z_coord: if True, geopotential height is used as z coordinate instead of model height levels
     :return:
     vhd_arome:
     """
-    (arome_timeseries, icon_timeseries, icon2te_timeseries,
-     um_timeseries, wrf_timeseries, hatpro_timeseries, radio) = open_save_timeseries_main(lat=lat, lon=lon,
-                                                                                          point_name=point_name,
-                                                                                          variables=["p", "th", "temp", "rho", "z", "z_unstag"],
-                                                                                          height_as_z_coord=False)
+    arome_timeseries, icon_timeseries, icon2te_timeseries, um_timeseries, wrf_timeseries, hatpro_timeseries, radio \
+        = open_save_timeseries_main(lat=lat, lon=lon, point_name=point_name,
+                                    variables=["p", "th", "temp", "rho", "u", "v", "z", "z_unstag"],
+                                    height_as_z_coord=height_as_z_coord)
     # calc VHD for model data for single PCGP
     vhd_arome = calc_vhd_single_point(arome_timeseries, model="AROME")
     vhd_icon = calc_vhd_single_point(icon_timeseries, model="ICON")
@@ -519,7 +529,7 @@ def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"]):
     vhd_wrf = xr.open_dataset(confg.wrf_folder + "/WRF_vhd_full_domain_full_time.nc")
 
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
-    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought method
+    vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought
     # "nearest" isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
     # difference is f.e. 12.064999 for vhd lon value and 12.065000 for pcgp lon value...
     vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item(), method="nearest")
@@ -540,7 +550,7 @@ if __name__ == '__main__':
     # hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_interpolated_arome.nc")
     # vhd_hatpro = calc_vhd_single_point(hatpro, model="HATPRO")
 
-    point = confg.ibk_airport
+    point = confg.ibk_uni
     # calculate PCGP for the given point
     # pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=point["lat"], lon=point["lon"])
 
@@ -557,15 +567,17 @@ if __name__ == '__main__':
     # read full domain of model and calc VHD for every hour concatenate them into 1 dataset and write them to a .nc file
     timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
     vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_icon2te, vhd_ds_um, vhd_ds_wrf = [], [], [], [], [], []
-    """
+
+    
     for timestamp in timerange:
+        """
         arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                        variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
-
         icon = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                     variant="ICON", variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon, model="ICON"))
+
         icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                     variant="ICON2TE", variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_icon2te.append(calc_vhd_full_domain(ds_extent=icon2te, model="ICON2TE"))
@@ -580,12 +592,11 @@ if __name__ == '__main__':
     """
     vhd_arome_full = xr.concat(vhd_ds_arome, dim="time")
     vhd_arome_full.to_dataset(name="vhd").to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")
-
     vhd_icon_full = xr.concat(vhd_ds_icon, dim="time")
     vhd_icon_full.to_dataset(name="vhd").to_netcdf(confg.icon_folder_3D + "/ICON_vhd_full_domain_full_time.nc")
+
     vhd_icon2te_full = xr.concat(vhd_ds_icon2te, dim="time")
     vhd_icon2te_full.to_dataset(name="vhd").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_vhd_full_domain_full_time.nc")
-
     vhd_um_full = xr.concat(vhd_ds_um, dim="time")
     vhd_um_full.to_dataset(name="vhd").to_netcdf(confg.ukmo_folder + "/UM_vhd_full_domain_full_time.nc")
     vhd_wrf_full = xr.concat(vhd_ds_wrf, dim="time")
@@ -599,3 +610,82 @@ if __name__ == '__main__':
     # vhd_icon = calc_vhd_full_domain(ds_extent=icon, model="ICON")
     # vhd_arome
     # vhd_icon
+
+    # =====================
+    # CAP height (domain): compute per time like VHD and save per model: Is this even a good idea?
+    # =====================
+    # Import calc_cap_height locally to avoid circular import
+    from plot_vertical_calc_bl_height import calc_cap_height, calc_dT_dz
+    
+    cap_ds_arome, cap_ds_icon, cap_ds_icon2te, cap_ds_um, cap_ds_wrf = [], [], [], [], []
+
+    for timestamp in timerange:
+        # AROME
+        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variables=["p", "temp", "th", "z", "z_unstag"])  # rho not needed
+        # calc dT/dz needed by calc_cap_height (simple differentiate along model levels)
+        arome = calc_dT_dz(arome)
+        res_arome = calc_cap_height(arome)
+        cap_t = res_arome["cap_height"] if isinstance(res_arome, xr.Dataset) else res_arome
+        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
+        cap_ds_arome.append(cap_t)
+
+        # ICON
+        icon = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                       variant="ICON", variables=["p", "temp", "th", "z"])
+        # , icon, icon2te, um, wrf, radio, hatpro
+        res_icon = calc_cap_height(icon)
+        cap_t = res_icon["cap_height"] if isinstance(res_icon, xr.Dataset) else res_icon
+        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
+        cap_ds_icon.append(cap_t)
+
+        """
+        # ICON2TE
+        icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                           variant="ICON2TE", variables=["p", "temp", "th", "z"])
+        icon2te = icon2te.assign(dT_dz=icon2te["temp"].differentiate(coord="height"))
+        res_icon2te = calc_cap_height(icon2te)
+        cap_t = res_icon2te["cap_height"] if isinstance(res_icon2te, xr.Dataset) else res_icon2te
+        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
+        cap_ds_icon2te.append(cap_t)
+
+        # UM
+        um = read_ukmo.read_ukmo_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                             variables=["p", "temp", "th", "z"])
+        um = um.assign(dT_dz=um["temp"].differentiate(coord="height"))
+        res_um = calc_cap_height(um)
+        cap_t = res_um["cap_height"] if isinstance(res_um, xr.Dataset) else res_um
+        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
+        cap_ds_um.append(cap_t)
+
+        # WRF
+        wrf = read_wrf_helen.read_wrf_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
+                                                  variables=["p", "temp", "th", "z"])
+        wrf = wrf.assign(dT_dz=wrf["temp"].differentiate(coord="height"))
+        res_wrf = calc_cap_height(wrf)
+        cap_t = res_wrf["cap_height"] if isinstance(res_wrf, xr.Dataset) else res_wrf
+        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
+        cap_ds_wrf.append(cap_t)
+        """
+
+    # Concat over time and save like VHD
+    cap_arome_full = xr.concat(cap_ds_arome, dim="time")
+    cap_arome_full.to_dataset(name="cap_height").to_netcdf(confg.dir_AROME + "/AROME_cap_height_full_domain_full_time.nc")
+
+    cap_icon_full = xr.concat(cap_ds_icon, dim="time")
+    cap_icon_full.to_dataset(name="cap_height").to_netcdf(confg.icon_folder_3D + "/ICON_cap_height_full_domain_full_time.nc")
+
+    """
+    cap_icon2te_full = xr.concat(cap_ds_icon2te, dim="time")
+    cap_icon2te_full.to_dataset(name="cap_height").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_cap_height_full_domain_full_time.nc")
+
+    cap_um_full = xr.concat(cap_ds_um, dim="time")
+    cap_um_full.to_dataset(name="cap_height").to_netcdf(confg.ukmo_folder + "/UM_cap_height_full_domain_full_time.nc")
+
+    cap_wrf_full = xr.concat(cap_ds_wrf, dim="time")
+    cap_wrf_full.to_dataset(name="cap_height").to_netcdf(confg.wrf_folder + "/WRF_cap_height_full_domain_full_time.nc")
+    """
+
+    # =====================
+    # end CAP height block
+    # =====================
