@@ -3,7 +3,7 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- Add LIDAR data to vertical profile plots
+- Add LIDAR-data: should I take mean over 10min data? to vertical profile plots
 - look again at pot temp-over height & time plot: make it work again (plot_timeseries)...
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
@@ -281,6 +281,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
