@@ -34,6 +34,7 @@ ToDo:
 
 - 2nd research goal:
   	plot sensible heat flux over full domain for AROME & WRF
+  	also plot other vars: radiation?!
   
 	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
   		point north of patscherkofel (still cooling):
@@ -280,6 +281,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
