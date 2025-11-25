@@ -3,6 +3,11 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
+Changed:
+- read in fcts: above terrain
+- added q and wind to vertical plot w. SL88 LIDAR data
+- began changing VHD to new manage_timeseries script
+  
 - Add LIDAR-data: SLXR 142 in 20 min intervals, SL88 in 10 min (can compare 1/2 hrs) - enough to just use SL88?
   	(don't want to interpolate measuring data? ...)
 
@@ -283,6 +288,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
