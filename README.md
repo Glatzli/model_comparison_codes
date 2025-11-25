@@ -7,6 +7,7 @@ Changed:
 - read in fcts: above terrain
 - added q and wind to vertical plot w. SL88 LIDAR data
 - began changing VHD to new manage_timeseries script: go through indexing again for all models & check if right height is chosen -> write test for it?!
+- Do I need to download Copernicus DEM for topo comp. plot?
   
 - Add LIDAR-data: SLXR 142 in 20 min intervals, SL88 in 10 min (can compare 1/2 hrs) - enough to just use SL88?
   	(don't want to interpolate measuring data? ...)
@@ -288,6 +289,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
