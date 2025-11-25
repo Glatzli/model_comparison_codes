@@ -546,19 +546,9 @@ def plot_save_vert_profiles_small_multiples(timestamp: str = "2017-10-16T04:00:0
     Create and save vertical temperature profile small multiples plot for all points.
     timestamp: ISO format timestamp string (e.g. "2017-10-16T04:00:00")
     max_height: maximum height in meters to plot (default 3000m)
-    point_names: list of point names from confg.py (default: ALL_POINTS from plot_cap_height)
+    point_names: list of point names from confg.py (default: ALL_POINTS from confg)
     """
     import os
-    
-    if point_names is None:
-        # Import ALL_POINTS from plot_cap_height module
-        try:
-            from calculations_and_plots.plot_cap_height import ALL_POINTS
-            point_names = ALL_POINTS
-        except ImportError:
-            # Fallback to hardcoded list
-            point_names = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley",
-                "ziller_valley", "ziller_ried"]
     
     print(f"\nCreating vertical temperature profile small multiples for {timestamp}...")
     

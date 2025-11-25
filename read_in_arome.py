@@ -152,7 +152,7 @@ def rename_vars(data):
     return data
 
 
-def read_in_arome_fixed_point(lat: float = confg.ibk_uni["lat"], lon: float = confg.ibk_uni["lon"], method: str = "sel",
+def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"], lon: float = confg.ALL_POINTS["ibk_uni"]["lon"], method: str = "sel",
                               variables: list = ["p", "th", "z"], height_as_z_coord: str | bool = "direct"):
     """
     Read the AROME model output for a fixed point at a specific location with full time range.
@@ -344,7 +344,7 @@ if __name__ == '__main__':
     #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
     #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
     # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome_point = read_in_arome_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    arome_point = read_in_arome_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
                                             variables=["p", "th", "z"],
                                             height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
     # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,

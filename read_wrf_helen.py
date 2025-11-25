@@ -430,7 +430,7 @@ def rename_vars(ds):
     return ds
 
 
-def read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=["p", "temp", "th", "rho", "z"],
+def read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"], variables=["p", "temp", "th", "rho", "z"],
                          height_as_z_coord="direct"):
     """calls fct to read and merge WRF files across multiple days and times for a specified location. (used for lidar
     plots)
@@ -523,7 +523,7 @@ if __name__ == '__main__':
     # wrf_path = Path(confg.wrf_folder + "/WRF_temp_timeseries_ibk.nc")
     # wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
     variables = ["udir", "wspd", "q", "p", "th", "rho", "temp", "z", "z_unstag"]
-    wrf = read_wrf_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    wrf = read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
                                variables=variables,  # ["p", "temp", "th", "rho", "hgt", "z", "z_unstag"],
                                height_as_z_coord="above_terrain")
     # wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hgt", "hfs", "p", "q", "temp", "th", "z",

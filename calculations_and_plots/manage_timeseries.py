@@ -27,10 +27,6 @@ from calculations_and_plots.calc_vhd import read_dems_calc_pcgp
 # Variables needed for all models
 variables = ["udir", "wspd", "q", "p", "th", "temp", "rho", "z", "z_unstag"]
 
-# All point locations defined in confg.py
-ALL_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley",
-              "ziller_ried"]
-
 # Model processing order
 MODEL_ORDER = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
 
@@ -42,10 +38,14 @@ def get_timeseries_path(model: str, point_name: str, height_as_z_coord: str) -> 
     The timeseries files are stored with the naming convention:
     MODEL_FOLDER/timeseries/modelname_pointname_timeseries_height_as_z.nc
     
+    Note: Whitespaces in point_name are automatically replaced with underscores to avoid
+    filename issues.
+
     Args:
         model: Name of the weather model (AROME, ICON, ICON2TE, UM, WRF)
-        point_name: Name of the point location (from confg.py)
-    
+        point_name: Name of the point location (from confg.py) - spaces will be replaced with "_"
+        height_as_z_coord: Height coordinate system identifier
+
     Returns:
         Full path to the timeseries file
     """
@@ -68,7 +68,12 @@ def get_timeseries_path(model: str, point_name: str, height_as_z_coord: str) -> 
     if model == "ICON2TE":
         model_name_lower = "icon2te"
 
-    return os.path.join(base, "timeseries", f"{model_name_lower}_{point_name}_timeseries_{height_as_z_coord}.nc")
+    # Remove whitespaces from point_name to avoid filename issues
+    point_name_safe = point_name.replace(" ", "_")
+
+    # Use os.path.normpath to ensure consistent path separators
+    filepath = os.path.join(base, "timeseries", f"{model_name_lower}_{point_name_safe}_timeseries_{height_as_z_coord}.nc")
+    return os.path.normpath(filepath)
 
 
 def save_timeseries(ds: xr.Dataset, model: str, point_name: str, height_as_z_coord: str) -> None:
@@ -100,7 +105,7 @@ def save_timeseries(ds: xr.Dataset, model: str, point_name: str, height_as_z_coo
         print(f"  ℹ Timeseries file already exists, skipping save: {os.path.basename(timeseries_path)}")
 
 
-def load_timeseries(model: str, point_name: str, height_as_z_coord:str) -> xr.Dataset | None:
+def load_timeseries(model: str, point_name: str, height_as_z_coord: str) -> xr.Dataset | None:
     """
     Load timeseries from saved NetCDF file.
     
@@ -126,7 +131,7 @@ def load_timeseries(model: str, point_name: str, height_as_z_coord:str) -> xr.Da
 
 
 def read_fresh_timeseries(model: str, point: dict, point_name: str, variables_list: list,
-                          height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
+        height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
     """
     Read fresh timeseries data from model output files.
     
@@ -174,7 +179,7 @@ def read_fresh_timeseries(model: str, point: dict, point_name: str, variables_li
 
 
 def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_list: list = variables,
-                            height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
+        height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
     """
     Load timeseries from saved file if it exists, otherwise read fresh data and save it.
     
@@ -209,8 +214,8 @@ def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_
     return ds
 
 
-def compute_and_save_all_timeseries(point_names: List[str] = None, variables_list: list = None,
-                                    height_as_z_coord: str = "above_terrain") -> None:
+def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES,
+        variables_list: list = variables, height_as_z_coord: str = "above_terrain") -> None:
     """
     Compute and save timeseries for all models at all specified points.
     
@@ -218,19 +223,13 @@ def compute_and_save_all_timeseries(point_names: List[str] = None, variables_lis
     by plotting and analysis scripts.
     
     Args:
-        point_names: List of point names from confg.py (default: ALL_POINTS)
+        point_names: List of point names from confg.py (default: ALL_POINTS from confg)
         variables_list: List of variable names to read (default: uses global variables list)
         height_as_z_coord: As in read in functions: How to set the vertical coordinate:
             - "direct": Use geopotential height and set it directly as vertical coord.
             - "above_terrain": Height above terrain at this point (default)
             - False/None: Keep original model level indexing
     """
-    if point_names is None:
-        point_names = ALL_POINTS
-
-    if variables_list is None:
-        variables_list = variables
-
     print(f"\n{'=' * 70}")
     print(f"Computing and saving timeseries for {len(MODEL_ORDER)} models at {len(point_names)} points")
     print(f"{'=' * 70}\n")
@@ -239,7 +238,7 @@ def compute_and_save_all_timeseries(point_names: List[str] = None, variables_lis
     total_skipped = 0
 
     for point_name in point_names:
-        point = getattr(confg, point_name, None)
+        point = confg.ALL_POINTS[point_name]  # index dict for that point
         if point is None:
             print(f"⚠ Skipping {point_name} - not found in confg")
             continue

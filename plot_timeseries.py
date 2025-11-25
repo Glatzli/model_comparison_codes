@@ -3,6 +3,10 @@ This script is used to plot the time series of the vertical distribution of pote
 problem: vertical coordinate is not the same for all models => use pressure?
 """
 
+# Fix for OpenMP duplicate library error on Windows
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 import sys
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import importlib

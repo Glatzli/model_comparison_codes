@@ -1,5 +1,6 @@
 """
 NOT USED!
+Deprecated!
 
 written by Manuela Lehner for calculating slope and aspect for COSMO data, changed to work for my data
 Problems... what's zscale?!
@@ -54,7 +55,7 @@ hgtrd = rd.rdarray(hgt, no_data=-9999)
 # original by Manuela: 1/(how much km is 1° * dist_x in deg)
 # => I calculate it with searching the distance between points in lon [deg] and converting those to [m] with the function
 # "calculate_km_for_lon_extent", divide that through 1 cause Manuela did that also -> hopefully right?
-dist_x = calculate_km_for_lon_extent(confg.ibk_uni["lat"], (ncds.isel(lat=1, lon=2).lon - ncds.isel(lat=1, lon=1).lon)) * 1000
+dist_x = calculate_km_for_lon_extent(confg.ALL_POINTS["ibk_uni"]["lat"], (ncds.isel(lat=1, lon=2).lon - ncds.isel(lat=1, lon=1).lon)) * 1000
 z_scale = 1 / dist_x
 
 slope = rd.TerrainAttribute(hgtrd, attrib='slope_degrees', zscale=z_scale)

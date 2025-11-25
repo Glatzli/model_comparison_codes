@@ -1,0 +1,34 @@
+# needs to be updated again!
+
+# Auto-generated requirements for this repository (generated 2025-11-22)
+# Listed only packages that appear imported in the project files.
+# Some packages (cartopy, rasterio, geopandas) require system libraries; see their docs.
+
+# install packages via: pip install -r requirements.txt (use an environment!)
+# on Windows it's easier to use conda for the packages cartopy, rasterio, geopandas, gdal:
+# conda create -n envname python=3.11
+# conda activate envname
+# conda install -c conda-forge cartopy rasterio geopandas gdal
+# pip install -r requirements.txt   # installiert restliche Pakete
+
+numpy>=1.24
+pandas>=1.5
+xarray>=2023.11.0
+netCDF4>=1.6.2
+matplotlib>=3.5
+cartopy>=0.21
+rasterio>=1.3
+geopandas>=0.14
+richdem>=0.5
+dask>=2023.11.0
+pytest>=7.0
+
+# Notes:
+# - These are recommended minimum versions, not strict pins. If you need an exact
+#   environment for reproducible runs, create a pinned lockfile (pip-tools/pipenv/poetry).
+
+# - For scanned PDFs you will need OCR (tesseract + pdf2image + pytesseract) which
+#   are NOT included here.
+# - Install on Windows often requires Visual C++ build tools and GDAL/proj binaries
+#   for packages such as rasterio and geopandas. See package docs for platform notes.
+

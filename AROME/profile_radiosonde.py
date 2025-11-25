@@ -1,4 +1,6 @@
-"""Script to make some plots of the innsbruck radiosonde (observations and AROME)
+"""deprecated i.e. from Hannes, right?
+
+Script to make some plots of the innsbruck radiosonde (observations and AROME)
 Optional:
 -   change time of the model 'time_for_model'
 -   plot_radiosondes_of_adjacent_points() 6 nearest points

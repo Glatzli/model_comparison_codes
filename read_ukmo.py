@@ -183,7 +183,7 @@ def read_ukmo(variables=["p", "temp", "th", "rho", "z"]):
     return data, vars_to_calculate
 
 
-def read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"], variables=None, height_as_z_coord="direct"):
+def read_ukmo_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"], variables=None, height_as_z_coord="direct"):
     """
     Read in UKMO Model at a fixed point and select the lowest level, either with city_name or with (lat, lon)
     now with xr mfdataset much faster!
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
     variables = ["udir", "wspd", "q", "p", "th", "temp", "z"]
-    um = read_ukmo_fixed_point(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
+    um = read_ukmo_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
                                variables=variables, height_as_z_coord="above_terrain")  # , "hgt" , "rho"
     # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])
     um

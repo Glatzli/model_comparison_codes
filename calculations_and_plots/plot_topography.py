@@ -1,4 +1,7 @@
 """
+old function, changed from Hannes -> maybe switch point markers into plot_topo_comparison.py?
+it's really not well programmed here...
+
 Script to compare and plot the heights of the AROME model and the real world (DEM)
 Plot also the locations of the stations
 """

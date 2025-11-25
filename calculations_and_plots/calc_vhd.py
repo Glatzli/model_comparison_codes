@@ -166,7 +166,7 @@ def calculate_slope_aspect_richdem(filepath):
     # original by Manuela: 1/(how much km is 1° * dist_x in deg)
     # => I calculate it with searching the distance between points in lon [deg] and converting those to [m] with the function
     # "calculate_km_for_lon_extent", divide that through 1 cause Manuela did that also -> hopefully right?
-    dist_x = calculate_km_for_lon_extent(confg.ibk_uni["lat"],
+    dist_x = calculate_km_for_lon_extent(confg.ALL_POINTS["ibk_uni"]["lat"],
                                          (ds.isel(y=1, x=2).x - ds.isel(y=1, x=1).x)) * 1000
     z_scale = 1 / dist_x
 
@@ -397,6 +397,8 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, v
                            "UM": Path(confg.ukmo_folder + "/timeseries/" +  "/um_ibk_uni_timeseries.nc"),
                            "WRF": Path(confg.wrf_folder + "/timeseries/" +  "/wrf_ibk_uni_timeseries.nc")}, height_as_z_coord=False):
     """
+    DEPRECATED: This function directly reads and saves timeseries data.
+
     checks if timeseries already exists for the given point, if not it reads the timeseries at the given PCGP-point
     and saves the timeseries as .nc files.
     This function saves the timeseries of the models at the given PCGP-point and saves the timeseries as .nc files.
@@ -439,9 +441,12 @@ def save_timeseries(pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf, point_name=None, v
         model_timeseries.to_netcdf(paths["WRF"])
 
 
-def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name"],
+def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ALL_POINTS["ibk_uni"]["name"],
                               variables=["p", "th", "temp", "rho", "z", "z_unstag"], height_as_z_coord=False):
     """
+    DEPRECATED: This function directly reads and saves timeseries data.
+    Use the new manage_timeseries system with load_or_read_timeseries() instead.
+
     calculates PCGP aroung given NGP, calculates timeseries for every model at that point (only if there isn't
     already one saved for that point) and returns the timeseries
     :param lat:
@@ -449,6 +454,9 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
     :param point_name:
     :return:
     """
+    import warnings
+    warnings.warn("open_save_timeseries_main is deprecated. Use manage_timeseries.load_or_read_timeseries() instead.",
+                  DeprecationWarning, stacklevel=2)
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
     timeseries_paths = {"AROME": Path(confg.dir_AROME + "/timeseries/" + f"/arome_{point_name}_timeseries.nc"),
                         # define timeseries paths
@@ -487,6 +495,9 @@ def open_save_timeseries_main(lat=None, lon=None, point_name=confg.ibk_uni["name
 
 def calc_vhd_single_point_main(lat=None, lon=None, point_name=None, height_as_z_coord=True):
     """
+    DEPRECATED: This function directly reads model data for individual points.
+    Use the new manage_timeseries system with load_or_read_timeseries() instead.
+
     does some things after each other (not a very testable function...)
     1. calls function that calcs PCGP aroung given NGP, calculates timeseries for every model at that point (only if
         there isn't already one saved for that point) and returns the timeseries
@@ -501,6 +512,9 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=None, height_as_z_
     :return:
     vhd_arome:
     """
+    import warnings
+    warnings.warn("calc_vhd_single_point_main is deprecated. Use manage_timeseries.load_or_read_timeseries() instead.",
+                  DeprecationWarning, stacklevel=2)
     arome_timeseries, icon_timeseries, icon2te_timeseries, um_timeseries, wrf_timeseries, hatpro_timeseries, radio \
         = open_save_timeseries_main(lat=lat, lon=lon, point_name=point_name,
                                     variables=["p", "th", "temp", "rho", "u", "v", "z", "z_unstag"],
@@ -516,7 +530,7 @@ def calc_vhd_single_point_main(lat=None, lon=None, point_name=None, height_as_z_
     return vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, vhd_hatpro, vhd_radio
 
 
-def select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"]):
+def select_pcgp_vhd(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"]):
     """
     opens already calculated VHD calculations of full domain and selects the PCGP for the given gridpoint from it
     :return:
@@ -603,89 +617,10 @@ if __name__ == '__main__':
     vhd_wrf_full.to_dataset(name="vhd").to_netcdf(confg.wrf_folder + "/WRF_vhd_full_domain_full_time.nc")
     """
 
-    # vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.ibk_uni["lat"], lon=confg.ibk_uni["lon"],
-    #                                                                   point_name=confg.ibk_uni["name"])
+    # vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp = select_pcgp_vhd(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
+    #                                                                   point_name=confg.ALL_POINTS["ibk_uni"]["name"])
     #vhd_arome_pcgp
     # vhd_arome = calc_vhd_full_domain(ds_extent=arome, model="AROME")
     # vhd_icon = calc_vhd_full_domain(ds_extent=icon, model="ICON")
     # vhd_arome
     # vhd_icon
-
-    # =====================
-    # CAP height (domain): compute per time like VHD and save per model: Is this even a good idea?
-    # =====================
-    # Import calc_cap_height locally to avoid circular import
-    from plot_vertical_calc_bl_height import calc_cap_height, calc_dT_dz
-    
-    cap_ds_arome, cap_ds_icon, cap_ds_icon2te, cap_ds_um, cap_ds_wrf = [], [], [], [], []
-
-    for timestamp in timerange:
-        # AROME
-        arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                       variables=["p", "temp", "th", "z", "z_unstag"])  # rho not needed
-        # calc dT/dz needed by calc_cap_height (simple differentiate along model levels)
-        arome = calc_dT_dz(arome)
-        res_arome = calc_cap_height(arome)
-        cap_t = res_arome["cap_height"] if isinstance(res_arome, xr.Dataset) else res_arome
-        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
-        cap_ds_arome.append(cap_t)
-
-        # ICON
-        icon = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                       variant="ICON", variables=["p", "temp", "th", "z"])
-        # , icon, icon2te, um, wrf, radio, hatpro
-        res_icon = calc_cap_height(icon)
-        cap_t = res_icon["cap_height"] if isinstance(res_icon, xr.Dataset) else res_icon
-        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
-        cap_ds_icon.append(cap_t)
-
-        """
-        # ICON2TE
-        icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                           variant="ICON2TE", variables=["p", "temp", "th", "z"])
-        icon2te = icon2te.assign(dT_dz=icon2te["temp"].differentiate(coord="height"))
-        res_icon2te = calc_cap_height(icon2te)
-        cap_t = res_icon2te["cap_height"] if isinstance(res_icon2te, xr.Dataset) else res_icon2te
-        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
-        cap_ds_icon2te.append(cap_t)
-
-        # UM
-        um = read_ukmo.read_ukmo_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                             variables=["p", "temp", "th", "z"])
-        um = um.assign(dT_dz=um["temp"].differentiate(coord="height"))
-        res_um = calc_cap_height(um)
-        cap_t = res_um["cap_height"] if isinstance(res_um, xr.Dataset) else res_um
-        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
-        cap_ds_um.append(cap_t)
-
-        # WRF
-        wrf = read_wrf_helen.read_wrf_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
-                                                  variables=["p", "temp", "th", "z"])
-        wrf = wrf.assign(dT_dz=wrf["temp"].differentiate(coord="height"))
-        res_wrf = calc_cap_height(wrf)
-        cap_t = res_wrf["cap_height"] if isinstance(res_wrf, xr.Dataset) else res_wrf
-        cap_t = cap_t.assign_coords(time=("time", [np.datetime64(timestamp)]))
-        cap_ds_wrf.append(cap_t)
-        """
-
-    # Concat over time and save like VHD
-    cap_arome_full = xr.concat(cap_ds_arome, dim="time")
-    cap_arome_full.to_dataset(name="cap_height").to_netcdf(confg.dir_AROME + "/AROME_cap_height_full_domain_full_time.nc")
-
-    cap_icon_full = xr.concat(cap_ds_icon, dim="time")
-    cap_icon_full.to_dataset(name="cap_height").to_netcdf(confg.icon_folder_3D + "/ICON_cap_height_full_domain_full_time.nc")
-
-    """
-    cap_icon2te_full = xr.concat(cap_ds_icon2te, dim="time")
-    cap_icon2te_full.to_dataset(name="cap_height").to_netcdf(confg.icon2TE_folder_3D + "/ICON2TE_cap_height_full_domain_full_time.nc")
-
-    cap_um_full = xr.concat(cap_ds_um, dim="time")
-    cap_um_full.to_dataset(name="cap_height").to_netcdf(confg.ukmo_folder + "/UM_cap_height_full_domain_full_time.nc")
-
-    cap_wrf_full = xr.concat(cap_ds_wrf, dim="time")
-    cap_wrf_full.to_dataset(name="cap_height").to_netcdf(confg.wrf_folder + "/WRF_cap_height_full_domain_full_time.nc")
-    """
-
-    # =====================
-    # end CAP height block
-    # =====================
