@@ -4,12 +4,12 @@ GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
 - added q and wind to vertical plot w. SL88 LIDAR data :D
-  	-> seperate wind speed and direction
+  	-> don't seperate wind speed and direction: It doesn't work!
 - revise th/wind height-time plot
 - VHD calculation: use "direct" height coordinate! due to hardcoded indexing for HAF-height IBK...
   
-  
 - Add LIDAR-data: SLXR 142 in 20 min intervals, SL88 in 10 min (can compare 1/2 hrs) - enough to just use SL88?
+	very likely yes!
   	(don't want to interpolate measuring data? ...)
 
 - (look again at pot temp-over height & time plot: make it work again (plot_timeseries))...
@@ -289,6 +289,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
