@@ -15,6 +15,7 @@ from __future__ import annotations
 
 # Fix for OpenMP duplicate library error on Windows
 import os
+
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import os
@@ -33,8 +34,6 @@ from read_in_hatpro_radiosonde import read_radiosonde_dataset
 from calculations_and_plots.calc_cap_height import cap_height_profile
 # Import timeseries management functions
 from calculations_and_plots.manage_timeseries import (load_or_read_timeseries, MODEL_ORDER)
-
-
 
 
 # Observation data paths; is actually in confg!
@@ -75,7 +74,7 @@ def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datet
 
 
 def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dict, timestamps: List[str],
-                                 ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
+        ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
     """
     Compute CAP heights from timeseries (point) data.
     Returns dict mapping timestamp strings to (temp_at_cap, cap_height) tuples (tuple is needed so that the
@@ -108,9 +107,8 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
 
 
 def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_height: float = 5000,
-                                  plot_max_height: float = 2000,
-                                  variables: list = ["udir", "wspd", "q", "p", "th", "temp", "z",
-                                                     "z_unstag"]) -> go.Figure:
+        plot_max_height: float = 2000,
+        variables: list = ["udir", "wspd", "q", "p", "th", "temp", "z", "z_unstag"]) -> go.Figure:
     """
     Create an interactive plot with time slider for a single point location.
     
@@ -581,8 +579,8 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
 
 def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", end_time: str = "2017-10-16T12:00:00",
-                                     time_step_hours: float = 1.0, max_height: float = 5000,
-                                     plot_max_height: float = 2000, point_names: List[str] = confg.ALL_POINTS) -> None:
+        time_step_hours: float = 1.0, max_height: float = 5000, plot_max_height: float = 2000,
+        point_names: List[str] = confg.ALL_POINTS) -> None:
     """
     Create and save individual slider plots for each point location.
     
@@ -652,5 +650,5 @@ if __name__ == "__main__":
     # Create interactive plot with time slider
     # Shows profiles from midnight to noon on October 16, 2017
     plot_save_all_points_with_slider(start_time="2017-10-15T14:00:00", end_time="2017-10-16T12:00:00",
-                                     time_step_hours=0.5, max_height=3000, plot_max_height=800, # )
-                                     point_names=["ibk_uni", "telfs"])
+                                     time_step_hours=0.5, max_height=3000, plot_max_height=800,
+                                     point_names=confg.VALLEY_POINTS)

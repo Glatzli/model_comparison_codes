@@ -287,9 +287,21 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
     data = xr.merge(datasets, join="override")  # former: join="exact"
     # downgrade coords to float32, for uniformity with 3D data! anyways not needed that precise...
     data = data.assign_coords(lat=data.lat.astype("float32"), lon=data.lon.astype("float32"))
+
+    # AROME uses opposite sign convention from WRF for turbulent fluxes:
+    # AROME: positive = downward (atmosphere -> surface) => check if that's right from Claude...
+    # WRF: positive = upward (surface -> atmosphere) => check if that's right from Claude...
+    # Invert AROME turbulent fluxes to match WRF convention
     if "hfs" in data:
         data["hfs"] = -data["hfs"]  # invert sign of sensible heat flux to be consistent with WRF
-        data["hfs"].attrs['description'] = "sensible heat flux, positive: heat transport toward surface"
+        data["hfs"].attrs['description'] = "sensible heat flux (inverted), positive: upward (surface->atmosphere)"
+
+    if "lfs" in data:
+        data["lfs"] = -data["lfs"]  # invert sign of latent heat flux to be consistent with WRF
+        data["lfs"].attrs['description'] = "latent heat flux (inverted), positive: upward (surface->atmosphere)"
+
+    # Note: Radiative fluxes (lwd, lwu, swd, swu) typically use the same convention in both models
+    # (downward positive for incoming, upward positive for outgoing), so no inversion needed
 
     return data
 

@@ -5,28 +5,21 @@ Test suite for read_in_hatpro_radiosonde.py
 Tests all active functions with mock data to ensure proper functionality.
 """
 
+import os
+# Import the functions to test
+import sys
+import tempfile
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
-from unittest.mock import patch
-import tempfile
-import os
 
-# Import the functions to test
-import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from read_in_hatpro_radiosonde import (
-    calc_vars_hatpro_w_pressure,
-    calc_vars_radiosonde,
-    edit_vars,
-    read_radiosonde_csv,
-    convert_to_dataset,
-    plot_height_levels,
-    read_radiosonde_dataset,
-    read_hatpro,
-    interpolate_hatpro_arome
-)
+from read_in_hatpro_radiosonde import (calc_vars_hatpro_w_pressure, calc_vars_radiosonde, edit_vars,
+                                       read_radiosonde_csv, convert_to_dataset, plot_height_levels,
+                                       read_radiosonde_dataset, read_hatpro, interpolate_hatpro_arome)
 
 
 class TestCalcVarsHatproWPressure:
@@ -38,11 +31,10 @@ class TestCalcVarsHatproWPressure:
         time = pd.date_range('2017-10-15 12:00', periods=5, freq='30min')
         height = np.array([100, 200, 300, 400, 500])
 
-        ds = xr.Dataset({
-            'temp': (['time', 'height'], np.random.uniform(10, 20, (5, 5))),
+        ds = xr.Dataset({'temp': (['time', 'height'], np.random.uniform(10, 20, (5, 5))),
             'p': (['time', 'height'], np.random.uniform(900, 1000, (5, 5))),
-            'absolute_humidity': (['time', 'height'], np.random.uniform(5, 15, (5, 5)))
-        }, coords={'time': time, 'height': height})
+            'absolute_humidity': (['time', 'height'], np.random.uniform(5, 15, (5, 5)))},
+            coords={'time': time, 'height': height})
 
         result = calc_vars_hatpro_w_pressure(ds)
 
@@ -65,12 +57,8 @@ class TestCalcVarsRadiosonde:
     def test_calc_vars_radiosonde_basic(self):
         """Test radiosonde variable calculations"""
         # Create mock dataframe
-        df = pd.DataFrame({
-            'temp': np.array([15, 10, 5, 0, -5]),
-            'p': np.array([1000, 900, 800, 700, 600]),
-            'Td': np.array([10, 5, 0, -5, -10]),
-            'z': np.array([100, 500, 1000, 1500, 2000])
-        })
+        df = pd.DataFrame({'temp': np.array([15, 10, 5, 0, -5]), 'p': np.array([1000, 900, 800, 700, 600]),
+            'Td': np.array([10, 5, 0, -5, -10]), 'z': np.array([100, 500, 1000, 1500, 2000])})
 
         result = calc_vars_radiosonde(df)
 
@@ -91,17 +79,12 @@ class TestEditVars:
 
     def test_edit_vars_conversion(self):
         """Test variable editing and unit conversions"""
-        df = pd.DataFrame({
-            'time': [0, 1, 2],
-            'temperature': [288.15, 283.15, 278.15],  # Kelvin
+        df = pd.DataFrame({'time': [0, 1, 2], 'temperature': [288.15, 283.15, 278.15],  # Kelvin
             'dewpoint': [285.15, 280.15, 275.15],  # Kelvin
             'pressure': [100000, 90000, 80000],  # Pa
             'geopotential height': [100, 500, 1000],  # m
-            'wind direction': [180, 200, 220],
-            'windspeed': [5, 10, 15],
-            'latitude offset': [0, 0, 0],
-            'longitude offset': [0, 0, 0]
-        })
+            'wind direction': [180, 200, 220], 'windspeed': [5, 10, 15], 'latitude offset': [0, 0, 0],
+            'longitude offset': [0, 0, 0]})
 
         result = edit_vars(df)
 
@@ -135,7 +118,8 @@ class TestReadRadiosondeCsv:
             f.write("# Comment line 3\n")
             f.write("# Comment line 4\n")
             f.write("# Comment line 5\n")
-            f.write("time,temperature,dewpoint,pressure,geopotential height,wind direction,windspeed,latitude offset,longitude offset\n")
+            f.write(
+                "time,temperature,dewpoint,pressure,geopotential height,wind direction,windspeed,latitude offset,longitude offset\n")
             f.write("0,288.15,285.15,100000,100,180,5,0,0\n")
             f.write("1,283.15,280.15,90000,500,200,10,0,0\n")
             f.write("2,278.15,275.15,80000,1000,220,15,0,0\n")
@@ -163,13 +147,9 @@ class TestConvertToDataset:
     def test_convert_to_dataset_basic(self):
         """Test conversion from DataFrame to xarray Dataset"""
         # Create mock dataframe with index
-        df = pd.DataFrame({
-            'temp': [np.nan, 15, 10, 5],  # First value is NaN (will be dropped)
-            'p': [np.nan, 1000, 900, 800],
-            'th': [np.nan, 290, 292, 294],
-            'q': [np.nan, 0.01, 0.008, 0.006],
-            'rho': [np.nan, 1.2, 1.1, 1.0]
-        })
+        df = pd.DataFrame({'temp': [np.nan, 15, 10, 5],  # First value is NaN (will be dropped)
+            'p': [np.nan, 1000, 900, 800], 'th': [np.nan, 290, 292, 294], 'q': [np.nan, 0.01, 0.008, 0.006],
+            'rho': [np.nan, 1.2, 1.1, 1.0]})
         df.index = [0, 100, 500, 1000]  # Height index
 
         result = convert_to_dataset(df)
@@ -207,10 +187,7 @@ class TestPlotHeightLevels:
         hatpro_heights = np.array([600, 700, 900, 1200, 1600, 2100, 2700])
 
         # Should not raise any errors
-        plot_height_levels(
-            arome_heights, icon_heights, um_heights,
-            wrf_heights, radio_heights, hatpro_heights
-        )
+        plot_height_levels(arome_heights, icon_heights, um_heights, wrf_heights, radio_heights, hatpro_heights)
 
         # Check that plot functions were called
         mock_show.assert_called_once()
@@ -225,14 +202,11 @@ class TestReadRadiosondeDataset:
         height_idx = np.arange(10)
         z_values = np.array([600, 700, 850, 1000, 1200, 1500, 1800, 2100, 2500, 3000])
 
-        ds = xr.Dataset({
-            'temp': (['height'], np.random.uniform(5, 15, 10)),
-            'p': (['height'], np.linspace(1000, 700, 10)),
-            'z': (['height'], z_values),
-            'th': (['height'], np.random.uniform(285, 295, 10)),
-            'q': (['height'], np.random.uniform(0.005, 0.015, 10)),
-            'rho': (['height'], np.linspace(1.2, 0.9, 10))
-        }, coords={'height': height_idx})
+        ds = xr.Dataset(
+            {'temp': (['height'], np.random.uniform(5, 15, 10)), 'p': (['height'], np.linspace(1000, 700, 10)),
+                'z': (['height'], z_values), 'th': (['height'], np.random.uniform(285, 295, 10)),
+                'q': (['height'], np.random.uniform(0.005, 0.015, 10)), 'rho': (['height'], np.linspace(1.2, 0.9, 10))},
+            coords={'height': height_idx})
 
         with tempfile.NamedTemporaryFile(delete=False, suffix='.nc') as f:
             temp_file = f.name
@@ -256,14 +230,11 @@ class TestReadRadiosondeDataset:
         height_idx = np.arange(10)
         z_values = np.array([600, 700, 850, 1000, 1200, 1500, 1800, 2100, 2500, 3000])
 
-        ds = xr.Dataset({
-            'temp': (['height'], np.random.uniform(5, 15, 10)),
-            'p': (['height'], np.linspace(1000, 700, 10)),
-            'z': (['height'], z_values),
-            'th': (['height'], np.random.uniform(285, 295, 10)),
-            'q': (['height'], np.random.uniform(0.005, 0.015, 10)),
-            'rho': (['height'], np.linspace(1.2, 0.9, 10))
-        }, coords={'height': height_idx})
+        ds = xr.Dataset(
+            {'temp': (['height'], np.random.uniform(5, 15, 10)), 'p': (['height'], np.linspace(1000, 700, 10)),
+                'z': (['height'], z_values), 'th': (['height'], np.random.uniform(285, 295, 10)),
+                'q': (['height'], np.random.uniform(0.005, 0.015, 10)), 'rho': (['height'], np.linspace(1.2, 0.9, 10))},
+            coords={'height': height_idx})
 
         with tempfile.NamedTemporaryFile(delete=False, suffix='.nc') as f:
             temp_file = f.name
@@ -301,8 +272,7 @@ class TestReadHatpro:
 
         try:
             # Mock the hatpro_vertical_levels config
-            with patch('confg.hatpro_vertical_levels',
-                      {"height": [str(i * 50) for i in range(1, 40)]}):
+            with patch('confg.hatpro_vertical_levels', {"height": [str(i * 50) for i in range(1, 40)]}):
                 result = read_hatpro(temp_file)
 
                 # Check structure
@@ -330,8 +300,7 @@ class TestReadHatpro:
 
         try:
             # Mock the hatpro_vertical_levels config
-            with patch('confg.hatpro_vertical_levels',
-                      {"height": [str(i * 50) for i in range(1, 40)]}):
+            with patch('confg.hatpro_vertical_levels', {"height": [str(i * 50) for i in range(1, 40)]}):
                 result = read_hatpro(temp_file)
 
                 # Check structure
@@ -350,24 +319,22 @@ class TestInterpolateHatproArome:
         time = pd.date_range('2017-10-15 12:00', '2017-10-16 12:00', freq='10min')
         height_hatpro = np.array([50, 100, 200, 350, 550, 800, 1100, 1450, 1850])
 
-        hatpro = xr.Dataset({
-            'temp': (['time', 'height'], np.random.uniform(10, 20, (len(time), len(height_hatpro)))),
-            'humidity': (['time', 'height'], np.random.uniform(5, 15, (len(time), len(height_hatpro))))
-        }, coords={'time': time, 'height': height_hatpro})
+        hatpro = xr.Dataset({'temp': (['time', 'height'], np.random.uniform(10, 20, (len(time), len(height_hatpro)))),
+            'humidity': (['time', 'height'], np.random.uniform(5, 15, (len(time), len(height_hatpro))))},
+            coords={'time': time, 'height': height_hatpro})
 
         # Create mock AROME dataset
         time_arome = pd.date_range('2017-10-15 12:00', '2017-10-16 12:00', freq='30min')
         height_arome = np.array([5.1, 30, 60, 100, 150, 220, 310, 420, 560, 730, 930, 1160, 1430])
 
-        arome = xr.Dataset({
-            'p': (['time', 'height'], np.random.uniform(900, 1000, (len(time_arome), len(height_arome))))
-        }, coords={'time': time_arome, 'height': height_arome})
+        arome = xr.Dataset(
+            {'p': (['time', 'height'], np.random.uniform(900, 1000, (len(time_arome), len(height_arome))))},
+            coords={'time': time_arome, 'height': height_arome})
 
         # Mock config values
-        with patch('confg.ibk_uni', {'height': 612}), \
-             patch('confg.ibk_villa', {'height': 579}), \
-             patch('confg.hatpro_calced_vars', tempfile.mktemp(suffix='.nc')):
-
+        mock_all_points = {'ibk_uni': {'height': 612}, 'ibk_villa': {'height': 579}}
+        with patch('confg.ALL_POINTS', mock_all_points), patch('confg.hatpro_calced_vars',
+                                                               tempfile.mktemp(suffix='.nc')):
             # Should not raise errors
             interpolate_hatpro_arome(hatpro, arome)
 
@@ -380,7 +347,8 @@ class TestIntegration:
         # Create mock CSV data
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as f:
             f.write("# Comment\n" * 5)
-            f.write("time,temperature,dewpoint,pressure,geopotential height,wind direction,windspeed,latitude offset,longitude offset\n")
+            f.write(
+                "time,temperature,dewpoint,pressure,geopotential height,wind direction,windspeed,latitude offset,longitude offset\n")
             for i in range(10):
                 temp_k = 288.15 - i * 2
                 td_k = temp_k - 5
@@ -411,4 +379,3 @@ class TestIntegration:
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short'])
-

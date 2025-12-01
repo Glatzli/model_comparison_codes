@@ -53,7 +53,6 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # List of point keys for easy iteration - coordinates of points used for Daniels' Analysis
 # Points that should include HATPRO plot (VHD) need "ibk" in name
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
-POINT_NAMES = list(ALL_POINTS.keys())
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
 VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley", "ziller_ried"]
@@ -176,7 +175,7 @@ ibox_folder = f"{data_folder}/Observations/Ibox"
 hobos_file = f"{data_folder}/Observations/HOBOS/hobos_final.nc"  # Observations/HOBOS/
 
 # Lidar obs
-lidar_obs_folder = os.path.join(data_folder, "Observations", "Lidar_obs")
+lidar_obs_folder = os.path.join(data_folder, "Observations", "LIDAR")
 lidar_sl88 = os.path.join(lidar_obs_folder, "SL88_vad_l2")  # add trailing separator for consistency
 lidar_slxr142 = os.path.join(lidar_obs_folder, "SLXR142_vad_l2")
 # merged files, subsetted to period and 30 min intervals are saved in:

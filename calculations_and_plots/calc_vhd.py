@@ -217,6 +217,9 @@ def define_ds_below_hafelekar(ds, model="AROME"):
     indexes the dataset below Hafelekar height (2279 m) for the given model. Because the handling/height coords are
     slightly different for each model, each needs to be handeled differently...
 
+    ATTENTION: ONLY USE "direct"-timeseries: indexing is hardcoded cause geopot. height changes w. time and space
+        -> "above_terrain"-timeseries is not implemented...
+
     :param ds:
     :param model:
     :return:
@@ -232,8 +235,12 @@ def define_ds_below_hafelekar(ds, model="AROME"):
     if model == "AROME":  # back then I haven't had geopot height as z coord...
         # select full dataset below Hafelekar for AROME (and all else...)
         # ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # for searching HAF height
-        ds_below_hafelekar = ds.isel(height=slice(53, 100))
+        ds_below_hafelekar = ds.sel(height=(ds.height <= confg.hafelekar_height))
         # use uniformely level of HAF for Ibk gridpoint from bottom up till lvl 37, 90 (total vert. lvls) - 37 = 53...
+
+        # ds_below_hafelekar = ds.isel(height=90 - 43); for height_above_terrain I would need these indices...
+        # but i can also just save the timeseries twice, and use the "direct" function for the height for the VHD
+        # calc...
 
     elif model in ["ICON", "ICON2TE"]:
         # for ICON we have different height coordinates (staggered & unstaggered), therefore I chose the height level
@@ -261,6 +268,9 @@ def calc_vhd_single_point(ds_point, model="AROME"):
     """
     calculates the valley heat deficit (VHD) for a single point in a dataset, e.g. for Innsbruck.
     calc density from pressure and temperature using metpy/ ideal gas law: rho = p / (R * T) with R_dryair = 287.05
+
+    ATTENTION: ONLY USE "direct"-timeseries: indexing for HAF height is hardcoded in define_ds_below_hafelekar() cause
+    geopot. height changes w. time and space -> "above_terrain"-timeseries is not implemented...
 
     param ds_point:
     :return: vhd_point: xarray.DataArray with valley heat deficit at the point with time as coord.

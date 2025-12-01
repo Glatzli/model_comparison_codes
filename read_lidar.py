@@ -73,6 +73,19 @@ def read_edit_original_lidar_data(data_path, instrument_name):
         if height_array is not None:
             combined_ds = combined_ds.assign_coords({'height_m': ('NUMBER_OF_GATES', height_array)})
 
+        # Fix height coordinate: use first timestamp's height values as constant coordinate
+        if 'height' in combined_ds.variables and len(combined_ds['height'].dims) == 2:
+            print(f"  Converting 2D height coordinate to 1D using first timestamp...")
+            # Get height values from first timestamp
+            first_timestamp_heights = combined_ds['height'].isel(time=0).values
+
+            # Remove the old 2D height variable
+            combined_ds = combined_ds.drop_vars('height')
+
+            # Add as 1D coordinate
+            combined_ds = combined_ds.assign_coords({'height': ('NUMBER_OF_GATES', first_timestamp_heights)})
+            print(f"  Height coordinate converted from 2D to 1D with {len(first_timestamp_heights)} levels")
+
         print(f"  Full time range: {combined_ds.time.values[0]} to {combined_ds.time.values[-1]}")
 
         # Define time window: 2017-10-15 12:00 to 2017-10-16 12:00
@@ -100,6 +113,11 @@ def read_edit_original_lidar_data(data_path, instrument_name):
         if 'NUMBER_OF_GATES' in subset_ds.dims:
             subset_ds = subset_ds.rename({'NUMBER_OF_GATES': 'height'})
             print(f"  Renamed dimension NUMBER_OF_GATES to height")
+
+        # Ensure height coordinate is properly set as 1D after filtering
+        if 'height' in subset_ds.coords and len(subset_ds.coords['height'].dims) == 1:
+            print(f"  Height coordinate is now 1D with {len(subset_ds.coords['height'])} levels")
+            print(f"  Height range: {subset_ds.coords['height'].min().values:.2f} - {subset_ds.coords['height'].max().values:.2f} m")
 
         # Save path - use appropriate filename based on instrument
         if instrument_name == 'SL88':
@@ -379,7 +397,7 @@ if __name__ == "__main__":
         slxr142_data = read_edit_original_lidar_data(confg.lidar_slxr142, "SLXR142")
 
     else:
-        print("Merged files already exist - skipping processing!")
+       print("Merged files already exist - skipping processing!")
 
     # Create comparison plot
     if sl88_data is not None or slxr142_data is not None:

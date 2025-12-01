@@ -25,7 +25,7 @@ import read_wrf_helen
 from calculations_and_plots.calc_vhd import read_dems_calc_pcgp
 
 # Variables needed for all models
-variables = ["udir", "wspd", "q", "p", "th", "temp", "rho", "z", "z_unstag"]
+variables = ["u", "v", "udir", "wspd", "q", "p", "th", "temp", "rho", "z", "z_unstag"]
 
 # Model processing order
 MODEL_ORDER = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
@@ -72,7 +72,8 @@ def get_timeseries_path(model: str, point_name: str, height_as_z_coord: str) -> 
     point_name_safe = point_name.replace(" ", "_")
 
     # Use os.path.normpath to ensure consistent path separators
-    filepath = os.path.join(base, "timeseries", f"{model_name_lower}_{point_name_safe}_timeseries_{height_as_z_coord}.nc")
+    filepath = os.path.join(base, "timeseries",
+                            f"{model_name_lower}_{point_name_safe}_timeseries_{height_as_z_coord}.nc")
     return os.path.normpath(filepath)
 
 
@@ -150,26 +151,31 @@ def read_fresh_timeseries(model: str, point: dict, point_name: str, variables_li
     print(f"  Reading fresh {model} data for {point_name}...")
 
     try:
-        # Get PCGP for accurate point representation
+        # Get PCGP for consistent point representation
         pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=point["lat"], lon=point["lon"])
 
         # AROME & UM aren't staggered -> remove z_unstag if present
         variables_for_reading = [v for v in variables_list if not (model in ["AROME", "UM"] and v == "z_unstag")]
 
-        # Map model to appropriate read function and PCGP
-        read_functions = {"AROME": (read_in_arome.read_in_arome_fixed_point, pcgp_arome, {}),
-                          "ICON": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON"}),
-                          "ICON2TE": (read_icon_model_3D.read_icon_fixed_point, pcgp_icon, {"variant": "ICON2TE"}),
-                          "UM": (read_ukmo.read_ukmo_fixed_point, pcgp_um, {}),
-                          "WRF": (read_wrf_helen.read_wrf_fixed_point, pcgp_wrf, {})}
-
-        if model not in read_functions:
+        # Read data using model-specific PCGP coordinates
+        if model == "AROME":
+            ds = read_in_arome.read_in_arome_fixed_point(lat=pcgp_arome.y.values, lon=pcgp_arome.x.values,
+                variables=variables_for_reading, height_as_z_coord=height_as_z_coord)
+        elif model == "ICON":
+            ds = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
+                variables=variables_for_reading, height_as_z_coord=height_as_z_coord, variant="ICON")
+        elif model == "ICON2TE":
+            ds = read_icon_model_3D.read_icon_fixed_point(lat=pcgp_icon.y.values, lon=pcgp_icon.x.values,
+                variables=variables_for_reading, height_as_z_coord=height_as_z_coord, variant="ICON2TE")
+        elif model == "UM":
+            ds = read_ukmo.read_ukmo_fixed_point(lat=pcgp_um.y.values, lon=pcgp_um.x.values,
+                variables=variables_for_reading, height_as_z_coord=height_as_z_coord)
+        elif model == "WRF":
+            ds = read_wrf_helen.read_wrf_fixed_point(lat=pcgp_wrf.y.values, lon=pcgp_wrf.x.values,
+                variables=variables_for_reading, height_as_z_coord=height_as_z_coord)
+        else:
             print(f"  ✗ Unknown model: {model}")
             return None
-
-        read_func, pcgp, extra_kwargs = read_functions[model]
-        ds = read_func(lat=pcgp.y.values, lon=pcgp.x.values, variables=variables_for_reading,
-                       height_as_z_coord=height_as_z_coord, **extra_kwargs)
 
         return ds
 
@@ -214,8 +220,8 @@ def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_
     return ds
 
 
-def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES,
-        variables_list: list = variables, height_as_z_coord: str = "above_terrain") -> None:
+def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES, variables_list: list = variables,
+        height_as_z_coord: str = "above_terrain") -> None:
     """
     Compute and save timeseries for all models at all specified points.
     
@@ -276,4 +282,4 @@ def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES,
 
 if __name__ == "__main__":
     # Compute and save timeseries for all points and all models
-    compute_and_save_all_timeseries()
+    compute_and_save_all_timeseries(point_names=confg.get_valley_points_only(), height_as_z_coord="above_terrain")

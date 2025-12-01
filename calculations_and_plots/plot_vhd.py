@@ -4,8 +4,11 @@ in time.
 An hourly small multiple plot of the VHD over the full valley extent was done, with a contour line at 80% of the
 maximum VHD, to show the extent of the maximum in each timestep.
 
-(A lot could be programmed shorter with loops through all models etc, but the effort isn't worth it for how often I will use
-this...)
+For the VHD-point calculation, the "direct" height coordinate is used, which sets the geopot. height directly as height coord.
+This has reasons in the past: If I would have changed it to use "above_terrain", I would have needed to rewrite
+the calc_vhd_single_point(ds_point, model="AROME")-function in calc_vhd.py, espc. the indices...
+=> therefore just saved the timeseries twice, once with "direct" for the VHD calc and once with the "above_terrain"
+height coord.
 
 """
 import importlib
@@ -43,12 +46,8 @@ def calc_vhd_using_new_timeseries(point_name: str, height_as_z_coord: str = "abo
         print(f"Loading/calculating VHD for {model} at {point['name']}...")
 
         # Load timeseries using the new system
-        ds = load_or_read_timeseries(
-            model=model,
-            point=point,
-            point_name=point_name,
-            height_as_z_coord=height_as_z_coord
-        )
+        ds = load_or_read_timeseries(model=model, point=point, point_name=point_name,
+                                     height_as_z_coord=height_as_z_coord)
 
         if ds is not None:
             # Calculate VHD using the existing function
@@ -87,14 +86,8 @@ def plot_vhds_point_new(vhd_results: dict, point_name: str, vhd_origin: str = "n
 
     # Model colors (consistent with existing code)
     qualitative_colors = qualitative_hcl(palette="Dark 3").colors()
-    model_colors = {
-        "AROME": qualitative_colors[0],
-        "ICON": qualitative_colors[2],
-        "ICON2TE": qualitative_colors[2],
-        "UM": qualitative_colors[4],
-        "WRF": qualitative_colors[6],
-        "HATPRO": qualitative_colors[8]
-    }
+    model_colors = {"AROME": qualitative_colors[0], "ICON": qualitative_colors[2], "ICON2TE": qualitative_colors[2],
+                    "UM": qualitative_colors[4], "WRF": qualitative_colors[6], "HATPRO": qualitative_colors[8]}
 
     # Plot model data
     models_to_plot = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]
@@ -102,22 +95,12 @@ def plot_vhds_point_new(vhd_results: dict, point_name: str, vhd_origin: str = "n
         if model in vhd_results and vhd_results[model] is not None:
             vhd = vhd_results[model]
             linestyle = "--" if model == "ICON2TE" else "-"
-            (vhd.vhd / 10 ** 6).plot(
-                ax=ax,
-                label=model,
-                color=model_colors[model],
-                linewidth=2,
-                linestyle=linestyle
-            )
+            (vhd.vhd / 10 ** 6).plot(ax=ax, label=model, color=model_colors[model], linewidth=2, linestyle=linestyle)
 
     # Plot observational data if available
     if "HATPRO" in vhd_results and vhd_results["HATPRO"] is not None:
-        (vhd_results["HATPRO"].vhd / 10 ** 6).plot(
-            ax=ax,
-            label="HATPRO (uni)",
-            color=model_colors["HATPRO"],
-            linewidth=2
-        )
+        (vhd_results["HATPRO"].vhd / 10 ** 6).plot(ax=ax, label="HATPRO (uni)", color=model_colors["HATPRO"],
+                                                   linewidth=2)
 
     plt.ylim(0.08, 0.6)
     plt.ylabel(r"valley heat deficit $[\frac{MJ}{m^2}]$")
@@ -133,7 +116,7 @@ def plot_vhds_point_new(vhd_results: dict, point_name: str, vhd_origin: str = "n
 
 
 def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, point_name=confg.ALL_POINTS["ibk_uni"]["name"],
-                    vhd_origin="point", vhd_hatpro=None, vhd_radio=None, *args, **kwargs):
+        vhd_origin="point", vhd_hatpro=None, vhd_radio=None, *args, **kwargs):
     """
     DEPRECATED: Use plot_vhds_point_new() with calc_vhd_using_new_timeseries() instead.
 
@@ -149,8 +132,7 @@ def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, point_nam
     :return:
     """
     import warnings
-    warnings.warn("plot_vhds_point is deprecated. Use plot_vhds_point_new() instead.",
-                  DeprecationWarning, stacklevel=2)
+    warnings.warn("plot_vhds_point is deprecated. Use plot_vhds_point_new() instead.", DeprecationWarning, stacklevel=2)
     fig, ax = plt.subplots(figsize=(10, 6))
     if vhd_origin == "point":  # add used lat & lon for each plot type (single point calc & domain calc)
         (vhd_arome.vhd / 10 ** 6).plot(ax=ax, label=f"AROME", color=qualitative_colors[0],
@@ -164,10 +146,8 @@ def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, point_nam
         (vhd_wrf.vhd / 10 ** 6).plot(ax=ax, label=f"WRF", color=qualitative_colors[6],
                                      linewidth=2)  # lat {vhd_wrf.lat.item():.3f}, lon {vhd_wrf.lon.item():.3f}
         if "ibk" in point_name:  # for points in ibk add HATPRO & radiosonde data
-            (vhd_hatpro.vhd / 10 ** 6).plot(ax=ax, label=f"HATPRO (uni)", color=qualitative_colors[8], linewidth=2)
-            # ax.scatter(datetime.datetime(2017, 10, 16, 4, 0, 0), (vhd_radio.vhd / 10 ** 6),
-            #         label="Radiosonde (airport)", marker="*")
-            # (vhd_radio.vhd / 10 ** 6).plot(ax=ax, label=f"Radiosonde (airport)")
+            (vhd_hatpro.vhd / 10 ** 6).plot(ax=ax, label=f"HATPRO (uni)", color=qualitative_colors[8],
+                                            linewidth=2)  # ax.scatter(datetime.datetime(2017, 10, 16, 4, 0, 0), (vhd_radio.vhd / 10 ** 6),  #         label="Radiosonde (airport)", marker="*")  # (vhd_radio.vhd / 10 ** 6).plot(ax=ax, label=f"Radiosonde (airport)")
     elif vhd_origin == "domain":
         (vhd_arome.vhd / 10 ** 6).plot(ax=ax, label=f"AROME", color=qualitative_colors[0], linewidth=2)
         (vhd_icon.vhd / 10 ** 6).plot(ax=ax, label=f"ICON", color=qualitative_colors[2], linewidth=2)
@@ -187,8 +167,7 @@ def plot_vhds_point(vhd_arome, vhd_icon, vhd_icon2te, vhd_um, vhd_wrf, point_nam
 
 
 def read_vhd_full_domain_and_plot_vhds_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"],
-                                             lon=confg.ALL_POINTS["ibk_uni"]["lon"],
-                                             point_name=confg.ALL_POINTS["ibk_uni"]["name"]):
+        lon=confg.ALL_POINTS["ibk_uni"]["lon"], point_name=confg.ALL_POINTS["ibk_uni"]["name"]):
     """
     DEPRECATED: Use calc_vhd_using_new_timeseries() with plot_vhds_point_new() instead.
 
@@ -262,8 +241,8 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
 
         # shows extent of max: plot a contour line for 80% of the maximum of current VHD:
         contours = [ds_extent_sel.vhd.max().item() * 0.8]
-        cs = ax.contour(ds_extent_sel.lon, ds_extent_sel.lat, ds_extent_sel.vhd.values, levels=contours,
-                        colors="k", linewidths=0.5, transform=projection)
+        cs = ax.contour(ds_extent_sel.lon, ds_extent_sel.lat, ds_extent_sel.vhd.values, levels=contours, colors="k",
+                        linewidths=0.5, transform=projection)
 
         # maybe add topography contours? would need height info in dataset...
         ax.text(0.1, 0.8, f"{time.dt.hour.item() :02d}h", transform=ax.transAxes,  # create hour text label w white box
@@ -309,16 +288,9 @@ def plot_vhd_single_valley_point(point_name: str, height_coords: str = "above_te
     for height_coord in height_coords:
         try:
             print(f"  Calculating VHD with {height_coord} height coordinate...")
-            vhd_results = calc_vhd_using_new_timeseries(
-                point_name=point_name,
-                height_as_z_coord=height_coord
-            )
+            vhd_results = calc_vhd_using_new_timeseries(point_name=point_name, height_as_z_coord=height_coord)
 
-            plot_vhds_point_new(
-                vhd_results=vhd_results,
-                point_name=point_info['name'],
-                vhd_origin=height_coord
-            )
+            plot_vhds_point_new(vhd_results=vhd_results, point_name=point_info['name'], vhd_origin=height_coord)
 
             print(f"  ✓ Plot saved: vhd_model_comp_{point_info['name']}_{height_coord}.svg")
 
@@ -347,15 +319,8 @@ if __name__ == '__main__':
         try:
             # calculate with above_terrain for comparison
             print("  Calculating VHD with above_terrain height coordinate...")
-            vhd_results_terrain = calc_vhd_using_new_timeseries(
-                point_name=point_name,
-                height_as_z_coord="above_terrain"
-            )
-            plot_vhds_point_new(
-                vhd_results=vhd_results_terrain,
-                point_name=point_info['name'],
-                vhd_origin="above_terrain"
-            )
+            vhd_results_terrain = calc_vhd_using_new_timeseries(point_name=point_name, height_as_z_coord="direct")
+            plot_vhds_point_new(vhd_results=vhd_results_terrain, point_name=point_info['name'], vhd_origin="direct")
 
             print(f"  ✓ Comparison plot saved: vhd_model_comp_{point_info['name']}_above_terrain.svg")
 
