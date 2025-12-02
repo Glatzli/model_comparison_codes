@@ -55,12 +55,15 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
-VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley", "ziller_valley", "ziller_ried"]
+VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley",
+                 "ziller_valley", "ziller_ried"]
 MOUNTAIN_SLOPE_POINTS = ["hafelkar", "slope_north_patscherkofel"]
+
 
 def get_valley_points_only():
     """Get only valley points (excludes mountains and slopes)"""
     return {key: value for key, value in ALL_POINTS.items() if key in VALLEY_POINTS}
+
 
 def get_points_excluding_mountains():
     """Get all points except mountain/slope points"""
@@ -81,17 +84,20 @@ lon_min, lon_max = 9.2, 13
 
 # -------------------------------------------------------------------------------------------------------------
 radiosonde_folder = os.path.join(data_folder, "Observations", "Radiosonde")
-radiosonde_csv = os.path.join(radiosonde_folder, "2017101603_bufr309052.csv")  # radiosonden aufstieg at innsbruck airport
+radiosonde_csv = os.path.join(radiosonde_folder,
+                              "2017101603_bufr309052.csv")  # radiosonden aufstieg at innsbruck airport
 # deprecated: radiosonde_edited = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603.csv")  # calculated pot. temp & rho
 # from other vars
-radiosonde_dataset = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603.nc")  # for same handling for plots & calcs  save
+radiosonde_dataset = os.path.join(radiosonde_folder,
+                                  "radiosonde_ibk_2017101603.nc")  # for same handling for plots & calcs  save
 # Radiosonde as dataset
 # radiosonde_dataset_height_as_z = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603_height_as_z.nc")  # deprecated,
 # use fct in réad_in_hatpro_radiosonde.py
 # only geopot. height instead of "height values"
 # deprecated? radiosonde_smoothed = os.path.join(radiosonde_folder, "radiosonde_ibk_smoothed.nc")
 
-all_model_topographies = os.path.join(model_folder, "AROME", "all_model_topographies.nc")  # all topography-values extracted (lowest
+all_model_topographies = os.path.join(model_folder, "AROME",
+                                      "all_model_topographies.nc")  # all topography-values extracted (lowest
 # lvl) of geopot. height + "hgt" - vars for AROME & WRF and put into one file
 
 JSON_TIROL = os.path.join(data_folder, "Height", "gadm41_AUT_1.json")  # tirol json file
@@ -100,17 +106,30 @@ TIROL_DEMFILE = os.path.join(data_folder, "Height", "dem.tif")  # changed dem fi
 dem_smoothed = os.path.join(data_folder, "Height", "dem_smoothed.tif")
 filepath_arome_height = os.path.join(model_folder, "AROME", "AROME_TEAMx_CAP_3D_fields",
                                      "AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_z.nc")
-dem_file_hobos_extent = os.path.join(data_folder, "Height", "dem_cut_hobos.tif")  # created DEM (in model_topography) to see real
+dem_file_hobos_extent = os.path.join(data_folder, "Height",
+                                     "dem_cut_hobos.tif")  # created DEM (in model_topography) to see real
 # heights with HOBOS
 
 # ZAMG Datahub files
-kufstein_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_station9016-Kufstein_20171012_20171018.csv")
+kufstein_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
+                             "data_station9016-Kufstein_20171012_20171018.csv")
+kufstein_zamg_new = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_station9016_Kufstein_new.csv")
+
 innsbruck_uni_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
                                   "data_station11803-InnsbruckUniversity_20171012_20171018.csv")
+innsbruck_uni_zamg_new = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
+                                      "data_station11803-InnsbruckUniversity_new.csv")
 innsbruck_airport_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
                                       "data_station11804-InnsbruckAirport_20171012_20171018.csv")
-jenbach_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_station11901-Jenbach_20171012_20171018.csv")
-rinn_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_station11123-Rinn_20171015T1200_20171016T1210.csv")
+innsbruck_airport_zamg_new = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
+                                          "data_station11804-InnsbruckAirport_new.csv")
+
+jenbach_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
+                            "data_station11901-Jenbach_20171012_20171018.csv")
+jenbach_zamg_new = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_station11901-Jenbach_new.csv")
+
+rinn_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
+                         "data_station11123-Rinn_20171015T1200_20171016T1210.csv")
 munchen_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_munich_T2m.csv")
 
 # mobile stations, cut to our period
@@ -184,7 +203,7 @@ lidar_slxr142_merged_path = os.path.join(lidar_slxr142, 'slxr142_merged.nc')
 
 # HATPRO obs
 hatpro_folder = os.path.join(data_folder, "Observations", "HATPRO_obs")  # nicht vorhanden?
-hatpro_merged = os.path.join(hatpro_folder, "hatpro_merged.nc")  #  + "hatpro_merged.nc"
+hatpro_merged = os.path.join(hatpro_folder, "hatpro_merged.nc")  # + "hatpro_merged.nc"
 hatpro_smoothed = os.path.join(hatpro_folder, "hatpro_smoothed.nc")
 hatpro_calced_vars = os.path.join(hatpro_folder, "hatpro_calced_vars_from_arome_p_height_as_z.nc")
 hatpro_with_cap_height = os.path.join(hatpro_folder, "hatpro_interpolated_arome_height_as_z_with_cap_height.nc")
@@ -207,6 +226,16 @@ station_files_zamg = {
     "JEN": {"filepath": jenbach_zamg, "name": "Jenbach", 'lat': 47.388889, 'lon': 11.758056, 'hoehe': 530, },
     "KUF": {"filepath": kufstein_zamg, "name": "Kufstein", 'lon': 12.162778, 'lat': 47.575279, 'hoehe': 490, },
     "LOWI": {"filepath": innsbruck_airport_zamg, "name": "Innsbruck Airport", 'lat': 47.2598, 'lon': 11.3553,
+             'hoehe': 578, }, "IMST": {  # "filepath": imst_zamg,
+        "name": "Imst", 'lat': 47.2419, 'lon': 10.7218, 'hoehe': 828, }}
+
+# created a NEW dic with new zamg files:
+station_files_zamg_new = {
+    "IAO": {"filepath": innsbruck_uni_zamg_new, "name": "Innsbruck Uni", 'lon': 11.384167, 'lat': 47.259998,
+            'hoehe': ALL_POINTS["ibk_uni"]["height"], },  # set to 612m, Uni roof!
+    "JEN": {"filepath": jenbach_zamg_new, "name": "Jenbach", 'lat': 47.388889, 'lon': 11.758056, 'hoehe': 530, },
+    "KUF": {"filepath": kufstein_zamg_new, "name": "Kufstein", 'lon': 12.162778, 'lat': 47.575279, 'hoehe': 490, },
+    "LOWI": {"filepath": innsbruck_airport_zamg_new, "name": "Innsbruck Airport", 'lat': 47.2598, 'lon': 11.3553,
              'hoehe': 578, }, "IMST": {  # "filepath": imst_zamg,
         "name": "Imst", 'lat': 47.2419, 'lon': 10.7218, 'hoehe': 828, }}
 
@@ -302,4 +331,3 @@ hatpro_vertical_levels = {
     "height": ["0", "10", "30", "50", "75", "100", "125", "150", "200", "250", "325", "400", "475", "550", "625", "700",
                "800", "900", "1000", "1150", "1300", "1450", "1600", "1800", "2000", "2200", "2500", "2800", "3100",
                "3500", "3900", "4400", "5000", "5600", "6200", "7000", "8000", "9000", "10000"]}
-

@@ -1,6 +1,7 @@
 """
-Plot time series of vertical distribution of potential temperature using saved timeseries data.
-This script uses the saved timeseries data for the ibk_uni gridpoint with "above_terrain" height coordinate.
+Plot time series of vertical distribution of potential temperature using saved timeseries data (like Figure 6 in
+Lareau et al. 2013: The persistent cold air pool study).
+This script uses the saved timeseries data for a given gridpoint with "above_terrain" height coordinate.
 Based on plot_timeseries_old_for_concept.py but using the new data management system.
 """
 
@@ -264,7 +265,7 @@ if __name__ == '__main__':
     matplotlib.use('Qt5Agg')
 
     # Configuration
-    point_name = "ibk_uni"
+    point_name = "telfs"
     interface_height = 2500  # default y limit for plots
 
     # Plot all models
