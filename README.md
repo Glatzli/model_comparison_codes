@@ -6,12 +6,14 @@ ToDo:
 - pressure reduction to Innsbruck Uni station:
 	Needs to assume constant temperature for barometric approach...
 	Height Ibk Uni: chose now 612m, is that right? original w. 578m pressure is much lower than others...
+		-> where is the pressure sensor for this station?!
+  	plot only difference ibk airport-kufstein
 
 - added q and wind to vertical plot w. SL88 LIDAR data :D
   	-> don't seperate wind speed and direction: It doesn't work!
 - th/wind height-time plot: it has horizontal wind in it!
   	1. calculate timeseries again (with u & v also in it, not only udir & wspd)
-  	2. 
+  	2. lidar wrong!
 - VHD calculation: use "direct" height coordinate! due to hardcoded indexing for HAF-height IBK...
   
 - Add LIDAR-data: SLXR 142 in 20 min intervals, SL88 in 10 min (can compare 1/2 hrs) - enough to just use SL88?
@@ -46,6 +48,9 @@ ToDo:
 - => würde zunehmende CAP depth beim Taleingang erwarten => aufgrund stärkerer Inversionen um 04UTC
 
 - 2nd research goal:
+	- LWin:
+   		should be higher when a lot of hum.: mostly ICON is most humid (skew-T plot), vert...
+   		WRF has highter humidity -> higher LWin
 	plot sensible heat flux over full domain for AROME & WRF
   	also plot other vars: radiation?!
   
@@ -294,6 +299,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
