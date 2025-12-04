@@ -53,7 +53,14 @@ ToDo:
    		WRF has highter humidity -> higher LWin
 	plot sensible heat flux over full domain for AROME & WRF
   	also plot other vars: radiation?!
-  
+   - lwu AROME wrong, swd WRF Helen fragen: falsche var gespeichert? wird für horiz. fläche berechnet und dann auf
+     topograhie gerechnet
+  - AROME shortwave: ~200W incoming sw and 200 outgoing on east-slope? use uniform colorbar & check again!
+    	plot point on slope east & west in ziller valley?
+  - WRF upward shortwave flux: is that calculated from the horizontal variable or the one that is perpendicular to the
+    terrain? write Helen, append figure!
+ 
+    
 	08:00 is interesting in AROME: look at vert. profiles on slopes f.e.: Do you see change in stability?
   		point north of patscherkofel (still cooling):
   
@@ -299,6 +306,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
