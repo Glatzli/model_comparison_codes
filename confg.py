@@ -22,29 +22,31 @@ c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for 
 
 # All point locations defined below (created for Daniel's thesis):
 ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.38420, "height": 579},
-              # same lat & lon of Ibk cosma already used: which
-              # is for Ibk_Villa (2m temp recording); changed point to coords of https://acinn-data.uibk.ac.at/pages/meteodat.html
-              # now 4 m higher as Cosma's point (she had 575m ...)
+    # same lat & lon of Ibk cosma already used: which
+    # is for Ibk_Villa (2m temp recording); changed point to coords of https://acinn-data.uibk.ac.at/pages/meteodat.html
+    # now 4 m higher as Cosma's point (she had 575m ...)
 
-              "ibk_uni": {"name": "ibk uni", "lat": 47.264, "lon": 11.385, "height": 612},
-              # hatpro, uni coords rounded to 3 digits after comma
-              "ibk_airport": {"name": "ibk airport", "lat": 47.26, "lon": 11.34, "height": 577},
-              "hafelekar": {"name": "hafelekar", "lat": 47.312, "lon": 11.383, "height": hafelekar_height},
-              # 2279m, with 3 digits
-              "slope_north_patscherkofel": {"name": "slope north patscherkofel", "lat": 47.23, "lon": 11.5,
-                                            "height": 1750},
-              "woergl": {"name": "woergl", "lat": 47.494, "lon": 12.059, "height": 504},
-              # coords for wörgl (504m), lower Inn valley
-              "kiefersfelden": {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480},
-              # coords for kiefersfelden (480m), Germany, entrance Inn valley
-              "telfs": {"name": "telfs", "lat": 47.3, "lon": 11.1, "height": 622},  # 622m
-              # valley points in wipp & ziller valley for stability plots (where valleys are narrow):
-              "wipp_valley": {"name": "wipp valley", "lat": 47.13, "lon": 11.45, "height": 1044},
-              # between Schönberg & Matrei
-              "ziller_valley": {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
-              # between Zell am Ziller & Zillertal
-              "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
-              }
+    "ibk_uni": {"name": "ibk uni", "lat": 47.264, "lon": 11.385, "height": 612},
+    # hatpro height, uni coords rounded to 3 digits after comma
+    # pressure is measured at 609.5 m https://acinn-data.uibk.ac.at/pages/tawes-uibk.html
+    "ibk_airport": {"name": "ibk airport", "lat": 47.26, "lon": 11.34, "height": 577},
+    "hafelekar": {"name": "Hafelekar", "lat": 47.312, "lon": 11.383, "height": hafelekar_height},
+    # 2279m, with 3 digits
+    "slope_north_patscherkofel": {"name": "slope north patscherkofel", "lat": 47.23, "lon": 11.5, "height": 1750},
+    "woergl": {"name": "Woergl", "lat": 47.494, "lon": 12.059, "height": 504},
+    # coords for wörgl (504m), lower Inn valley
+    "jenbach": {"name": "Jenbach", 'lat': 47.388889, 'lon': 11.758056, 'hoehe': 525},
+    # lat & lons like Geosphere station, height from elevation finder (5 m below Geosphere)
+    "kufstein": {"name": "Kufstein", "lat": 47.575279, "lon": 12.162778, "height": 491},  # coords of geosphere station
+    "kiefersfelden": {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480},
+    # coords for kiefersfelden (480m), Germany, entrance Inn valley
+    "telfs": {"name": "Telfs", "lat": 47.3, "lon": 11.1, "height": 622},  # 622m
+    # valley points in wipp & ziller valley for stability plots (where valleys are narrow):
+    "wipp_valley": {"name": "wipp valley", "lat": 47.13, "lon": 11.45, "height": 1044},  # between Schönberg & Matrei
+    "ziller_valley": {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
+    # between Zell am Ziller & Zillertal
+    "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
+}
 POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # coordinates of points used for Daniels' Analysis; all points that should include HATPRO or Radiosonde data in
 # the point plots need "ibk" in the beginning of point definition
@@ -55,8 +57,8 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
-VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "kiefersfelden", "telfs", "wipp_valley",
-                 "ziller_valley", "ziller_ried"]
+VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "jenbach", "kufstein", "kiefersfelden", "telfs",
+                 "wipp_valley", "ziller_valley", "ziller_ried"]
 MOUNTAIN_SLOPE_POINTS = ["hafelkar", "slope_north_patscherkofel"]
 
 
@@ -232,7 +234,7 @@ station_files_zamg = {
 # created a NEW dic with new zamg files:
 station_files_zamg_new = {
     "IAO": {"filepath": innsbruck_uni_zamg_new, "name": "Innsbruck Uni", 'lon': 11.384167, 'lat': 47.259998,
-            'hoehe': ALL_POINTS["ibk_uni"]["height"], },  # set to 612m, Uni roof!
+            'hoehe': ALL_POINTS["ibk_uni"]["height"], }, # set to 612m, Uni roof!
     "JEN": {"filepath": jenbach_zamg_new, "name": "Jenbach", 'lat': 47.388889, 'lon': 11.758056, 'hoehe': 530, },
     "KUF": {"filepath": kufstein_zamg_new, "name": "Kufstein", 'lon': 12.162778, 'lat': 47.575279, 'hoehe': 490, },
     "LOWI": {"filepath": innsbruck_airport_zamg_new, "name": "Innsbruck Airport", 'lat': 47.2598, 'lon': 11.3553,
@@ -254,28 +256,28 @@ stations_ibox = {
 
 # dict with infos about EC stations
 ec_station_names = {1: {"name": "Patsch_EC_South", "lat": 47.209068, "lon": 11.411932},
-                    0: {"name": "Innsbruck_Airport_EC_West", "lat": 47.255375, "lon": 11.342832},
-                    2: {"name": "Thaur_EC_East", "lat": 47.281335, "lon": 11.474532},
-                    3: {"name": "IAO_Centre_Innsbruck_EC_Center", "lat": 47.264035, "lon": 11.385707}}
+    0: {"name": "Innsbruck_Airport_EC_West", "lat": 47.255375, "lon": 11.342832},
+    2: {"name": "Thaur_EC_East", "lat": 47.281335, "lon": 11.474532},
+    3: {"name": "IAO_Centre_Innsbruck_EC_Center", "lat": 47.264035, "lon": 11.385707}}
 
 # variables, units 2D AROME
 variables_units_2D_AROME = {'hfs': 'W/m²',  # Sensible heat flux at the surface
                             'hgt': 'm',  # Surface geopotential height
                             'lfs': 'W/m²',  # Latent heat flux at the surface
-                            'lwd': 'W/m²',  # Longwave incoming radiation at the surface
-                            'lwnet': 'W/m²',  # Longwave net radiation at the surface
-                            'lwu': 'W/m²',  # Longwave outgoing radiation at the surface (derived: lwnet - lwd)
-                            'pre': 'kg/m²',  # Surface precipitation (same as mm)
+                            'lwd': 'W/m²', # Longwave incoming radiation at the surface
+                            'lwnet': 'W/m²', # Longwave net radiation at the surface
+                            'lwu': 'W/m²', # Longwave outgoing radiation at the surface (derived: lwnet - lwd)
+                            'pre': 'kg/m²', # Surface precipitation (same as mm)
                             'ps': 'Pa',  # Surface pressure
-                            'swd': 'W/m²',  # Shortwave incoming radiation at the surface
-                            'swnet': 'W/m²',  # Shortwave net radiation at the surface
-                            'swu': 'W/m²',  # Shortwave reflected radiation at the surface (derived: swnet - swd)
-                            'tsk': 'K'  # Surface temperature (Oberflächentemperatur)
+                            'swd': 'W/m²', # Shortwave incoming radiation at the surface
+                            'swnet': 'W/m²', # Shortwave net radiation at the surface
+                            'swu': 'W/m²', # Shortwave reflected radiation at the surface (derived: swnet - swd)
+                            'tsk': 'K'# Surface temperature (Oberflächentemperatur)
                             }
 
 # variables, units 3D AROME
 variables_units_3D_AROME = {'ciwc': 'kg/kg',  # Specific cloud ice water content
-                            'clwc': 'kg/kg',  # Specific cloud liquid water content
+                            'clwc': 'kg/kg', # Specific cloud liquid water content
                             'p': 'Pa',  # Pressure
                             'q': 'kg/kg',  # Specific humidity
                             'th': 'K',  # Potential temperature

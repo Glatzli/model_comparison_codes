@@ -19,9 +19,12 @@ from __future__ import annotations
 
 # Fix for OpenMP duplicate library error on Windows
 import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+import sys
+
+sys.path.append("D:/MSc_Arbeit/model_comparison_codes/calculations_and_plots")
 
 import pickle
+import math
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -40,6 +43,41 @@ levels_thin = np.arange(0, 3500, 100)
 levels_thick = np.arange(0, 3500, 500)
 
 
+def calculate_lon_extent_for_km(latitude, km):
+    """
+    Berechnet die Ausdehnung in Grad Längengrad für eine gegebene Entfernung in Kilometern.
+    by ChatGPT...
+
+    Parameters:
+    latitude (float): Die gegebene Breite in Grad.
+    km (float): Die Entfernung in Kilometern.
+
+    Returns:
+    float: Die Ausdehnung in Grad Längengrad.
+    """
+    # Radius der Erde in Kilometern
+    earth_radius = 6371
+
+    # Erdumfang in Kilometern
+    earth_circumference = 2 * math.pi * earth_radius
+
+    # Länge eines Längengrads in Kilometern an der gegebenen Breite
+    lon_km = math.cos(math.radians(latitude)) * earth_circumference / 360
+
+    # Ausdehnung in Grad Längengrad für die gegebene Entfernung
+    lon_extent = km / lon_km
+    return lon_extent
+
+
+def calculate_km_for_lon_extent(latitude, lon_extent_deg):
+    """
+    Berechnet die Entfernung in km für eine gegebene Längendifferenz (in Grad) an einer bestimmten Breite.
+    """
+    earth_radius = 6371  # km
+    earth_circumference = 2 * math.pi * earth_radius
+    lon_km = math.cos(math.radians(latitude)) * earth_circumference / 360
+    return lon_extent_deg * lon_km
+
 def add_contour_lines(ax, topo_data, levels_thin=levels_thin, levels_thick=levels_thick, add_labels=True):
     """
     Add topography contour lines to a plot.
@@ -55,18 +93,12 @@ def add_contour_lines(ax, topo_data, levels_thin=levels_thin, levels_thick=level
         Tuple of (contours_thin, contours_thick)
     """
     # Add thin contour lines every 100m
-    contours_thin = ax.contour(topo_data.lon, topo_data.lat,
-                               topo_data.values,
-                               levels=levels_thin,
-                               colors='black', linewidths=0.5, alpha=0.5,
-                               transform=ccrs.PlateCarree())
+    contours_thin = ax.contour(topo_data.lon, topo_data.lat, topo_data.values, levels=levels_thin, colors='black',
+                               linewidths=0.5, alpha=0.5, transform=ccrs.PlateCarree())
 
     # Thick contours every 500m with optional labels
-    contours_thick = ax.contour(topo_data.lon, topo_data.lat,
-                                topo_data.values,
-                                levels=levels_thick,
-                                colors='black', linewidths=1,
-                                transform=ccrs.PlateCarree())
+    contours_thick = ax.contour(topo_data.lon, topo_data.lat, topo_data.values, levels=levels_thick, colors='black',
+                                linewidths=1, transform=ccrs.PlateCarree())
 
     if add_labels:
         ax.clabel(contours_thick, inline=True, fontsize=8, fmt='%1.0f')
@@ -182,7 +214,7 @@ def read_all_model_topographies(day: int = 15, hour: int = 14, minute: int = 0):
 
 
 def plot_topography_comparison(topo_data: dict, save_path: str = None, add_points_confg: bool = True,
-                               extent: tuple = None):
+        extent: tuple = None):
     """
     Create a comparison plot of topography from all models.
     
@@ -193,8 +225,7 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
         extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
     """
     # Filter out AROME_hgt and WRF_hgt - only show _z values (hgt & z vals are compared in extra plot...)
-    filtered_topo_data = {k: v for k, v in topo_data.items()
-                          if k not in ["AROME_hgt", "WRF_hgt"]}
+    filtered_topo_data = {k: v for k, v in topo_data.items() if k not in ["AROME_hgt", "ICON2TE", "WRF_hgt"]}
 
     # Count number of plots
     n_plots = len(filtered_topo_data)
@@ -261,8 +292,7 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
         cbar.set_label('Height [m]', fontsize=12)
 
     # Overall title
-    fig.suptitle('Topography Comparison: All Models at 2017-10-15 14:00 UTC', fontsize=14, fontweight='bold',
-                 y=0.98)
+    fig.suptitle('Topography Comparison: All Models at 2017-10-15 14:00 UTC', fontsize=14, fontweight='bold', y=0.98)
 
     # Save figure
     if save_path:
@@ -295,8 +325,7 @@ def plot_topography_comparison_main(day: int = 15, hour: int = 14, minute: int =
 
     # Create plot with points and extent
     fig, axes = plot_topography_comparison(topo_data, save_path=save_path, add_points_confg=add_points_confg,
-                                           extent=plot_extent)
-    # plt.tight_layout()  #
+                                           extent=plot_extent)  # plt.tight_layout()  #
 
 
 def calculate_topography_differences(topo_data: dict):
@@ -403,13 +432,8 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
     print(f"\nDifference range: {vmin:.1f} m to {vmax:.1f} m")
 
     # Mapping for which topography to use for contours
-    contour_topo_map = {
-        "AROME_z - AROME_hgt": "AROME_z",
-        "ICON - AROME (interp.)": "ICON",
-        "ICON - UM (interp.)": "ICON",
-        "ICON - WRF (interp.)": "ICON",
-        "WRF_z - WRF_hgt": "WRF_z_unstag"
-    }
+    contour_topo_map = {"AROME_z - AROME_hgt": "AROME_z", "ICON - AROME (interp.)": "ICON",
+        "ICON - UM (interp.)": "ICON", "ICON - WRF (interp.)": "ICON", "WRF_z - WRF_hgt": "WRF_z_unstag"}
 
     # Plot each difference
     for idx, (diff_name, data) in enumerate(diff_data.items()):
@@ -431,8 +455,7 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
         ax.add_feature(cfeature.BORDERS, linewidth=1)
 
         # Set extent
-        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max],
-                      crs=ccrs.PlateCarree())
+        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max], crs=ccrs.PlateCarree())
 
         # Add gridlines without labels
         gl = ax.gridlines(draw_labels=False, linewidth=0.5, alpha=0.5, linestyle='--')
@@ -443,8 +466,7 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=10, fontweight='bold', ha='center',
-                va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=10, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Hide unused subplots
@@ -502,11 +524,7 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
     print(f"\nInternal model difference range: {vmin:.1f} m to {vmax:.1f} m")
 
     # Mapping for which topography to use for contours
-    contour_topo_map = {
-        "AROME_z - AROME_hgt": "AROME_z",
-        "WRF_z - WRF_hgt": "WRF_z_unstag",
-        "ICON - ICON2TE": "ICON"
-    }
+    contour_topo_map = {"AROME_z - AROME_hgt": "AROME_z", "WRF_z - WRF_hgt": "WRF_z_unstag", "ICON - ICON2TE": "ICON"}
 
     # Plot each difference
     for idx, (diff_name, data) in enumerate(internal_diffs.items()):
@@ -528,8 +546,7 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
         ax.add_feature(cfeature.BORDERS, linewidth=1)
 
         # Set extent
-        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max],
-                      crs=ccrs.PlateCarree())
+        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max], crs=ccrs.PlateCarree())
 
         # Add gridlines without labels
         gl = ax.gridlines(draw_labels=False, linewidth=0.5, alpha=0.5, linestyle='--')
@@ -540,8 +557,7 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold',
-                ha='center', va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Add single colorbar at the bottom center
@@ -597,11 +613,7 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
     print(f"\nModel-to-model difference range: {vmin:.1f} m to {vmax:.1f} m")
 
     # Mapping for which topography to use for contours
-    contour_topo_map = {
-        "ICON - AROME (interp.)": "ICON",
-        "ICON - UM (interp.)": "ICON",
-        "ICON - WRF (interp.)": "ICON"
-    }
+    contour_topo_map = {"ICON - AROME (interp.)": "ICON", "ICON - UM (interp.)": "ICON", "ICON - WRF (interp.)": "ICON"}
 
     # Plot each difference
     for idx, (diff_name, data) in enumerate(model_diffs.items()):
@@ -623,8 +635,7 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
         ax.add_feature(cfeature.BORDERS, linewidth=1)
 
         # Set extent
-        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max],
-                      crs=ccrs.PlateCarree())
+        ax.set_extent([confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max], crs=ccrs.PlateCarree())
 
         # Add gridlines without labels
         gl = ax.gridlines(draw_labels=False, linewidth=0.5, alpha=0.5, linestyle='--')
@@ -635,8 +646,7 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold',
-                ha='center', va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Hide unused subplots
@@ -650,8 +660,8 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
     cbar.set_label('Height Difference [m]', fontsize=12)
 
     # Overall title
-    fig.suptitle('Model-to-Model Topography Differences at 2017-10-15 14:00 UTC',
-                 fontsize=13, fontweight='bold', y=0.96)
+    fig.suptitle('Model-to-Model Topography Differences at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold',
+                 y=0.96)
 
     # Save figure
     plt.savefig(save_path, dpi=400, bbox_inches='tight')
@@ -691,13 +701,145 @@ def plot_topography_differences_main(day: int = 15, hour: int = 14, minute: int 
     fig1, axes1 = plot_internal_model_differences(diff_data, topo_data, save_path=save_path_internal)
 
     # Plot 2: Model-to-model differences
-    save_path_models = os.path.join(plot_dir,
-                                    f"topo_differences_models_2017-10-{day:02d}_{hour:02d}{minute:02d}.png")
+    save_path_models = os.path.join(plot_dir, f"topo_differences_models_2017-10-{day:02d}_{hour:02d}{minute:02d}.png")
 
     fig2, axes2 = plot_model_to_model_differences(diff_data, topo_data, save_path=save_path_models)
 
     # Show plots
     plt.tight_layout()
+
+
+def plot_arome_wrf_topography_only(topo_data: dict, save_path: str = None, add_points_confg: bool = True,
+        extent: tuple = None):
+    """
+    Create a side-by-side plot of AROME and WRF topography only.
+
+    Args:
+        topo_data: Dictionary with topography data for each model
+        save_path: Path to save the figure
+        add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
+        extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
+    """
+    # Use terrain colormap
+    cmap = sequential_hcl("Terrain").cmap()
+
+    # Create figure with 2 subplots side by side
+    fig, axes = plt.subplots(1, 2, figsize=(16, 7), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    # Set fixed colorbar limits
+    vmin = 400
+    vmax = 3000
+
+    print(f"\nTopography range: {vmin:.1f} m - {vmax:.1f} m")
+
+    # Plot AROME
+    if "AROME_z" in topo_data:
+        ax = axes[0]
+        data = topo_data["AROME_z"]
+
+        im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax,
+                           transform=ccrs.PlateCarree(), shading='auto')
+
+        # Add contour lines
+        add_contour_lines(ax, data)
+
+        # Add features
+        ax.coastlines(resolution='10m', linewidth=1)
+        ax.add_feature(cfeature.BORDERS, linewidth=1)
+
+        if extent:
+            ax.set_extent(extent, crs=ccrs.PlateCarree())
+
+        # Add gridlines
+        gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+        gl.top_labels = False
+        gl.right_labels = False
+
+        # Add title
+        ax.text(0.5, 0.98, "AROME", transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center', va='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+
+        if add_points_confg:
+            add_points_to_axes(ax, extent=extent)
+
+    # Plot WRF
+    if "WRF_z_unstag" in topo_data:
+        ax = axes[1]
+        data = topo_data["WRF_z_unstag"]
+
+        im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax,
+                           transform=ccrs.PlateCarree(), shading='auto')
+
+        # Add contour lines
+        add_contour_lines(ax, data)
+
+        # Add features
+        ax.coastlines(resolution='10m', linewidth=1)
+        ax.add_feature(cfeature.BORDERS, linewidth=1)
+
+        if extent:
+            ax.set_extent(extent, crs=ccrs.PlateCarree())
+
+        # Add gridlines
+        gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+        gl.top_labels = False
+        gl.right_labels = False
+
+        # Add title
+        ax.text(0.5, 0.98, "WRF", transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center', va='top',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+
+        if add_points_confg:
+            add_points_to_axes(ax, extent=extent)
+
+    # Add single colorbar at the bottom center
+    fig.subplots_adjust(bottom=0.15)
+    cbar_ax = fig.add_axes([0.25, 0.08, 0.5, 0.02])  # [left, bottom, width, height]
+    cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+    cbar.set_label('Height [m]', fontsize=12)
+
+    # Overall title
+    fig.suptitle('AROME vs WRF Topography at 2017-10-15 14:00 UTC', fontsize=16, fontweight='bold', y=0.96)
+
+    # Save figure
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"\n✓ Figure saved to: {save_path}")
+
+    return fig, axes
+
+
+def plot_arome_wrf_topography_main(day: int = 15, hour: int = 14, minute: int = 0, add_points_confg: bool = True):
+    """
+    Main function to read data and create AROME vs WRF topography plot.
+
+    Args:
+        day: Day of month (default: 15)
+        hour: Hour of day (default: 14 for 14:00)
+        minute: Minute of hour (default: 0)
+        add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
+    """
+    # Define plot extent (lon_min, lon_max, lat_min, lat_max) - Hafelekar extent
+    plot_extent = (confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max)
+
+    print(f"\n{'=' * 70}")
+    print(f"Creating AROME vs WRF Topography Plot")
+    print(f"{'=' * 70}")
+    print(
+        f"Plot extent: lon [{plot_extent[0]:.2f}, {plot_extent[1]:.2f}], lat [{plot_extent[2]:.2f}, {plot_extent[3]:.2f}]")
+
+    # read or load topo data
+    topo_data = check_read_topographies(day=day, hour=hour, minute=minute)
+
+    # Create save path
+    save_path = os.path.join(confg.dir_topo_plots, "topo_arome_wrf_comparison.png")
+
+    # Create plot
+    fig, axes = plot_arome_wrf_topography_only(topo_data, save_path=save_path, add_points_confg=add_points_confg,
+                                               extent=plot_extent)
+
+    print(f"{'=' * 70}\n")
+    return fig, axes
 
 
 def add_points_to_axes(ax, extent=None):
@@ -709,8 +851,7 @@ def add_points_to_axes(ax, extent=None):
         extent: Tuple (lon_min, lon_max, lat_min, lat_max) to check if points are within extent
     """
     if extent is None:  # define default here so that it's not mutable
-        extent = [confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min,
-                  confg.lat_hf_max]
+        extent = [confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max]
 
     # Unpack extent if provided
     if extent:
@@ -724,30 +865,28 @@ def add_points_to_axes(ax, extent=None):
                 continue  # Skip points outside extent
 
         # Plot marker
-        ax.plot(point_data["lon"], point_data["lat"], marker='o', markersize=6,
-                markerfacecolor='red', markeredgecolor='white', markeredgewidth=1,
-                transform=ccrs.PlateCarree(), zorder=10)
-
+        ax.plot(point_data["lon"], point_data["lat"], marker='o', markersize=6, markerfacecolor='red',
+                markeredgecolor='white', markeredgewidth=1, transform=ccrs.PlateCarree(), zorder=10)
 
         # Add label below the point_data with automatic adjustment
-        ax.annotate(point_data['name'],
-                    xy=(point_data["lon"], point_data["lat"]),
-                    xytext=(0, -10),  # Offset: 10 points below
-                    textcoords='offset points',
-                    transform=ccrs.PlateCarree(),
-                    fontsize=8,
-                    fontweight='bold',
-                    ha='center',
-                    va='top',
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white',
-                              alpha=0.8, edgecolor='black', linewidth=0.5),
+        ax.annotate(point_data['name'], xy=(point_data["lon"], point_data["lat"]), xytext=(0, -10),
+                    # Offset: 10 points below
+                    textcoords='offset points', transform=ccrs.PlateCarree(), fontsize=8, fontweight='bold',
+                    ha='center', va='top',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='black', linewidth=0.5),
                     zorder=11)
 
 
 if __name__ == "__main__":
-    # Create topography comparison plot for 14:00 on 2017-10-15 (4th timestamp)
-    plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
+    # Choose which plot(s) to create:
 
-    # Create topography difference plots for 14:00 on 2017-10-15
+    # 1. Create topography comparison plot for ALL models (5 models in grid)
+    # plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
+
+    # 2. Create topography difference plots
     # plot_topography_differences_main(day=15, hour=14, minute=0)
+
+    # 3. Create AROME vs WRF topography comparison only (big side-by-side plot)
+    plot_arome_wrf_topography_main(day=15, hour=14, minute=0, add_points_confg=True)
+
     plt.show()

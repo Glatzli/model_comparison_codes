@@ -17,7 +17,7 @@ import matplotlib
 import datetime
 from confg import variables_units_2D_AROME
 
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 
 
 def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):

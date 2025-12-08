@@ -1,7 +1,5 @@
 """
-somehow I get the error if running the script completely:
-Process finished with exit code -1066598274 (0xC06D007E)
-Avoid by setting a breakpoint before saving the plot, then the rest is working somehow...
+
 
 Download and verify/plot the ZAMG/Geosphere station data via API.
 
@@ -18,14 +16,9 @@ Time period: 2017-10-15 12:00:00 to 2017-10-16 12:00:00
 Dataset: 10-minute observations (klima-v2-10min)
 """
 
+import json
 import os
 
-import json
-# Import required modules for datetime formatting
-import matplotlib.dates as mdates
-import matplotlib
-matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
@@ -50,6 +43,9 @@ END_TIME = "2017-10-16T12:00:00"
 # Dataset resource ID for 10-minute climate data
 # Based on API docs: klima-v2-10min is the 10-minute historical dataset
 DATASET_RESOURCE = "klima-v2-10min"
+
+R = 287.05  # Specific gas constant for dry air [J/(kg·K)]
+g = 9.80665  # Standard gravity [m/s²]
 
 
 def get_station_metadata(station_id):
@@ -124,8 +120,8 @@ def download_station_data(station_id, start_time, end_time, parameters=None):
     url = f"{API_BASE_URL}/station/historical/klima-v2-10min"
 
     # Parameters for the request - try CSV format first as it's more reliable
-    params = {'parameters': ','.join(parameters), 'station_ids': station_id,  # Station ID as query parameter
-              'start': start_time, 'end': end_time, 'output_format': 'csv'  # Changed from geojson to csv
+    params = {'parameters': ','.join(parameters), 'station_ids': station_id, # Station ID as query parameter
+              'start': start_time, 'end': end_time, 'output_format': 'csv'# Changed from geojson to csv
               }
 
     print(f"  Requesting URL: {url}")
@@ -242,82 +238,6 @@ def compare_data(api_df, csv_df, station_name):
             print("  ✗ Data has significant differences!")
 
 
-def plot_downloaded_data(stations_data_reduced, stations_metadata, save_path=None, reference_station='Kufstein'):
-    """
-    Plot downloaded API data for all stations in one plot.
-
-    Parameters
-    ----------
-    stations_data_reduced : dict
-        Dictionary with station name as key and DataFrame as value
-    stations_metadata : dict
-        Dictionary with station metadata including heights
-    save_path : str, optional
-        Path to save figure
-    """
-    if len(stations_data_reduced) == 0:
-        print("No data to plot!")
-        return
-
-    # Create figure with two subplots: one for P, one for TL
-    fig, ax = plt.subplots(2, 1, figsize=(12, 8))
-
-    # Plot Station Pressure (P)
-    for color_index, (station_name, api_df) in enumerate(stations_data_reduced.items()):
-        # Drop NaN values for cleaner plotting
-        valid_data = api_df['p_reduced'].dropna()
-        # Use confg.qualitative_colors_temp with incrementing index
-        color = confg.qualitative_colors_temp[color_index * 2]
-
-        if station_name == "Innsbruck Uni":
-            height = confg.ALL_POINTS["ibk_uni"]["height"]  # set correct height for Innsbruck Uni
-        else:
-            height = stations_metadata.get(station_name, {}).get('altitude', 'N/A')
-        label = f"{station_name} ({height:.0f} m)"  # Create label with station height
-
-        ax[0].plot(valid_data.index, valid_data.values, '-', label=label, color=color, linewidth=2.5, alpha=0.9)
-
-    ax[0].set_ylabel('Pressure reduced to Innsbruck Uni height [hPa]')
-    ax[0].legend(loc='best', fontsize=11, framealpha=0.9)
-    ax[0].grid(True, linestyle='--')
-
-    # Plot Temperature (TL)
-    for color_index, (station_name, api_df) in enumerate(stations_data_reduced.items()):
-        # Drop NaN values for cleaner plotting
-        valid_data = api_df['tl'].dropna()
-        if len(valid_data) > 0:
-            # Use confg.qualitative_colors_temp with incrementing index
-            color = confg.qualitative_colors_temp[color_index * 2]
-
-            # Create label with station height
-            height = stations_metadata.get(station_name, {}).get('altitude', 'N/A')
-            label = f"{station_name} ({height:.0f} m)"
-
-            ax[1].plot(valid_data.index, valid_data.values, '-', label=label, color=color, linewidth=2.5, alpha=0.9)
-
-    ax[1].set_ylabel('2m air Temperature TL [°C]')
-    ax[1].legend(loc='best', fontsize=11, framealpha=0.9)
-    ax[1].grid(True, linestyle='--')
-
-    # Format x-axis with proper datetime formatting
-    # Show date and time on x-axis
-    date_format = mdates.DateFormatter('%Y-%m-%d\n%H:%M')
-    ax[1].xaxis.set_major_formatter(date_format)
-
-    # Set major ticks every 3 hours
-    ax[1].xaxis.set_major_locator(mdates.HourLocator(interval=4))
-    # Set minor ticks every hour
-    ax[1].xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-    # Rotate and align the tick labels so they look better
-    plt.setp(ax[1].xaxis.get_majorticklabels(), rotation=0, ha='center')
-
-    plt.suptitle('Geosphere API Downloaded Data - Inn Valley Stations', fontsize=16, fontweight='bold', y=0.995)
-    plt.tight_layout()
-    plt.show()
-    plt.savefig(save_path, format='svg')
-    print(f"\nFigure saved to: {save_path}")
-
-
 def reduce_pressure_to_reference_station(stations_data, stations_metadata, reference_station='Kufstein'):
     """
     Reduce pressure from all stations to the reference station elevation using barometric formula.
@@ -340,8 +260,6 @@ def reduce_pressure_to_reference_station(stations_data, stations_metadata, refer
         Dictionary with station names as keys and DataFrames with reduced pressure as values
     """
     # Physical constants
-    R = 287.05  # Specific gas constant for dry air [J/(kg·K)]
-    g = 9.80665  # Standard gravity [m/s²]
 
     # Get reference station elevation
     if reference_station not in stations_metadata:
@@ -361,7 +279,8 @@ def reduce_pressure_to_reference_station(stations_data, stations_metadata, refer
 
         # wrong height of pressure measurement for Ibk uni station in the Metadata!
         if station_name == "Innsbruck Uni":
-            station_elevation = confg.ALL_POINTS["ibk_uni"]["height"]
+            # station_elevation = confg.ALL_POINTS["ibk_uni"]["height"]  # this is HATPRO height!
+            station_elevation = 609.5  # m pressure height is at 609.5m (https://acinn-data.uibk.ac.at/pages/tawes-uibk.html)
         else:
             station_elevation = stations_metadata[station_name]['altitude']
         elevation_diff = station_elevation - ref_elevation  # Positive if station is higher
@@ -387,7 +306,8 @@ def reduce_pressure_to_reference_station(stations_data, stations_metadata, refer
 
         elif 'p' in df.columns:
             # Fallback: Use standard atmosphere if no temperature data
-            print(f"    Warning: No temperature data for {station_name}, using standard atmosphere (T=15°C)")
+            print(f"    Warning: No temperature data for {station_name}")  # , using standard atmosphere (T=15°C)
+            continue
             T_standard = 288.15  # 15°C in Kelvin
             pressure_factor = np.exp((g * elevation_diff) / (R * T_standard))
             df_reduced['p_reduced'] = df['p'] * pressure_factor
@@ -398,85 +318,6 @@ def reduce_pressure_to_reference_station(stations_data, stations_metadata, refer
         stations_data_reduced[station_name] = df_reduced
 
     return stations_data_reduced
-
-
-def plot_pressure_comparison(stations_data, stations_data_reduced, save_path=None):
-    """
-    Plot comparison of original vs reduced pressure for all stations.
-
-    Parameters
-    ----------
-    stations_data : dict
-        Original station data
-    stations_data_reduced : dict
-        Station data with reduced pressure
-    save_path : str, optional
-        Path to save figure
-    """
-    if len(stations_data) == 0:
-        print("No data to plot!")
-        return
-
-    import matplotlib.dates as mdates
-
-    # Create figure with three subplots: original P, reduced P, and temperature
-    fig, ax = plt.subplots(3, 1, figsize=(14, 12), sharex=True)
-
-    # Plot Original Pressure
-    for color_index, (station_name, api_df) in enumerate(stations_data.items()):
-        if 'p_reduced' in api_df.columns:
-            valid_data = api_df['p'].dropna()
-            color = confg.qualitative_colors_temp[color_index * 2]
-            ax[0].plot(valid_data.index, valid_data.values, '-', label=station_name, color=color, linewidth=2.5,
-                       alpha=0.9)
-
-    ax[0].set_ylabel('Original Pressure [hPa]')
-    ax[0].set_title('Original Station Pressure', fontweight='bold')
-    ax[0].legend(loc='best', fontsize=10, framealpha=0.9)
-    ax[0].grid(True, linestyle='--', alpha=0.7)
-
-    # Plot Reduced Pressure
-    for color_index, (station_name, api_df_red) in enumerate(stations_data_reduced.items()):
-        if 'p_reduced' in api_df_red.columns:
-            valid_data = api_df_red['p_reduced'].dropna()
-            color = confg.qualitative_colors_temp[color_index * 2]
-            ax[1].plot(valid_data.index, valid_data.values, '-', label=station_name, color=color, linewidth=2.5,
-                       alpha=0.9)
-
-    ax[1].set_ylabel('Reduced Pressure [hPa]')
-    ax[1].set_title('Pressure Reduced to Innsbruck University Level (578 m)', fontweight='bold')
-    ax[1].legend(loc='best', fontsize=10, framealpha=0.9)
-    ax[1].grid(True, linestyle='--', alpha=0.7)
-
-    # Plot Temperature (for reference)
-    for color_index, (station_name, api_df) in enumerate(stations_data.items()):
-        if 'tl' in api_df.columns:
-            valid_data = api_df['tl'].dropna()
-            color = confg.qualitative_colors_temp[color_index * 2]
-            ax[2].plot(valid_data.index, valid_data.values, '-', label=station_name, color=color, linewidth=2.5,
-                       alpha=0.9)
-
-    ax[2].set_ylabel('Temperature [°C]')
-    ax[2].set_title('Air Temperature (used for pressure reduction)', fontweight='bold')
-    ax[2].legend(loc='best', fontsize=10, framealpha=0.9)
-    ax[2].grid(True, linestyle='--', alpha=0.7)
-
-    # Format x-axis
-    date_format = mdates.DateFormatter('%Y-%m-%d\n%H:%M')
-    ax[2].xaxis.set_major_formatter(date_format)
-    ax[2].xaxis.set_major_locator(mdates.HourLocator(interval=4))
-    ax[2].xaxis.set_minor_locator(mdates.HourLocator(interval=1))
-    plt.setp(ax[2].xaxis.get_majorticklabels(), rotation=0, ha='center')
-
-    plt.suptitle('Pressure Reduction Analysis - Inn Valley Stations', fontsize=16, fontweight='bold', y=0.995)
-    plt.tight_layout()
-
-    if save_path:
-        plt.savefig(save_path, format='svg', bbox_inches='tight')
-        print(f"\nComparison figure saved to: {save_path}")
-
-    plt.show()
-    return fig
 
 
 def save_downloaded_data(stations_data):
@@ -533,103 +374,186 @@ def load_station_metadata(metadata_file_path=None):
     return {}
 
 
+def load_or_download_all_stations(start_time=START_TIME, end_time=END_TIME):
+    """
+    Load all stations from CSV files, or download from API if files don't exist.
+
+    This is the main function to use - it handles everything in one call (DRY principle).
+
+    Parameters
+    ----------
+    start_time : str, optional
+        Start time in ISO format (default: START_TIME)
+    end_time : str, optional
+        End time in ISO format (default: END_TIME)
+
+    Returns
+    -------
+    tuple
+        (stations_data, stations_metadata) where:
+        - stations_data: dict with station names as keys and DataFrames as values
+        - stations_metadata: dict with station metadata
+    """
+    stations_data = {}
+    stations_metadata = load_station_metadata()
+
+    for station_code, station_info in confg.station_files_zamg_new.items():
+        station_name = station_info['name']
+        file_path = station_info.get('filepath')
+
+        # Try to load from CSV first
+        if file_path and os.path.exists(file_path):
+            print(f"\nLoading {station_name} from {file_path}")
+            try:
+                df = pd.read_csv(file_path, parse_dates=['time'], index_col='time')
+                stations_data[station_name] = df
+                print(f"  ✓ Loaded {len(df)} data points")
+
+                # Load metadata if not already present
+                if station_name not in stations_metadata:
+                    if station_code in STATION_ID_MAPPING:
+                        metadata = get_station_metadata(STATION_ID_MAPPING[station_code])
+                        if metadata:
+                            stations_metadata[station_name] = metadata
+                continue
+            except Exception as e:
+                print(f"  ✗ Error loading data: {e}")
+                print("  Will try downloading from API...")
+
+        # File doesn't exist or failed to load - download from API
+        print(f"\n⚠ File not found for {station_name}: {file_path}")
+        print(f"  Downloading data from Geosphere API...")
+
+        if station_code not in STATION_ID_MAPPING:
+            print(f"  ✗ Station code {station_code} not in API mapping, skipping")
+            continue
+
+        station_id = STATION_ID_MAPPING[station_code]
+
+        # Get metadata
+        if station_name not in stations_metadata:
+            metadata = get_station_metadata(station_id)
+            if metadata:
+                stations_metadata[station_name] = metadata
+                print(f"  ✓ Retrieved metadata for {station_name}")
+
+        # Download data
+        try:
+            df = download_station_data(station_id, start_time, end_time)
+            if df is not None:
+                stations_data[station_name] = df
+                print(f"  ✓ Downloaded {len(df)} data points")
+
+                # Save for future use
+                print(f"  Saving to {file_path}...")
+                save_downloaded_data({station_name: df})
+                print(f"  ✓ Data saved")
+            else:
+                print(f"  ✗ Failed to download data for {station_name}")
+        except Exception as e:
+            print(f"  ✗ Error downloading data: {e}")
+
+    # Save updated metadata
+    if stations_metadata:
+        save_station_metadata(stations_metadata)
+
+    return stations_data, stations_metadata
+
+
+def reduce_model_pressure_to_reference_station(model_data, stations_metadata, reference_station='Kufstein'):
+    """
+    Reduce pressure from all model data to the reference station elevation using barometric formula.
+
+    Uses the lowest model level (height variable) as reference height for each model.
+
+    Parameters
+    ----------
+    model_data : dict
+        Dictionary with point names as keys and model dictionaries as values
+        {point_name: {model: xr.Dataset}}
+    stations_metadata : dict
+        Dictionary with station metadata including heights
+    reference_station : str
+        Name of reference station (default: 'Kufstein')
+
+    Returns
+    -------
+    dict
+        Dictionary with reduced model pressure data
+    """
+    import numpy as np
+
+    # Get reference station elevation
+    if reference_station not in stations_metadata:
+        print(f"Warning: Reference station '{reference_station}' not found in metadata!")
+        return model_data
+
+    ref_elevation = stations_metadata[reference_station]['altitude']
+    print(f"\nReducing model pressures to {reference_station} elevation: {ref_elevation} m")
+
+    model_data_reduced = {}
+
+    for point_name, models in model_data.items():
+        model_data_reduced[point_name] = {}
+
+        for model_name, ds in models.items():
+            if model_name == "WRF":
+                # Skip WRF due to no time dimension for pressure
+                print(f"  Skipping {model_name} - no time dimension for pressure")
+                continue
+
+            if 'p' not in ds.variables or 'height' not in ds.variables or 'temp' not in ds.variables:
+                print(f"  Warning: Missing required variables for {model_name} at {point_name}")
+                model_data_reduced[point_name][model_name] = ds
+                continue
+
+            # Get the lowest model level (surface level)
+            model_height = float(ds['height'].sel(height=0, method="nearest").values)
+
+            # Calculate elevation difference
+            elevation_diff = model_height - ref_elevation  # Positive if model level is higher
+            print(
+                f"  {model_name} at {point_name}: {model_height:.1f} m -> {ref_elevation} m (Δh = {elevation_diff:.1f} m)")
+
+            # Create a copy of the dataset
+            ds_reduced = ds.copy()
+            # Get pressure and temperature at lowest level
+            p_model_surface = ds['p'].sel(height=0, method="nearest") * 100  # Surface pressure in Pa
+            temp_model_surface = ds['temp'].sel(height=0, method="nearest") + 273.15  # Surface temperature in K
+
+            # Barometric formula: P_reduced = P_model * exp((g * Δh) / (R * T))
+            p_reduced_hpa = (p_model_surface * np.exp((g * elevation_diff) / (R * temp_model_surface))) / 100
+
+            # Convert back to Pa and store in dataset
+            ds_reduced['p_reduced'] = (['time'], p_reduced_hpa.values)
+            ds_reduced['p_reduced'].attrs['units'] = 'Pa'
+            ds_reduced['p_reduced'].attrs['long_name'] = f'Pressure reduced to {reference_station} elevation'
+
+            # Show statistics
+            original_mean = float(p_model_surface.mean() / 100)
+            reduced_mean = float(p_reduced_hpa.mean())
+            print(f"    mean Original pressure: {original_mean:.2f} hPa")
+            print(f"    mean Reduced pressure:  {reduced_mean:.2f} hPa")
+            print(f"    Mean difference:   {reduced_mean - original_mean:.2f} hPa")
+
+            model_data_reduced[point_name][model_name] = ds_reduced
+
+    return model_data_reduced
+
+
 if __name__ == "__main__":
     """
     Main function to download Geosphere data via API.
+    Simply calls load_or_download_all_stations() to do all the work.
     """
     print("=" * 70)
     print("Geosphere Austria API Data Download")
     print("=" * 70)
 
-    stations_data = {}
-
-    # Load existing metadata if available
-    stations_metadata = load_station_metadata()
-
-    # Loop through stations from confg.station_files_zamg_new
-    for station_code, station_info in confg.station_files_zamg_new.items():
-        # Skip stations not in our mapping
-        if station_code not in STATION_ID_MAPPING:
-            print(f"\nSkipping {station_code} - not in mapping")
-            continue
-
-        station_id = STATION_ID_MAPPING[station_code]
-        station_name = station_info['name']
-
-        print(f"\n{'=' * 70}")
-        print(f"Processing: {station_name} (Code: {station_code}, ID: {station_id})")
-        print(f"{'=' * 70}")
-
-        # Check if CSV file already exists and load it
-        file_path = station_info.get('filepath')
-        if file_path and os.path.exists(file_path):
-            print(f"\n1. Loading existing data from {file_path}")
-            try:
-                api_df = pd.read_csv(file_path, parse_dates=['time'], index_col='time')
-                print(f"  ✓ Loaded {len(api_df)} data points from existing file")
-                stations_data[station_name] = api_df
-
-                # Load metadata from saved file if we have it
-                if station_name not in stations_metadata:
-                    print("  Getting metadata from API...")
-                    metadata = get_station_metadata(station_id)
-                    if metadata:
-                        stations_metadata[station_name] = metadata
-                continue
-
-            except Exception as e:
-                print(f"  Error loading existing file: {e}")
-                print("  Will download fresh data instead...")
-
-        # Get station metadata
-        print("\n1. Fetching station metadata...")
-        metadata = get_station_metadata(station_id)
-        if metadata:
-            print(f"  Station: {metadata.get('name')}")
-            print(f"  Location: {metadata.get('lat')}, {metadata.get('lon')}")
-            print(f"  Elevation: {metadata.get('altitude')} m")
-            stations_metadata[station_name] = metadata
-
-        # Download API data
-        print("\n2. Downloading data from API...")
-        api_df = download_station_data(station_id, START_TIME, END_TIME)
-
-        if api_df is not None:
-            print(f"  Successfully downloaded {len(api_df)} data points")
-            print(f"  Time range: {api_df.index[0]} to {api_df.index[-1]}")
-
-            # Show sample data
-            if 'p' in api_df.columns:
-                print(f"  Pressure (p) range: {api_df['p'].min():.2f} - {api_df['p'].max():.2f} hPa")
-            if 'tl' in api_df.columns:
-                print(f"  Temperature (tl) range: {api_df['tl'].min():.2f} - {api_df['tl'].max():.2f} °C")
-
-            stations_data[station_name] = api_df
-        else:
-            print(f"  Failed to download data for {station_name}")
-
-    # Save downloaded data and metadata
-    if stations_data:
-        save_downloaded_data(stations_data)
-        save_station_metadata(stations_metadata)
-
-    # Reduce pressure to reference station
-    print(f"\n{'=' * 70}")
-    print("Reducing pressure to reference station...")
-    print(f"{'=' * 70}")
-
-    reference_station = 'Kufstein'
-    stations_data_reduced = reduce_pressure_to_reference_station(stations_data, stations_metadata,
-                                                                 reference_station=reference_station)
-
-    # Create plots
-    print(f"\n{'=' * 70}")
-    print("Creating plots...")
-    print(f"{'=' * 70}")
-
-    save_path = os.path.join(confg.dir_PLOTS, "geosphere_api_downloaded_data.svg")
-    plot_downloaded_data(stations_data_reduced, stations_metadata, save_path=save_path)
+    # Use the unified function (DRY principle)
+    stations_data, stations_metadata = load_or_download_all_stations()
 
     print(f"\n{'=' * 70}")
     print("Download and processing complete!")
     print(f"{'=' * 70}")
+    print(f"Loaded/downloaded {len(stations_data)} stations")
