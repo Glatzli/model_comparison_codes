@@ -55,6 +55,7 @@ ToDo:
      topograhie gerechnet
    - swu WRF upward shortwave flux: is that calculated from the horizontal variable or the one that is perpendicular to the
     terrain? write Helen, append figure!
+=> Probably there's an error in reading in AROME/plotting the vars. Check again & create working daniel conda env!
 
    - AROME shortwave: ~200W incoming sw and 200 outgoing on east-slope? Espc. where SWin is large, SWout is low and vice versa?
     	plot point on slope east & west in ziller valley?
@@ -306,6 +307,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
