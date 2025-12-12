@@ -45,7 +45,9 @@ ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.3842
     "wipp_valley": {"name": "wipp valley", "lat": 47.13, "lon": 11.45, "height": 1044},  # between Schönberg & Matrei
     "ziller_valley": {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
     # between Zell am Ziller & Zillertal
-    "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
+    "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572},  # Zillertal, Kaltenbach
+    "ziller_ne_slope": {"name": "ziller ne slope", "lat": 47.29, "lon": 11.8, "height": 1571.5}, # slope NE of Zillertal
+    "ziller_sw_slope": {"name": "ziller sw slope", "lat": 47.24, "lon": 11.86, "height": 1296}, # slope SW of Zillertal
 }
 POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # coordinates of points used for Daniels' Analysis; all points that should include HATPRO or Radiosonde data in
@@ -59,7 +61,7 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
 VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "woergl", "jenbach", "kufstein", "kiefersfelden", "telfs",
                  "wipp_valley", "ziller_valley", "ziller_ried"]
-MOUNTAIN_SLOPE_POINTS = ["hafelkar", "slope_north_patscherkofel"]
+MOUNTAIN_SLOPE_POINTS = ["hafelekar", "slope_north_patscherkofel", "ziller_ne_slope", "ziller_sw_slope"]
 
 
 def get_valley_points_only():
@@ -71,7 +73,7 @@ def get_points_excluding_mountains():
     """Get all points except mountain/slope points"""
     return {key: value for key, value in ALL_POINTS.items() if key not in MOUNTAIN_SLOPE_POINTS}
 
-
+# define lat & lon boundaries for different domains used for plotting different vars
 lat_hf_min, lat_hf_max = 47, 47.6
 lon_hf_min, lon_hf_max = 11.1, 12.1
 

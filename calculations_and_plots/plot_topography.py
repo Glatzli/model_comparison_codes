@@ -12,8 +12,8 @@ import math
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.mpl.ticker as cticker
-import geopandas
-import geopandas as gpd
+# import geopandas
+# import geopandas as gpd
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -22,7 +22,7 @@ import pycrs
 import rasterio
 import xarray as xr
 from colorspace import qualitative_hcl, sequential_hcl
-from fiona.crs import from_epsg
+# from fiona.crs import from_epsg
 from matplotlib.legend import Legend
 from matplotlib.patches import Rectangle
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
@@ -613,8 +613,7 @@ def plot_topo_wrf():
     plot the original WRF topography with cartopy
     :return:
     """
-    wrf = read_wrf_helen.read_wrf_fixed_time(my_time="2017-10-15T14:00:00", min_lon=min_lon_subset,
-                                             max_lon=max_lon_subset, min_lat=min_lat_subset, max_lat=max_lat_subset)  #
+    wrf = read_wrf_helen.read_wrf_fixed_time(day=15, hour=14, min=0, variables=["z", "z_unstag", "hgt"])  #
     wrf_proj_cartopy = ccrs.LambertConformal(central_longitude=wrf.attrs["STAND_LON"],
                                              central_latitude=wrf.attrs["MOAD_CEN_LAT"], false_easting=0,
                                              false_northing=0,
@@ -643,7 +642,6 @@ def smooth_dem():
 
 if __name__ == '__main__':
     import matplotlib
-    
     matplotlib.use('Qt5Agg')
     
     smooth_dem()  # used only once to smooth the original DEM to approx. model resolution

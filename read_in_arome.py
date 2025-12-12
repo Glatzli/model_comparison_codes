@@ -1,7 +1,7 @@
 """
 re-written by Daniel
 """
-
+import fix_win_DLL_loading_issue
 import importlib
 
 import confg
@@ -13,11 +13,8 @@ import xarray as xr
 # import numpy as np
 from metpy.units import units
 import metpy.calc as mpcalc
-import matplotlib
 import datetime
 from confg import variables_units_2D_AROME
-
-# matplotlib.use('Qt5Agg')
 
 
 def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
@@ -42,8 +39,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
             u_wind = ds["u"].compute() * units("m/s")
             v_wind = ds["v"].compute() * units("m/s")
             ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
-            ds["wspd"] = ds['wspd'].assign_attrs(units="m/s",
-                                                 description="wind speed calced from u & v using MetPy")
+            ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
             ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
             ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                  description="wind direction calced from u & v using MetPy")
@@ -70,10 +66,8 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
         if "rho" in vars_to_calc:
             # rho [kg/m^3] = p [Pa] / (R * T [K])
             ds["rho"] = (ds["p"] * 100) / (R_dryair * ds["temp"])
-            ds["rho"] = ds['rho'].assign_attrs(
-                units="kg/m^3",
-                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))"
-            )
+            ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
+                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))")
     except Exception as e:
         print(f"  ✗ Error calculating density: {e}")
 
@@ -152,8 +146,26 @@ def rename_vars(data):
     return data
 
 
-def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"], lon: float = confg.ALL_POINTS["ibk_uni"]["lon"], method: str = "sel",
-                              variables: list = ["p", "th", "z"], height_as_z_coord: str | bool = "direct"):
+def change_flux_signs(ds):
+    """
+    change signs of fluxes to have positive downward (atmosphere -> surface)
+    :param ds:
+    :return:
+    """
+    # Invert AROME turbulent fluxes to match convention: positive
+    if "hfs" in ds:
+        ds["hfs"] = -ds["hfs"]  # invert sign of sensible heat flux to be consistent with WRF
+        ds["hfs"].attrs['description'] = "sensible heat flux (inverted), positive: upward (surface->atmosphere)"
+
+    if "lfs" in ds:
+        ds["lfs"] = -ds["lfs"]  # invert sign of latent heat flux to be consistent with WRF
+        ds["lfs"].attrs['description'] = "latent heat flux (inverted), positive: upward (surface->atmosphere)"
+    return ds
+
+
+def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"],
+        lon: float = confg.ALL_POINTS["ibk_uni"]["lon"], method: str = "sel", variables: list = ["p", "th", "z"],
+        height_as_z_coord: str | bool = "direct"):
     """
     Read the AROME model output for a fixed point at a specific location with full time range.
     The method can be 'sel' or 'interp' for selecting the nearest point or interpolating to the point.
@@ -220,7 +232,7 @@ def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"], l
 
 
 def read_in_arome_fixed_time(day, hour, min, variables=["p", "th", "z"], min_lat=46.5, max_lat=48.2, min_lon=9.2,
-                             max_lon=13):
+        max_lon=13):
     """
     read arome data for a fixed time,
     by default indexes the data to the chosen box (icon)
@@ -274,9 +286,9 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
             ds = ds.rename({"latitude": "lat", "longitude": "lon"})  # they already have short lat & lon names!
         # Use no method if lat or lon are slice objects
         if slice_lat_lon:
-            ds = ds.sel(lon=lon, lat=lat).isel(time=slice(4, None))  # , method="nearest"
+            ds = ds.sel(lon=lon, lat=lat)  # formerly indexed time: .isel(time=slice(4, None))
         else:
-            ds = ds.sel(lon=lon, lat=lat, method="nearest").isel(time=slice(4, None))
+            ds = ds.sel(lon=lon, lat=lat, method="nearest")  # formerly indexed time: .isel(time=slice(4, None))
 
         for var, units in variables_units_2D_AROME.items():
             if var in ds:
@@ -284,26 +296,13 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
 
         # ds_quantified = ds.metpy.quantify()
         datasets.append(ds)
-    data = xr.merge(datasets, join="override")  # former: join="exact"
-    # downgrade coords to float32, for uniformity with 3D data! anyways not needed that precise...
+    data = xr.merge(datasets, compat="no_conflicts", join="override")  # led to problems in past with join="outer" ...
+    # to keep attr infos downgrade coords to float32, for uniformity with 3D data! anyways not needed that precise...
     data = data.assign_coords(lat=data.lat.astype("float32"), lon=data.lon.astype("float32"))
 
-    # AROME uses opposite sign convention from WRF for turbulent fluxes:
-    # AROME: positive = downward (atmosphere -> surface) => check if that's right from Claude...
-    # WRF: positive = upward (surface -> atmosphere) => check if that's right from Claude...
-    # Invert AROME turbulent fluxes to match WRF convention
-    if "hfs" in data:
-        data["hfs"] = -data["hfs"]  # invert sign of sensible heat flux to be consistent with WRF
-        data["hfs"].attrs['description'] = "sensible heat flux (inverted), positive: upward (surface->atmosphere)"
+    data = change_flux_signs(ds=data)  # change flux signs to positive downward
 
-    if "lfs" in data:
-        data["lfs"] = -data["lfs"]  # invert sign of latent heat flux to be consistent with WRF
-        data["lfs"].attrs['description'] = "latent heat flux (inverted), positive: upward (surface->atmosphere)"
-
-    # Note: Radiative fluxes (lwd, lwu, swd, swu) typically use the same convention in both models
-    # (downward positive for incoming, upward positive for outgoing), so no inversion needed
-
-    return data
+    return data.compute()
 
 
 def save_arome_topography(arome3d):
@@ -352,21 +351,22 @@ if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
 
-    # arome2d = read_2D_variables_AROME(variableList=["hgt"], # "hfs", "hgt", "lfs", "lwnet", "lwu", "swd", "swnet"
-    #                                  lon=slice(confg.lon_hf_min, confg.lon_hf_max),
-    #                                  lat=slice(confg.lat_hf_min, confg.lat_hf_max), slice_lat_lon=True)
-    # right now I have for height coord. 1 at the bottom, and 90 at top, but also lowest temps, lowest p at 1...
-    arome_point = read_in_arome_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
-                                            variables=["p", "th", "z"],
-                                            height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
+    arome2d = read_2D_variables_AROME(
+        variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
+        lon=slice(confg.lon_hf_min, confg.lon_hf_max), lat=slice(confg.lat_hf_min, confg.lat_hf_max),
+        slice_lat_lon=True)
+
+    # arome_point = read_in_arome_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"][
+    # "lon"],
+    #                                        variables=["p", "th", "z"],
+    #                                        height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
+
     # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
     #                                  max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
     # arome
-    arome_point
+    arome2d
 
-    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z
-    # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +
-    # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z  # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +  # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
     # arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
 

@@ -3,9 +3,11 @@ evtl add variables to calc as in AROME
 
 
 """
-import sys
+import fix_win_DLL_loading_issue
+#import sys
 
-sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
+
+#sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import confg
 import xarray as xr
 import metpy.calc as mpcalc

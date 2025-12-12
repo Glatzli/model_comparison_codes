@@ -3,6 +3,7 @@ Basic test suite for calc_vhd.py
 Tests main VHD calculation functions with mock data.
 """
 
+import fix_win_DLL_loading_issue
 import sys
 import os
 from unittest.mock import patch, MagicMock
@@ -14,7 +15,6 @@ import xarray as xr
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from calculations_and_plots.calc_vhd import (
     choose_gpe,
-    calculate_slope_numpy,
     define_ds_below_hafelekar,
     calc_vhd_single_point,
     calculate_select_pcgp
@@ -51,33 +51,6 @@ class TestChooseGpe:
 
         except Exception as e:
             print(f"GPE point selection test failed: {e}")
-
-
-class TestCalculateSlopeNumpy:
-    """Test numpy-based slope calculation"""
-
-    def test_calculate_slope_numpy_basic(self):
-        """Test basic slope calculation with numpy"""
-        # Create a simple elevation grid with known slope
-        elevation_data = np.array([
-            [100, 110, 120],
-            [100, 110, 120],
-            [100, 110, 120]
-        ])
-        x_res = 100  # 100m resolution
-
-        try:
-            slope = calculate_slope_numpy(elevation_data, x_res)
-
-            assert isinstance(slope, np.ndarray)
-            assert slope.shape == elevation_data.shape
-            # Should calculate reasonable slope values
-            assert np.all(slope >= 0)  # Slope should be non-negative
-            print("✓ Numpy slope calculation test passed")
-
-        except Exception as e:
-            print(f"Numpy slope calculation test failed: {e}")
-
 
 class TestDefineDsBelowHafelekar:
     """Test dataset filtering below Hafelekar height"""
@@ -179,29 +152,6 @@ class TestCalculateSelectPcgp:
 def run_basic_tests():
     """Run basic functionality tests"""
     print("Running VHD calculation tests...")
-
-    # Test slope calculation logic
-    try:
-        # Simple elevation grid with known slope
-        elevation = np.array([
-            [0, 10, 20],
-            [0, 10, 20],
-            [0, 10, 20]
-        ])
-
-        x_res = 100  # 100m spacing
-        slope = calculate_slope_numpy(elevation, x_res)
-
-        assert isinstance(slope, np.ndarray)
-        assert slope.shape == elevation.shape
-        # Should have some slope due to elevation gradient
-        assert np.any(slope > 0)
-
-        print("✓ Slope calculation logic test passed")
-
-    except Exception as e:
-        print(f"✗ Slope calculation logic test failed: {e}")
-
     # Test temperature gradient logic
     try:
         heights = np.array([500, 1000, 1500])

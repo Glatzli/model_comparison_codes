@@ -3,6 +3,7 @@ Basic test suite for read_lidar.py
 Tests main functions with mock data.
 """
 
+import fix_win_DLL_loading_issue
 import sys
 import os
 import tempfile

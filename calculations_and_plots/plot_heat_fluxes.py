@@ -7,25 +7,29 @@ espc. AROME has low values near the surface, further up they increase (see Hanne
 sunset at 16:25 UTC: temp falls already since ~15:30? => heat flux turns around at sunset
 WRF hfs: UPWARD HEAT FLUX AT THE SURFACE
 """
+import fix_win_DLL_loading_issue
 
 import os
 from datetime import datetime
 
+import matplotlib
+matplotlib.use('TkAgg')  # Set backend before importing pyplot to avoid Qt5 crashes
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 from colorspace import diverging_hcl
 
+import sys
+sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes/calculations_and_plots")
 import confg
 import read_in_arome
 import read_wrf_helen
 from plot_topo_comparison import calculate_lon_extent_for_km
 
-variables_to_plot = ["hfs", "lfs", "lwd", "lwu", "swd", "swu"]
+variables_to_plot = ["hfs", "lfs"] # , "lwd", "lwu", "swd", "swu"]
 
 
 def add_scalebar(ax, length_km=10, location='lower right'):
@@ -86,8 +90,8 @@ def get_variable_metadata():
         "lfs": {"label": "Latent Heat Flux", "cmap": "RdBu_r", "symmetric": True},
         "lwd": {"label": "Downward Longwave Flux", "cmap": "YlOrRd", "symmetric": False},
         "lwu": {"label": "Upward Longwave Flux", "cmap": "YlOrRd", "symmetric": False},
-        "swd": {"label": "Downward Shortwave Flux", "cmap": "YlOrRd", "symmetric": False},
-        "swu": {"label": "Upward Shortwave Flux", "cmap": "YlOrRd", "symmetric": False}, }
+        "swd": {"label": "Downward Shortwave Flux", "cmap": "YlOrRd", "symmetric": True},
+        "swu": {"label": "Upward Shortwave Flux", "cmap": "YlOrRd", "symmetric": True}, }
 
 
 def get_variable_ranges():
@@ -101,8 +105,8 @@ def get_variable_ranges():
         "lfs": {"vmin": -150, "vmax": 150},  # Latent heat flux (mostly positive)
         "lwd": {"vmin": 0, "vmax": 400},  # Downward longwave (always positive)
         "lwu": {"vmin": 0, "vmax": 450},  # Upward longwave (always positive)
-        "swd": {"vmin": 0, "vmax": 800},  # Downward shortwave (0 at night)
-        "swu": {"vmin": 0, "vmax": 800},  # Upward shortwave (reflected, 0 at night)
+        "swd": {"vmin": -800, "vmax": 800},  # Downward shortwave (0 at night)
+        "swu": {"vmin": -800, "vmax": 800},  # Upward shortwave (reflected, 0 at night)
     }
 
 
@@ -264,22 +268,23 @@ def plot_small_multiples(ds, model="WRF", variable="hfs", vmin=None, vmax=None, 
 
         # Plot the selected variable
         var_data = ds_sel[variable].values
-        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, var_data, cmap=cmap, vmin=vmin, vmax=vmax,
+        lat, lon = ds_sel.lat.values, ds_sel.lon.values
+        im = ax.pcolormesh(lon, lat, var_data, cmap=cmap, vmin=vmin, vmax=vmax,
                            transform=projection)
 
-        # Extract topography and wind data
+        # Extract topography and wind data (by subsetting, want to plot only ever 2nd arrow)
         step = 2  # plot only every 2nd grid point wind arrow
         z, u, v = extract_topography_and_wind(ds_sel, model, step)
 
         # --- plot topo contours
         levels_thin = np.arange(0, 3500, 250)  # same as in plot_topo_comparison.py
-        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin, colors="k", linewidths=0.3,
+        ax.contour(lon, lat, z.values, levels=levels_thin, colors="k", linewidths=0.3,
                    transform=projection)
 
-        # Add wind quivers only if wind data is available
-        lat, lon = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+        # Add wind quivers if wind data is available
         if u is not None and v is not None:  # only added if there's meaningful wind data
-            quiver = ax.quiver(x=lon, y=lat, u=u, v=v, scale=40, scale_units="inches", transform=projection)
+            quiver = ax.quiver(x=lon[::step], y=lat[::step], u=u, v=v, scale=40, scale_units="inches", transform=projection)
+
 
         ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
 
@@ -296,19 +301,22 @@ def plot_small_multiples(ds, model="WRF", variable="hfs", vmin=None, vmax=None, 
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
-    # Add quiver key only if wind data was plotted
-    if u is not None and v is not None:
-        qk = ax.quiverkey(quiver, X=1.4, Y=-0.1, U=5, label='5 m/s', labelpos='E', coordinates='axes')
-
     # Use subplots_adjust first to create space for colorbar
     plt.subplots_adjust(left=0.05, right=0.80, top=0.95, bottom=0.05, hspace=0.15, wspace=0.05)
 
+    if u is not None and v is not None:  # add wind quiver key only if wind data was plotted
+        qk = ax.quiverkey(quiver, X=1.4, Y=-0.1, U=5, label='5 m/s', labelpos='E', coordinates='axes')
     # Place colorbar with precise positioning using fig.add_axes
     # [left, bottom, width, height] in figure coordinates
-    cax = fig.add_axes([0.9, 0.15, 0.025, 0.7])
-    cbar = fig.colorbar(im, cax=cax, label=f"{model} {metadata['label']} [$W/m^2$]", orientation='vertical')  #
-    cbar.ax.tick_params(size=0)
-    plt.savefig(os.path.join(confg.dir_PLOTS, "heat_flux", f"{variable}_{model}_small_multiples_ziller.png"), dpi=300)
+    # cax = fig.add_axes([0.9, 0.15, 0.025, 0.7])
+    cbar = fig.colorbar(im, label=f"{model} {metadata['label']} [$W/m^2$]", orientation='vertical')  # cax=cax,
+    # cbar.ax.tick_params(size=0)
+
+    # Ensure the heat_flux directory exists
+    heat_flux_dir = os.path.join(confg.dir_PLOTS, "heat_flux")
+    os.makedirs(heat_flux_dir, exist_ok=True)
+
+    plt.savefig(os.path.join(heat_flux_dir, f"{variable}_{model}_small_multiples.png"), dpi=300)
 
 
 def plot_small_multiples_ziller_detail(ds, model="WRF", variable="hfs", vmin=None, vmax=None, lon_extent=(11.76, 11.95),
@@ -373,7 +381,7 @@ def plot_small_multiples_ziller_detail(ds, model="WRF", variable="hfs", vmin=Non
         ax.set_xlabel(""), ax.set_ylabel("")
         ax.set_xlim(lon_extent), ax.set_ylim(lat_extent)
 
-    # Remove unused axes
+    # Remove unused axes; necessary?!
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
@@ -431,7 +439,7 @@ def plot_all_heat_budget_variables(arome_ds, wrf_ds, times):
 
     print(f"\n{'=' * 70}")
     print(f"✓ All heat budget plots created successfully!")
-    print(f"  Location: {confg.dir_PLOTS}heat_flux/")
+    print(f"  Location: {confg.dir_PLOTS}/heat_flux/")
     print(f"{'=' * 70}\n")
 
 
@@ -562,19 +570,17 @@ def plot_all_heat_budget_variables_ziller_detail(arome_ds, wrf_ds, times, lon_ex
 
 
 if __name__ == '__main__':
-    mpl.use('QtAgg')
     colormap = diverging_hcl(palette="Blue-Red 2").cmap()
 
     # Choose which plots to create:
-
     # Option 1: Full extent, longer time period (2-hourly from 14:00 to 12:00 next day)
-    create_full_extent_plots = False
+    create_full_extent_plots = True
 
     # Option 2: Detailed Zillertal region, specific morning hours (hourly from 10:00 to 11:30)
     create_ziller_detail_plots = False
 
     # Option 3: AROME swd/swu comparison plot at 10:00 UTC
-    create_shortwave_comparison = True
+    create_shortwave_comparison = False
 
     if create_full_extent_plots:
         print("\n" + "=" * 70)

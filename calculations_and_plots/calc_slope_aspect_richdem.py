@@ -5,10 +5,7 @@ Deprecated!
 written by Manuela Lehner for calculating slope and aspect for COSMO data, changed to work for my data
 Problems... what's zscale?!
 """
-
-import sys
-import netCDF4 as nc
-import xarray as xr
+import fix_win_DLL_loading_issue
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt

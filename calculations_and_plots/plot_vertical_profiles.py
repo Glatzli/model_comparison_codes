@@ -11,6 +11,7 @@ Main functionality:
 - Create small multiples plots showing all points side-by-side
 - Save interactive HTML plots
 """
+import fix_win_DLL_loading_issue
 from __future__ import annotations
 
 # Fix for OpenMP duplicate library error on Windows

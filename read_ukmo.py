@@ -3,7 +3,9 @@
 re-written by Daniel
 
 """
+import fix_win_DLL_loading_issue
 import datetime
+
 import os
 
 import matplotlib

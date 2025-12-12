@@ -9,6 +9,7 @@ If dT is not present, it will be computed from temp via diff over 'height'.
 Output: adds a DataArray 'cap_height' with dims (time, lat, lon) to the dataset.
 For 1D profiles (observations), computes cap_height for single vertical profiles.
 """
+import fix_win_DLL_loading_issue
 from __future__ import annotations
 
 import plotly.graph_objects as go

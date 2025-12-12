@@ -16,11 +16,10 @@ lat: 47.0 - 47.6
 lon: 11.1 - 12.1
 """
 from __future__ import annotations
+import fix_win_DLL_loading_issue
 
-# Fix for OpenMP duplicate library error on Windows
 import os
 import sys
-
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes/calculations_and_plots")
 
 import pickle
@@ -881,10 +880,10 @@ if __name__ == "__main__":
     # Choose which plot(s) to create:
 
     # 1. Create topography comparison plot for ALL models (5 models in grid)
-    # plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
+    plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
 
     # 2. Create topography difference plots
-    # plot_topography_differences_main(day=15, hour=14, minute=0)
+    plot_topography_differences_main(day=15, hour=14, minute=0)
 
     # 3. Create AROME vs WRF topography comparison only (big side-by-side plot)
     plot_arome_wrf_topography_main(day=15, hour=14, minute=0, add_points_confg=True)

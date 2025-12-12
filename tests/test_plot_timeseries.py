@@ -3,6 +3,7 @@ Basic testing for plot_timeseries_saved_data.py script.
 Simple tests for main functionality.
 """
 
+import fix_win_DLL_loading_issue
 import sys
 import os
 sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes")

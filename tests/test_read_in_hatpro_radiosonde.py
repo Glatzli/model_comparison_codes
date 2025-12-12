@@ -5,6 +5,7 @@ Test suite for read_in_hatpro_radiosonde.py
 Tests all active functions with mock data to ensure proper functionality.
 """
 
+import fix_win_DLL_loading_issue
 import os
 # Import the functions to test
 import sys

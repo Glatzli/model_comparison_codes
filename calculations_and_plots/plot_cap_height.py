@@ -9,6 +9,7 @@ Workflow:
 - Compute CAP height from timeseries data at each point (using cap_height_profile function)
 - Plot: small multiples timeline showing CAP height at all points over time
 """
+import fix_win_DLL_loading_issue
 from __future__ import annotations
 
 import os

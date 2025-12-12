@@ -1,15 +1,16 @@
 """
-somehow I get the error if running the script completely (problem w.
-backend...):
-Process finished with exit code -1066598274 (0xC06D007E)
-Avoid by setting a breakpoint before saving the plot, then the rest is working somehow...
-
 Plot pressure and temperature along the Inn Valley from ZAMG/Geosphere station data.
 
 This module contains plotting functions for visualizing station data along the Inn Valley,
 including pressure reduced to a reference elevation and temperature.
-"""
 
+FIXED: Windows DLL loading issues by configuring PATH and matplotlib backend before imports.
+"""
+import fix_win_DLL_loading_issue
+# Now import and configure matplotlib
+import matplotlib
+matplotlib.use('TkAgg')  # Interactive backend
+import matplotlib.pyplot as plt
 import os
 
 import plotly.graph_objects as go
@@ -195,6 +196,101 @@ def plot_all_separate(stations_data_reduced, stations_metadata, model_data=None,
     return figures
 
 
+def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=None):
+    """
+    Plot pressure difference between Innsbruck Uni and Kufstein for ZAMG measurements and models.
+
+    Parameters
+    ----------
+    stations_data_reduced : dict
+        Dictionary with station name as key and DataFrame as value
+    model_data : dict, optional
+        Dictionary with model data {point_name: {model: xr.Dataset}}
+    save_path : str, optional
+        Path to save figure
+    """
+
+    import matplotlib.dates as mdates
+    import pandas as pd
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Define time range
+    time_start = pd.to_datetime('2017-10-15 13:00:00')
+    time_end = pd.to_datetime('2017-10-16 12:00:00')
+
+    # Calculate and plot ZAMG pressure difference
+    if 'Innsbruck Uni' in stations_data_reduced and 'Kufstein' in stations_data_reduced:
+
+        # Calculate difference (Innsbruck - Kufstein)
+        pressure_diff = stations_data_reduced['Innsbruck Uni']['p_reduced'] - stations_data_reduced['Kufstein'][
+            'p_reduced']
+        # pressure_diff = pressure_diff.dropna()
+
+        # Plot ZAMG difference
+        ax.plot(pressure_diff.index, pressure_diff.values, color=confg.model_colors_temp_wind["HATPRO"], linewidth=2,
+                label='Observations')
+
+    # Calculate and plot model pressure differences
+    if model_data is not None:
+        models_available = ['AROME', 'ICON', 'ICON2TE', 'UM']  # all except WRF (which uses p-coordinates...)
+
+        for model_name in models_available:
+            ibk_ds = model_data['ibk_uni'][model_name]
+            kuf_ds = model_data['kufstein'][model_name]
+
+            if 'p_reduced' in ibk_ds.variables and 'p_reduced' in kuf_ds.variables:
+                # Calculate difference
+                pressure_diff = ibk_ds['p_reduced'].values - kuf_ds['p_reduced'].values
+
+                # Convert time to pandas datetime
+                time_values = pd.to_datetime(ibk_ds.time.values)
+
+                # Plot model difference
+                linestyle = "--" if model_name == "ICON2TE" else 'solid'
+                ax.plot(time_values, pressure_diff, color=confg.model_colors_temp_wind[model_name], linewidth=2,
+                        label=model_name, linestyle=linestyle)
+                print(f"  ✓ {model_name} pressure difference plotted")
+
+    # Formatting
+    # ax.set_title('Pressure Difference: Innsbruck Uni - Kufstein', fontsize=16, fontweight='bold')
+    ax.set_ylabel('Pressure Difference [hPa]', fontsize=12)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc='best', fontsize=11)
+
+    # Set time limits
+    ax.set_xlim(time_start, time_end)
+
+    # Format x-axis
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=4))
+    ax.xaxis.set_minor_locator(mdates.HourLocator(interval=2))
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=0, ha='center')
+
+    # Add horizontal line at zero for reference
+    ax.axhline(y=0, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Save figure
+    if save_path:
+        try:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+            print(f"Pressure difference figure saved to: {save_path}")
+        except Exception as e:
+            print(f"Error saving figure with dpi=300: {e}")
+            print("Trying with lower dpi=150...")
+            plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+            print(f"Pressure difference figure saved to: {save_path} (dpi=150)")
+
+    # Show plot
+    plt.show()
+
+    return fig
+
+
 def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=None, save_path=None):
     """
     Create a single matplotlib plot with multiple subplots for ZAMG measurements and each model.
@@ -210,6 +306,7 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
     save_path : str, optional
         Path to save figure
     """
+    # matplotlib backend already set at module level
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     import pandas as pd
@@ -251,14 +348,13 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
             label = f"{station_name} ({height:.0f} m)"
 
             # Plot with consistent styling
-            line = ax.plot(valid_data.index, valid_data.values,
-                          color=color, linewidth=2.5, alpha=0.9, label=label)
+            line = ax.plot(valid_data.index, valid_data.values, color=color, linewidth=2.5, alpha=0.9, label=label)
 
             # Collect handles and labels for single legend
             legend_handles.append(line[0])
             legend_labels.append(label)
 
-        ax.set_title('ZAMG Station Measurements', fontsize=14, fontweight='bold')
+        ax.set_title('Station Measurements', fontsize=14, fontweight='bold')
         ax.set_ylabel('Pressure reduced to\nKufstein height [hPa]', fontsize=11)
         ax.grid(True, alpha=0.3)
         # Remove individual legend - we'll create one global legend
@@ -290,8 +386,7 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
                     time_values = pd.to_datetime(ds.time.values)
 
                     # Plot with consistent styling
-                    ax.plot(time_values, pressure_values,
-                           color=color, linewidth=2, alpha=0.8, label=point_name)
+                    ax.plot(time_values, pressure_values, color=color, linewidth=2, alpha=0.8, label=point_name)
 
             ax.set_title(f'{model_name} Model', fontsize=14, fontweight='bold')
 
@@ -306,9 +401,8 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
 
             if not model_has_data:
                 print(f"No data available for model {model_name}")
-                ax.text(0.5, 0.5, 'No data available',
-                       transform=ax.transAxes, ha='center', va='center',
-                       fontsize=12, style='italic', alpha=0.7)
+                ax.text(0.5, 0.5, 'No data available', transform=ax.transAxes, ha='center', va='center', fontsize=12,
+                        style='italic', alpha=0.7)
 
             plot_idx += 1
 
@@ -328,9 +422,8 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
 
     # Create single legend in lower right using ZAMG station data
     if len(stations_data_reduced) > 0:
-        fig.legend(legend_handles, legend_labels, loc='lower right',
-                  bbox_to_anchor=(0.8, 0.2), fontsize=11, frameon=True,
-                  fancybox=True, shadow=True)
+        fig.legend(legend_handles, legend_labels, loc='lower right', bbox_to_anchor=(0.8, 0.2), fontsize=11,
+                   frameon=True, fancybox=True, shadow=True)
 
     # Overall title
     # fig.suptitle('Pressure Along Inn Valley - Combined View',
@@ -339,11 +432,16 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
     # Adjust layout
     plt.tight_layout()
     plt.subplots_adjust(top=0.92, hspace=0.3, wspace=0.15)
-    # plt.show()
-    # Save and show
-    # combined_path = save_path.replace('_combined_subplots.')
-    plt.savefig(save_path, dpi=400)
-    print(f"Combined subplot figure saved to: {save_path}")
+
+    # Save figure
+    try:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+        print(f"Combined subplot figure saved to: {save_path}")
+    except Exception as e:
+        print(f"Error saving figure with dpi=300: {e}")
+        print("Trying with lower dpi=150...")
+        plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+        print(f"Combined subplot figure saved to: {save_path} (dpi=150)")
 
     return fig
 
@@ -365,11 +463,10 @@ if __name__ == "__main__":
         exit(1)
 
     # Reduce pressure to reference station (Innsbruck Uni)
-    print(f"\n{'=' * 70}")
-    print("Reducing pressure to Innsbruck Uni elevation...")
-    print(f"{'=' * 70}")
-
     reference_station = 'Kufstein'
+    print(f"\n{'=' * 70}")
+    print(f"Reducing stations pressure to {reference_station} elevation...")
+    print(f"{'=' * 70}")
     stations_data_reduced = reduce_pressure_to_reference_station(stations_data, stations_metadata,
                                                                  reference_station=reference_station)
 
@@ -389,7 +486,7 @@ if __name__ == "__main__":
             continue  # Skip if no corresponding point
 
         if point_key not in confg.ALL_POINTS:
-            print(f"  ✗ Point {point_key} not found in confg.ALL_POINTS")
+            print(f"  Point {point_key} not found in confg.ALL_POINTS")
             continue
 
         point = confg.ALL_POINTS[point_key]
@@ -433,9 +530,18 @@ if __name__ == "__main__":
     print(f"{'=' * 70}")
 
     combined_save_path = os.path.join(output_dir, "pressure_comparison_small_multiples.png")
-    combined_figure = plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=model_data_reduced,
-                                             save_path=combined_save_path)
+    # plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=model_data_reduced,
+    #                        save_path=combined_save_path)
 
+    # Create pressure difference plot
+    print(f"\n{'=' * 70}")
+    print("Creating pressure difference plot (Innsbruck Uni - Kufstein)...")
+    print(f"{'=' * 70}")
+
+    pressure_diff_save_path = os.path.join(output_dir, "pressure_difference_ibk_kufstein.png")
+    plot_pressure_difference(stations_data_reduced, model_data=model_data_reduced, save_path=pressure_diff_save_path)
+
+    plt.show()
     print(f"\n{'=' * 70}")
     print("Plotting complete!")
     print(f"{'=' * 70}")

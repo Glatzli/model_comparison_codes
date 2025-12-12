@@ -1,6 +1,7 @@
 """
 short script written by Chat to find lat/lon coords of HOBO from HOBO ID
 """
+import fix_win_DLL_loading_issue
 
 import xarray as xr
 import confg

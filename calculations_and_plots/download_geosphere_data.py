@@ -15,7 +15,7 @@ Stations:
 Time period: 2017-10-15 12:00:00 to 2017-10-16 12:00:00
 Dataset: 10-minute observations (klima-v2-10min)
 """
-
+import fix_win_DLL_loading_issue
 import json
 import os
 
@@ -231,11 +231,11 @@ def compare_data(api_df, csv_df, station_name):
 
         # Check if data matches
         if diff.abs().max() < 0.1:
-            print("  ✓ Data matches well (max difference < 0.1 hPa)")
+            print("  [OK] Data matches well (max difference < 0.1 hPa)")
         elif diff.abs().max() < 1.0:
-            print("  ⚠ Data has small differences (max difference < 1.0 hPa)")
+            print("  [WARNING] Data has small differences (max difference < 1.0 hPa)")
         else:
-            print("  ✗ Data has significant differences!")
+            print("  [ERROR] Data has significant differences!")
 
 
 def reduce_pressure_to_reference_station(stations_data, stations_metadata, reference_station='Kufstein'):
@@ -285,13 +285,13 @@ def reduce_pressure_to_reference_station(stations_data, stations_metadata, refer
             station_elevation = stations_metadata[station_name]['altitude']
         elevation_diff = station_elevation - ref_elevation  # Positive if station is higher
 
-        print(f"  {station_name}: {station_elevation} m -> {ref_elevation} m (Δh = {elevation_diff:.1f} m)")
+        print(f"  {station_name}: {station_elevation} m -> {ref_elevation} m (dh = {elevation_diff:.1f} m)")
 
         # Create copy of DataFrame
         df_reduced = df.copy()
 
         if 'p' in df.columns and 'tl' in df.columns:
-            # Barometric formula: P_reduced = P_station * exp((g * Δh) / (R * T))
+            # Barometric formula: P_reduced = P_station * exp((g * dh) / (R * T))
             # If station is higher (elevation_diff > 0), pressure increases when reduced to lower level
             # If station is lower (elevation_diff < 0), pressure decreases when reduced to higher level
 
@@ -407,7 +407,7 @@ def load_or_download_all_stations(start_time=START_TIME, end_time=END_TIME):
             try:
                 df = pd.read_csv(file_path, parse_dates=['time'], index_col='time')
                 stations_data[station_name] = df
-                print(f"  ✓ Loaded {len(df)} data points")
+                print(f"  [OK] Loaded {len(df)} data points")
 
                 # Load metadata if not already present
                 if station_name not in stations_metadata:
@@ -417,15 +417,15 @@ def load_or_download_all_stations(start_time=START_TIME, end_time=END_TIME):
                             stations_metadata[station_name] = metadata
                 continue
             except Exception as e:
-                print(f"  ✗ Error loading data: {e}")
+                print(f"  [ERROR] Error loading data: {e}")
                 print("  Will try downloading from API...")
 
         # File doesn't exist or failed to load - download from API
-        print(f"\n⚠ File not found for {station_name}: {file_path}")
+        print(f"\n[WARNING] File not found for {station_name}: {file_path}")
         print(f"  Downloading data from Geosphere API...")
 
         if station_code not in STATION_ID_MAPPING:
-            print(f"  ✗ Station code {station_code} not in API mapping, skipping")
+            print(f"  [ERROR] Station code {station_code} not in API mapping, skipping")
             continue
 
         station_id = STATION_ID_MAPPING[station_code]
@@ -435,23 +435,23 @@ def load_or_download_all_stations(start_time=START_TIME, end_time=END_TIME):
             metadata = get_station_metadata(station_id)
             if metadata:
                 stations_metadata[station_name] = metadata
-                print(f"  ✓ Retrieved metadata for {station_name}")
+                print(f"  [OK] Retrieved metadata for {station_name}")
 
         # Download data
         try:
             df = download_station_data(station_id, start_time, end_time)
             if df is not None:
                 stations_data[station_name] = df
-                print(f"  ✓ Downloaded {len(df)} data points")
+                print(f"  [OK] Downloaded {len(df)} data points")
 
                 # Save for future use
                 print(f"  Saving to {file_path}...")
                 save_downloaded_data({station_name: df})
-                print(f"  ✓ Data saved")
+                print(f"  [OK] Data saved")
             else:
-                print(f"  ✗ Failed to download data for {station_name}")
+                print(f"  [ERROR] Failed to download data for {station_name}")
         except Exception as e:
-            print(f"  ✗ Error downloading data: {e}")
+            print(f"  [ERROR] Error downloading data: {e}")
 
     # Save updated metadata
     if stations_metadata:
@@ -513,7 +513,7 @@ def reduce_model_pressure_to_reference_station(model_data, stations_metadata, re
             # Calculate elevation difference
             elevation_diff = model_height - ref_elevation  # Positive if model level is higher
             print(
-                f"  {model_name} at {point_name}: {model_height:.1f} m -> {ref_elevation} m (Δh = {elevation_diff:.1f} m)")
+                f"  {model_name} at {point_name}: {model_height:.1f} m -> {ref_elevation} m (dh = {elevation_diff:.1f} m)")
 
             # Create a copy of the dataset
             ds_reduced = ds.copy()
@@ -521,7 +521,7 @@ def reduce_model_pressure_to_reference_station(model_data, stations_metadata, re
             p_model_surface = ds['p'].sel(height=0, method="nearest") * 100  # Surface pressure in Pa
             temp_model_surface = ds['temp'].sel(height=0, method="nearest") + 273.15  # Surface temperature in K
 
-            # Barometric formula: P_reduced = P_model * exp((g * Δh) / (R * T))
+            # Barometric formula: P_reduced = P_model * exp((g * dh) / (R * T))
             p_reduced_hpa = (p_model_surface * np.exp((g * elevation_diff) / (R * temp_model_surface))) / 100
 
             # Convert back to Pa and store in dataset

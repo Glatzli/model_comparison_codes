@@ -4,14 +4,9 @@ Lareau et al. 2013: The persistent cold air pool study).
 This script uses the saved timeseries data for a given gridpoint with "above_terrain" height coordinate.
 Based on plot_timeseries_old_for_concept.py but using the new data management system.
 """
-
-# Fix for OpenMP duplicate library error on Windows
+import fix_win_DLL_loading_issue
 import os
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
-
 import sys
-
 sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes")
 
 import confg

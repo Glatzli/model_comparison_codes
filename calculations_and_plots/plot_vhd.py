@@ -11,6 +11,8 @@ the calc_vhd_single_point(ds_point, model="AROME")-function in calc_vhd.py, espc
 height coord.
 
 """
+import fix_win_DLL_loading_issue
+
 import importlib
 import os
 

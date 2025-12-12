@@ -14,6 +14,7 @@ change the indexing for the code to work (to interpolate the radiosonde data f.e
 
 (written by Daniel)
 """
+import fix_win_DLL_loading_issue
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt

@@ -2,7 +2,7 @@
 Basic test suite for calc_cap_height.py
 Tests CAP height calculation functions with mock data.
 """
-
+import fix_win_DLL_loading_issue
 import sys
 import os
 from unittest.mock import patch

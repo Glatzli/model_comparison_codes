@@ -1,34 +1,39 @@
-# needs to be updated again!
+# Updated requirements for model comparison repository (2025-12-09)
+# Complete list of packages needed to run all files in this repository
 
-# Auto-generated requirements for this repository (generated 2025-11-22)
-# Listed only packages that appear imported in the project files.
-# Some packages (cartopy, rasterio, geopandas) require system libraries; see their docs.
+# Install instructions:
+# 1. Create conda environment (recommended for geospatial packages):
+#    conda create -n teamx python=3.11
+#    conda activate teamx
 
-# install packages via: pip install -r requirements.txt (use an environment!)
-# on Windows it's easier to use conda for the packages cartopy, rasterio, geopandas, gdal:
-# conda create -n envname python=3.11
-# conda activate envname
-# conda install -c conda-forge cartopy rasterio geopandas gdal
-# pip install -r requirements.txt   # installiert restliche Pakete
+#    conda install -c conda-forge cartopy geopandas gdal pyproj numpy pandas
+# xarray scipy netCDF4 matplotlib plotly colorspace rasterio richdem metpy
+# pycrs dask pytest requests
 
-numpy>=1.24
-pandas>=1.5
-xarray>=2023.11.0
-netCDF4>=1.6.2
-matplotlib>=3.5
-cartopy>=0.21
-rasterio>=1.3
-geopandas>=0.14
-richdem>=0.5
-dask>=2023.11.0
-pytest>=7.0
+
+# these packages made problems in my env:
+cartopy
+numpy
+matplotlib
+
+geopandas
+gdal
+pyproj
+pandas
+xarray
+scipy
+netCDF4
+
+plotly
+colorspace
+rasterio
+richdem
+metpy
+
 
 # Notes:
-# - These are recommended minimum versions, not strict pins. If you need an exact
-#   environment for reproducible runs, create a pinned lockfile (pip-tools/pipenv/poetry).
-
-# - For scanned PDFs you will need OCR (tesseract + pdf2image + pytesseract) which
-#   are NOT included here.
-# - Install on Windows often requires Visual C++ build tools and GDAL/proj binaries
-#   for packages such as rasterio and geopandas. See package docs for platform notes.
+# - For Windows users: install Visual C++ build tools if needed
+# - Some packages require GDAL/PROJ system libraries
+# - Salem package might need additional setup for WRF tools
+# - Use exact versions if you need reproducible environments
 

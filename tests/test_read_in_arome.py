@@ -5,6 +5,7 @@ Tests core functions with mock data to ensure basic functionality.
 Simplified version focusing on essential features.
 """
 
+import fix_win_DLL_loading_issue
 import os
 import sys
 

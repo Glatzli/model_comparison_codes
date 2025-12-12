@@ -17,6 +17,7 @@ Plotting the VHD (timeseries and spatial extent over time) is done in plot_vhd.p
 
 By ChatGPT: cap_height calculations: Where error?!
 """
+import fix_win_DLL_loading_issue
 
 import sys
 from pathlib import Path
@@ -33,8 +34,7 @@ import xarray as xr
 import numpy as np
 import matplotlib
 from calculations_and_plots.plot_topography import calculate_km_for_lon_extent
-import xdem
-from pyproj import CRS
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from colorspace import terrain_hcl, qualitative_hcl, sequential_hcl
@@ -96,48 +96,6 @@ def choose_gpe(ds, lat_ngp, lon_ngp):
 
     return gpe
 
-
-def calculate_slope_numpy(elevation_data, x_res):
-    """
-    Calculates slope angle (degrees) from elevation data using finite difference method & NumPy.
-
-    Args:
-        elevation_data (np.ndarray): 2D NumPy array of elevation values.
-        x_res (float): Resolution of the DEM in the x (lon) direction [meters].
-
-    Returns:
-        - slope (np.ndarray): Slope angle in percent and degrees.
-    """
-    px, py = np.gradient(elevation_data, x_res)
-    slope = np.sqrt(px ** 2 + py ** 2)
-    slope_deg = np.degrees(np.arctan(slope))
-
-    return slope * 100, slope_deg  # slope in percent
-
-
-def calculate_slope(filepath):
-    """
-    open .tif - dataset (either beforehand selected & saved model geopotential height or DEM) calculate slope (call numpy function)
-    and aspect (xDEM) from elevation data
-    :param: filepath: path to the .tif file with the model or DEM data
-    :return: slope (np.ndarray), aspect (xarray.DataArray), model (xarray.Dataset with slope and aspect added)
-    """
-    model = xr.open_dataset(filepath, engine="rasterio")
-    if "dem" in filepath:
-        model = model.isel(y=slice(None, None, -1))
-
-    model_xres_deg = model.x[1].values - model.x[0].values
-    model_xres_m = calculate_km_for_lon_extent(latitude=model.y[int(len(model.y)/2)].values,  # take middle latitude of dataset
-                                             lon_extent_deg=model_xres_deg) * 1000  # convert to meters
-
-    slope, slope_deg = calculate_slope_numpy(elevation_data=model.isel(band=0).band_data.values, x_res=model_xres_m)
-    vertical_crs = CRS("EVRF2019")
-
-    dem = xdem.DEM(filepath)  # , transform=transform
-    aspect = xdem.terrain.aspect(dem)
-    model["slope"] = (("y", "x"), slope)  # add slope to dem dataset
-    model["aspect"] = (("y", "x"), aspect.data.data)
-    return slope, aspect, model
 
 
 def calculate_slope_aspect_richdem(filepath):

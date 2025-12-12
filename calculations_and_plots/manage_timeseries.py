@@ -11,7 +11,7 @@ Functions are imported and used by plot_vertical_profiles.py and plot_cap_height
 to ensure consistent data handling.
 """
 from __future__ import annotations
-
+import fix_win_DLL_loading_issue
 import os
 from typing import List
 
