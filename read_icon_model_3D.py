@@ -3,9 +3,11 @@ evtl add variables to calc as in AROME
 
 
 """
-import sys
+import fix_win_DLL_loading_issue
+#import sys
 
-sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
+
+#sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import confg
 import xarray as xr
 import metpy.calc as mpcalc
@@ -251,7 +253,7 @@ if __name__ == '__main__':
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem
     # calc of slope I need .tif file
     
-    icon_point = read_icon_fixed_point(lat=confg.ibk_villa["lat"], lon=confg.ibk_villa["lon"], variant=model,
+    icon_point = read_icon_fixed_point(lat=confg.ALL_POINTS["ibk_villa"]["lat"], lon=confg.ALL_POINTS["ibk_villa"]["lon"], variant=model,
                                        variables=["z", "z_unstag", "temp", "wspd", "udir", "u", "v"], height_as_z_coord="above_terrain")
     # ["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"]
     # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",

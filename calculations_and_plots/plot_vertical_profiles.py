@@ -11,7 +11,13 @@ Main functionality:
 - Create small multiples plots showing all points side-by-side
 - Save interactive HTML plots
 """
+import fix_win_DLL_loading_issue
 from __future__ import annotations
+
+# Fix for OpenMP duplicate library error on Windows
+import os
+
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 import os
 from typing import List
@@ -28,9 +34,7 @@ from confg import model_colors_temp_wind, model_colors_humidity, icon_2te_hatpro
 from read_in_hatpro_radiosonde import read_radiosonde_dataset
 from calculations_and_plots.calc_cap_height import cap_height_profile
 # Import timeseries management functions
-from calculations_and_plots.manage_timeseries import (load_or_read_timeseries, MODEL_ORDER, ALL_POINTS)
-
-
+from calculations_and_plots.manage_timeseries import (load_or_read_timeseries, MODEL_ORDER)
 
 
 # Observation data paths; is actually in confg!
@@ -71,12 +75,11 @@ def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datet
 
 
 def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dict, timestamps: List[str],
-                                 ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
+        ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
     """
     Compute CAP heights from timeseries (point) data.
     Returns dict mapping timestamp strings to (temp_at_cap, cap_height) tuples (tuple is needed so that the
-    cap-marker is at
-    the right temperature in the plot afterwards).
+    cap-marker is at the right temperature in the plot afterwards).
     """
     cap_data = {}
 
@@ -105,9 +108,8 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
 
 
 def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_height: float = 5000,
-                                  plot_max_height: float = 2000,
-                                  variables: list = ["udir", "wspd", "q", "p", "th", "temp", "z",
-                                                     "z_unstag"]) -> go.Figure:
+        plot_max_height: float = 2000,
+        variables: list = ["udir", "wspd", "q", "p", "th", "temp", "z", "z_unstag"]) -> go.Figure:
     """
     Create an interactive plot with time slider for a single point location.
     
@@ -123,7 +125,7 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
     Returns:
         Plotly figure object with the interactive time slider
     """
-    point = getattr(confg, point_name, None)
+    point = confg.ALL_POINTS.get(point_name)
     if point is None:
         raise ValueError(f"Point {point_name} not found in confg")
 
@@ -148,7 +150,7 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
         model_wspd_data[model] = {}
         model_udir_data[model] = {}
 
-        # Load timeseries dataset
+        # Load timeseries dataset, for model data
         ds = load_or_read_timeseries(model=model, point=point, point_name=point_name, variables_list=variables,
                                      height_as_z_coord="above_terrain")
         if ds is None:
@@ -234,17 +236,59 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                 valid_udir = ~np.isnan(udir) & ~np.isnan(height)
                 obs_data["radiosonde_udir"] = (udir[valid_udir], height[valid_udir])
 
-            # set radiosonde CAP height manually
-            cap_height = 1537 - confg.ibk_airport[
-                "height"]  # chosen manually from height_as_z_coord="direct" plot & subtract (real) terrain height
-
-            if not np.isnan(cap_height) and cap_height <= max_height:
-                idx = np.argmin(np.abs(height[valid] - cap_height))
-                obs_data["radiosonde_cap"] = (temp[valid][idx], cap_height)
+            # Radiosonde CAP height was searched in plot and defined in confg
+            if not np.isnan(confg.radiosonde_cap_height) and confg.radiosonde_cap_height <= max_height:
+                idx = np.argmin(np.abs(height[valid] - confg.radiosonde_cap_height))
+                obs_data["radiosonde_cap"] = (temp[valid][idx], confg.radiosonde_cap_height)
 
             ds_radiosonde.close()
         except Exception as e:
             print(f"    Warning: Error in loading Radiosonde: {e}")
+
+        # SL88 LIDAR (time-dependent wind data)
+        try:
+            if os.path.exists(confg.lidar_sl88_merged_path):
+                print(f"    Loading SL88 LIDAR data")
+                ds_lidar = xr.open_dataset(confg.lidar_sl88_merged_path)
+
+                obs_data["lidar_wspd"] = {}
+                obs_data["lidar_udir"] = {}
+
+                for ts_str, ts in zip(timestamps, ts_array):
+                    # Select nearest time
+                    ds_ts = ds_lidar.sel(time=ts, method='nearest', tolerance='3min')
+
+                    # Get height values in meters (from height_m coordinate)
+                    if 'height_m' in ds_ts.coords:
+                        height = ds_ts['height_m'].values
+                    else:
+                        print(f"    Warning: No height_m coordinate in SL88 LIDAR data")
+                        continue
+
+                    # Filter to max_height
+                    height_mask = height <= max_height
+                    height_filtered = height[height_mask]
+
+                    # Extract wind speed (ff variable)
+                    if 'ff' in ds_ts:
+                        wspd = ds_ts['ff'].values
+                        wspd_filtered = wspd[height_mask]
+                        valid_wspd = ~np.isnan(wspd_filtered) & ~np.isnan(height_filtered)
+                        obs_data["lidar_wspd"][ts_str] = (wspd_filtered[valid_wspd], height_filtered[valid_wspd])
+
+                    # Extract wind direction (dd variable)
+                    if 'dd' in ds_ts:
+                        wdir = ds_ts['dd'].values
+                        wdir_filtered = wdir[height_mask]
+                        valid_wdir = ~np.isnan(wdir_filtered) & ~np.isnan(height_filtered)
+                        obs_data["lidar_udir"][ts_str] = (wdir_filtered[valid_wdir], height_filtered[valid_wdir])
+
+                ds_lidar.close()
+                print(f"    ✓ SL88 LIDAR data loaded successfully")
+            else:
+                print(f"    Warning: SL88 LIDAR merged file not found at {confg.lidar_sl88_merged_path}")
+        except Exception as e:
+            print(f"    Warning: Error in loading SL88 LIDAR: {e}")
 
         # HATPRO (time-dependent)
         try:
@@ -459,6 +503,22 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                                                            symbol='circle'),
                                                legendgroup="Radiosonde", showlegend=False, xaxis='x4', yaxis='y2'))
 
+            # SL88 LIDAR wind speed (time-dependent)
+            if "lidar_wspd" in obs_data and ts_str in obs_data["lidar_wspd"]:
+                wspd, height = obs_data["lidar_wspd"][ts_str]
+                frame_traces.append(go.Scatter(x=wspd, y=height, mode='lines', name="SL88 LIDAR",
+                                               line=dict(color=model_colors_temp_wind["HATPRO"], width=2.0, dash="dot"),
+                                               legendgroup="SL88_LIDAR",
+                                               showlegend=True, xaxis='x2', yaxis='y2'))
+
+            # SL88 LIDAR wind direction (time-dependent)
+            if "lidar_udir" in obs_data and ts_str in obs_data["lidar_udir"]:
+                wdir, height = obs_data["lidar_udir"][ts_str]
+                frame_traces.append(go.Scatter(x=wdir, y=height, mode='markers', name="SL88 LIDAR wdir",
+                                               marker=dict(color=model_colors_temp_wind["HATPRO"], size=5,
+                                                           symbol='circle'),
+                                               legendgroup="SL88_LIDAR", showlegend=False, xaxis='x4', yaxis='y2'))
+
         # Format current timestamp for this frame
         formatted_ts = pd.to_datetime(ts_str).strftime('%dth %H:%M')
         frames.append(go.Frame(data=frame_traces, name=ts_str,
@@ -520,8 +580,8 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
 
 def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", end_time: str = "2017-10-16T12:00:00",
-                                     time_step_hours: float = 1.0, max_height: float = 5000,
-                                     plot_max_height: float = 2000, point_names: List[str] = ALL_POINTS) -> None:
+        time_step_hours: float = 1.0, max_height: float = 5000, plot_max_height: float = 2000,
+        point_names: List[str] = confg.ALL_POINTS) -> None:
     """
     Create and save individual slider plots for each point location.
     
@@ -534,7 +594,7 @@ def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", en
         time_step_hours: Time step in hours between frames (default: 1.0)
         max_height: Maximum height in meters to load data (default: 5000m)
         plot_max_height: Maximum height in meters to display initially (default: 2000m)
-        point_names: List of points to plot (default: ALL_POINTS)
+        point_names: List of points to plot (default: confg.ALL_POINTS)
     """
     print(f"\n{'=' * 70}")
     print(f"Creating individual slider plots for {len(point_names)} points")
@@ -552,7 +612,7 @@ def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", en
     # Create plot for each point
     for point_name in point_names:
         try:
-            point = getattr(confg, point_name, None)
+            point = confg.ALL_POINTS.get(point_name)
             if point is None:
                 print(f"⚠ Skipping {point_name} - not found in confg")
                 continue
@@ -591,5 +651,5 @@ if __name__ == "__main__":
     # Create interactive plot with time slider
     # Shows profiles from midnight to noon on October 16, 2017
     plot_save_all_points_with_slider(start_time="2017-10-15T14:00:00", end_time="2017-10-16T12:00:00",
-                                     time_step_hours=0.5, max_height=3000, plot_max_height=800)
-                                     # point_names=["ibk_uni", "telfs"])
+                                     time_step_hours=0.5, max_height=3000, plot_max_height=800,
+                                     point_names=confg.VALLEY_POINTS)

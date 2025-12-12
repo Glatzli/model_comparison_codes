@@ -1,0 +1,39 @@
+# Updated requirements for model comparison repository (2025-12-09)
+# Complete list of packages needed to run all files in this repository
+
+# Install instructions:
+# 1. Create conda environment (recommended for geospatial packages):
+#    conda create -n teamx python=3.11
+#    conda activate teamx
+
+#    conda install -c conda-forge cartopy geopandas gdal pyproj numpy pandas
+# xarray scipy netCDF4 matplotlib plotly colorspace rasterio richdem metpy
+# pycrs dask pytest requests
+
+
+# these packages made problems in my env:
+cartopy
+numpy
+matplotlib
+
+geopandas
+gdal
+pyproj
+pandas
+xarray
+scipy
+netCDF4
+
+plotly
+colorspace
+rasterio
+richdem
+metpy
+
+
+# Notes:
+# - For Windows users: install Visual C++ build tools if needed
+# - Some packages require GDAL/PROJ system libraries
+# - Salem package might need additional setup for WRF tools
+# - Use exact versions if you need reproducible environments
+
