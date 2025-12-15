@@ -9,10 +9,12 @@ ToDo:
 		-> where is the pressure sensor for this station?!
   	plot only difference ibk airport-kufstein
 
-- LIDAR Wind:
+- Wind LIDAR:
   	Which vars should I use?
-  	used dd & ff for vertical_plots and ucom_unfilt./vcomp_unfiltered for vertical timeseries plots?!
+  	used dd & ff for vertical_plots and ucomp_unfilt./vcomp_unfiltered for vertical timeseries plots?!
   	rather use ucomp/vcomp?!?
+
+  	-> Problem: need U & V for pot temp-height timeseries => should I calculate that from dd & ff?
   	(don't seperate wind speed and direction in plot: It doesn't work!)
 
 	
@@ -314,6 +316,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
