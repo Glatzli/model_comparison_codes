@@ -3,30 +3,25 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- pressure reduction to Innsbruck Uni station:
-	Needs to assume constant temperature for barometric approach...
+- pressure along valley plot:
+	- OBS p-diff: really use the one from the Airport?! -> should change sign as models do...
+	- WRF: use ps-variable! Should change with time!
+
+  	reduction to Innsbruck Uni station:
+	(Needs to assume constant temperature for barometric approach...)
 	Height Ibk Uni: chose now 612m, is that right? original w. 578m pressure is much lower than others...
 		-> where is the pressure sensor for this station?!
   	plot only difference ibk airport-kufstein
 
-- Wind LIDAR:
-  	Which vars should I use?
-  	used dd & ff for vertical_plots and ucomp_unfilt./vcomp_unfiltered for vertical timeseries plots?!
-  	rather use ucomp/vcomp?!?
+- Theory review:
+  	1st order closure, MOST, ...
+  	turb. param. in models!
 
-  	-> Problem: need U & V for pot temp-height timeseries => should I calculate that from dd & ff?
-  	(don't seperate wind speed and direction in plot: It doesn't work!)
 
-	
-- th/wind height-time plot: it has horizontal wind in it!
-  	1. calculate timeseries again (with u & v also in it, not only udir & wspd)
-  	2. lidar wrong!
+- th/wind height-time plot: has horizontal wind in it!
+
 - VHD calculation: use "direct" height coordinate! due to hardcoded indexing for HAF-height IBK...
-  
-- Add LIDAR-data: SLXR 142 in 20 min intervals, SL88 in 10 min (can compare 1/2 hrs) - enough to just use SL88?
-	very likely yes!
 
-- (look again at pot temp-over height & time plot: make it work again (plot_timeseries))...
 - cap height calculation:
   	took differentiate along "height" for dT: checked for icon ibk uni PCGP
   	then mask where "dT" is < 0, take rolling window along height with min. 3 values => took mean to find consecutive negatives
@@ -55,6 +50,12 @@ ToDo:
 - => würde zunehmende CAP depth beim Taleingang erwarten => aufgrund stärkerer Inversionen um 04UTC
 
 2nd research goal:
+	- Sens & Latent HF DOWN (negative) during day! -> turn signs that way around: 
+		sens. heat flux transports heat down, which cools layers where the heat is transported away!
+	- add printing of slope angle for points (large diff. for radiation!)
+	- Are EC measurements parallel to horizontal plane or slope?!
+	- Evtl Add Kolsass IBOX heat budget?
+	
 	- LWin:
    		should be higher when a lot of hum.: mostly ICON is most humid (skew-T plot), vert...
    		WRF has higher humidity -> higher LWin
@@ -316,6 +317,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
