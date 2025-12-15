@@ -9,8 +9,13 @@ ToDo:
 		-> where is the pressure sensor for this station?!
   	plot only difference ibk airport-kufstein
 
-- added q and wind to vertical plot w. SL88 LIDAR data :D
-  	-> don't seperate wind speed and direction: It doesn't work!
+- LIDAR Wind:
+  	Which vars should I use?
+  	used dd & ff for vertical_plots and ucom_unfilt./vcomp_unfiltered for vertical timeseries plots?!
+  	rather use ucomp/vcomp?!?
+  	(don't seperate wind speed and direction in plot: It doesn't work!)
+
+	
 - th/wind height-time plot: it has horizontal wind in it!
   	1. calculate timeseries again (with u & v also in it, not only udir & wspd)
   	2. lidar wrong!
@@ -309,6 +314,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
