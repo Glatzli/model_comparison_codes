@@ -18,6 +18,8 @@ ToDo:
 
 
 - th/wind height-time plot: has horizontal wind in it!
+  	Add dewpoint depression variant?
+  	would need calculation also for all plots and for HATPRO from spec humidity...
 
 - VHD calculation: use "direct" height coordinate! due to hardcoded indexing for HAF-height IBK...
 
@@ -316,6 +318,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
