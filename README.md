@@ -3,9 +3,8 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
-- pressure along valley plot:
-	- OBS p-diff: really use the one from the Airport?! -> should change sign as models do...
-	- WRF: use ps-variable! Should change with time!
+- pressure along valley plot
+  	used airport pressure
 
   	reduction to Innsbruck Uni station:
 	(Needs to assume constant temperature for barometric approach...)
@@ -317,6 +316,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
