@@ -3,6 +3,11 @@ model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
+- Do I have to look at basin north of alps with high VHD in ICON?
+- Woergl: wspd max. sinks down toward CAP?
+- Theory review:
+  	1st order closure, MOST, ...
+  	turb. param. in models!
 - pressure along valley plot
   	used airport pressure
 
@@ -11,11 +16,6 @@ ToDo:
 	Height Ibk Uni: chose now 612m, is that right? original w. 578m pressure is much lower than others...
 		-> where is the pressure sensor for this station?!
   	plot only difference ibk airport-kufstein
-
-- Theory review:
-  	1st order closure, MOST, ...
-  	turb. param. in models!
-
 
 - th/wind height-time plot: has horizontal wind in it!
   	Add dewpoint depression variant?
@@ -318,6 +318,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
