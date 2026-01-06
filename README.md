@@ -4,6 +4,7 @@ GOAL: till end of the year/mid Jan 1. draft of full thesis!
 
 ToDo: 
 - Do I have to look at basin north of alps with high VHD in ICON?
+- ziller ried ICON at 07:30-08:00, what's that?
 - Woergl: wspd max. sinks down toward CAP?
 - Theory review:
   	1st order closure, MOST, ...
@@ -318,6 +319,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
