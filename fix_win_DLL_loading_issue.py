@@ -34,5 +34,7 @@ if sys.platform == 'win32':
     os.environ['QT_API'] = ''
     os.environ['_PYDEV_BUNDLE_'] = 'pydevd'  # Tell PyCharm to not use Qt
     
-    # Force matplotlib to use Tk backend (works without Qt)
+    # Force matplotlib to use Agg backend (non-interactive, debugging-safe)
+    # or use 'TkAgg' if you need interactive plots
     os.environ['MPLBACKEND'] = 'TkAgg'
+

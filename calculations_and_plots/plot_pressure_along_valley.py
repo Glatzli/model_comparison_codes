@@ -220,11 +220,11 @@ def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=N
     time_start = pd.to_datetime('2017-10-15 13:00:00')
     time_end = pd.to_datetime('2017-10-16 12:00:00')
 
-    # Calculate and plot ZAMG pressure difference
-    if 'Innsbruck Uni' in stations_data_reduced and 'Kufstein' in stations_data_reduced:
+    # Calculate and plot ZAMG pressure difference; use ibk airport station cause reduction for Uni station doesn't work
+    if 'Innsbruck Airport' in stations_data_reduced and 'Kufstein' in stations_data_reduced:
 
         # Calculate difference (Innsbruck - Kufstein)
-        pressure_diff = stations_data_reduced['Innsbruck Uni']['p_reduced'] - stations_data_reduced['Kufstein'][
+        pressure_diff = stations_data_reduced['Innsbruck Airport']['p_reduced'] - stations_data_reduced['Kufstein'][
             'p_reduced']
         # pressure_diff = pressure_diff.dropna()
 
@@ -234,10 +234,10 @@ def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=N
 
     # Calculate and plot model pressure differences
     if model_data is not None:
-        models_available = ['AROME', 'ICON', 'ICON2TE', 'UM']  # all except WRF (which uses p-coordinates...)
+        # models_available = MODEL_ORDER  # ['AROME', 'ICON', 'ICON2TE', 'UM']
 
-        for model_name in models_available:
-            ibk_ds = model_data['ibk_uni'][model_name]
+        for model_name in MODEL_ORDER:
+            ibk_ds = model_data['ibk_airport'][model_name]
             kuf_ds = model_data['kufstein'][model_name]
 
             if 'p_reduced' in ibk_ds.variables and 'p_reduced' in kuf_ds.variables:
@@ -261,6 +261,7 @@ def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=N
 
     # Set time limits
     ax.set_xlim(time_start, time_end)
+    ax.set_ylim(-1.5, 2)
 
     # Format x-axis
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d %H:%M'))
@@ -272,7 +273,7 @@ def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=N
     ax.axhline(y=0, color='gray', linestyle='--', linewidth=1, alpha=0.5)
 
     # Adjust layout
-    plt.tight_layout()
+    # plt.tight_layout()
 
     # Save figure
     if save_path:
@@ -494,15 +495,13 @@ if __name__ == "__main__":
 
         print(f"\n  Loading models for {point['name']}:")
         for model in MODEL_ORDER:
-            try:
-                ds = load_or_read_timeseries(model=model, point=point, point_name=point_key, height_as_z_coord="direct")
-                if ds is not None:
-                    model_data[point_key][model] = ds
-                    print(f"    ✓ {model} loaded")
-                else:
-                    print(f"    ✗ {model} not available")
-            except Exception as e:
-                print(f"    ✗ {model} error: {e}")
+            ds = load_or_read_timeseries(model=model, point=point, point_name=point_key, height_as_z_coord="direct")
+            if ds is not None:
+                model_data[point_key][model] = ds
+                print(f"    ✓ {model} loaded")
+            else:
+                print(f"    ✗ {model} not available")
+
 
     # Reduce model pressures to reference station elevation
     print(f"\n{'=' * 70}")

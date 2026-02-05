@@ -18,7 +18,7 @@ import pytest
 import xarray as xr
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from read_in_hatpro_radiosonde import (calc_vars_hatpro_w_pressure, calc_vars_radiosonde, edit_vars,
+from read_in_hatpro_radiosonde import (calc_vars_hatpro_w_pressure, calc_vars_radiosonde, edit_vars_radiosonde,
                                        read_radiosonde_csv, convert_to_dataset, plot_height_levels,
                                        read_radiosonde_dataset, read_hatpro, interpolate_hatpro_arome)
 
@@ -87,7 +87,7 @@ class TestEditVars:
             'wind direction': [180, 200, 220], 'windspeed': [5, 10, 15], 'latitude offset': [0, 0, 0],
             'longitude offset': [0, 0, 0]})
 
-        result = edit_vars(df)
+        result = edit_vars_radiosonde(df)
 
         # Check conversions
         assert 'temp' in result.columns

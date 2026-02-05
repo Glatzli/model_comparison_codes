@@ -2,6 +2,8 @@
 re-written by Daniel
 """
 import fix_win_DLL_loading_issue
+
+fix_win_DLL_loading_issue
 import importlib
 
 import confg
@@ -67,16 +69,20 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
             # rho [kg/m^3] = p [Pa] / (R * T [K])
             ds["rho"] = (ds["p"] * 100) / (R_dryair * ds["temp"])
             ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
-                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))")
+                                               description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))")
     except Exception as e:
         print(f"  ✗ Error calculating density: {e}")
 
-    # Calculate dewpoint temperature
+    # Calculate dewpoint temperature & dewpoint depression
     try:
         if "Td" in vars_to_calc:
-            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(ds["p"] * units.hPa, ds["T"] * units.degC, ds["qv"])
+            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
+                                                              specific_humidity=ds["q"] * units("kg/kg"))
             ds["Td"] = ds['Td'].assign_attrs(units="degC",
-                                             description="dewpoint Temp calculated from p, T & qv using MetPy")
+                                             description="dewpoint Temp calculated from p and q using MetPy")
+            ds["Td_dep"] = ds.temp - ds.Td
+            ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
+                                                     description="Dewpoint temperature depression (temp - Td)")
     except Exception as e:
         print(f"  ✗ Error calculating dewpoint temperature: {e}")
 
@@ -107,7 +113,7 @@ def check_add_needed_variables(variables, vars_to_calculate):
             "udir" in vars_to_calculate or "wspd" in vars_to_calculate) else variables
     variables = list(set(variables) | {"p", "th"}) if ("temp" in vars_to_calculate) else variables
     variables = list(set(variables) | {"p", "temp"}) if ("rho" in vars_to_calculate) else variables
-    variables = list(set(variables) | {"T", "p", "qv"}) if "Td" in vars_to_calculate else variables
+    variables = list(set(variables) | {"T", "p", "q"}) if "Td" in vars_to_calculate else variables
     return variables
 
 
@@ -184,9 +190,8 @@ def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"],
     :raises ValueError: If method is invalid, or if 'z' is not in dataset when height_as_z_coord is set
     """
 
-    # Validate method parameter
     valid_methods = ["sel", "interp"]
-    if method not in valid_methods:
+    if method not in valid_methods:  # Validate method parameter
         raise ValueError(f"Invalid method '{method}'. Must be one of {valid_methods}")
 
     # Read AROME data
@@ -351,23 +356,21 @@ if __name__ == '__main__':
     # arome = read_timeSeries_AROME(location)
     # arome3d = read_3D_variables_AROME(lon= lon_ibk, lat=lat_ibk, variables=["p", "th", "z", "rho"], method="sel")
 
-    arome2d = read_2D_variables_AROME(
-        variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
-        lon=slice(confg.lon_hf_min, confg.lon_hf_max), lat=slice(confg.lat_hf_min, confg.lat_hf_max),
-        slice_lat_lon=True)
+    # arome2d = read_2D_variables_AROME(variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
+    #     lon=slice(confg.lon_hf_min, confg.lon_hf_max), lat=slice(confg.lat_hf_min, confg.lat_hf_max),
+    #     slice_lat_lon=True)
 
-    # arome_point = read_in_arome_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"][
-    # "lon"],
-    #                                        variables=["p", "th", "z"],
-    #                                        height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
+    arome_point = read_in_arome_fixed_point(lat=confg.ALL_POINTS["telfs"]["lat"],
+                                            lon=confg.ALL_POINTS["telfs"]["lon"],
+                                            variables=["p", "q", "th", "z", "temp", "Td", "Td_dep"],
+                                            height_as_z_coord="direct")  # ["p", "temp", "th", "z", "udir", "wspd"]
 
     # arome = read_in_arome_fixed_time(day=16, hour=12, min=0, variables=["z", "hgt"], min_lat=confg.lat_hf_min,
     #                                  max_lat=confg.lat_hf_max, min_lon=confg.lon_hf_min, max_lon=confg.lon_hf_max)
-    # arome
-    arome2d
+    arome_point  # arome2d
 
-    # arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z  # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +  # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
+# arome_z_subset = xr.open_dataset(confg.dir_AROME + "AROME_subset_z.nc", mode="w", format="NETCDF4")  # arome_z  # arome_path = Path(confg.data_folder + "AROME_temp_timeseries_ibk.nc")  # arome_path = Path(confg.model_folder +  # "/AROME/" + "AROME_temp_timeseries_ibk.nc")
 
-    # arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
+# arome3d_new.to_netcdf(confg.dir_3D_AROME + "/AROME_temp_timeseries_ibk.nc", mode="w", format="NETCDF4")
 
-    # extract_3d_variable_define_2D(variables=["hfs"])  # used to save u & v like 2D variables
+# extract_3d_variable_define_2D(variables=["hfs"])  # used to save u & v like 2D variables

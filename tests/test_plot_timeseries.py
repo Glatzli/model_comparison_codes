@@ -17,7 +17,7 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 
-from calculations_and_plots.plot_timeseries_saved_data import (
+from calculations_and_plots.plot_timeseries_vertical import (
     plot_pot_temp_time_contours,
     load_lidar_wind_data
 )

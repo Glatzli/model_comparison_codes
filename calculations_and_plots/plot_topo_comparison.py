@@ -17,9 +17,10 @@ lon: 11.1 - 12.1
 """
 from __future__ import annotations
 import fix_win_DLL_loading_issue
-
+fix_win_DLL_loading_issue
 import os
 import sys
+
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes/calculations_and_plots")
 
 import pickle
@@ -76,6 +77,7 @@ def calculate_km_for_lon_extent(latitude, lon_extent_deg):
     earth_circumference = 2 * math.pi * earth_radius
     lon_km = math.cos(math.radians(latitude)) * earth_circumference / 360
     return lon_extent_deg * lon_km
+
 
 def add_contour_lines(ax, topo_data, levels_thin=levels_thin, levels_thick=levels_thick, add_labels=True):
     """
@@ -432,7 +434,8 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
 
     # Mapping for which topography to use for contours
     contour_topo_map = {"AROME_z - AROME_hgt": "AROME_z", "ICON - AROME (interp.)": "ICON",
-        "ICON - UM (interp.)": "ICON", "ICON - WRF (interp.)": "ICON", "WRF_z - WRF_hgt": "WRF_z_unstag"}
+                        "ICON - UM (interp.)": "ICON", "ICON - WRF (interp.)": "ICON",
+                        "WRF_z - WRF_hgt": "WRF_z_unstag"}
 
     # Plot each difference
     for idx, (diff_name, data) in enumerate(diff_data.items()):
@@ -566,8 +569,8 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
     cbar.set_label('Height Difference [m]', fontsize=12)
 
     # Overall title
-    # fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC',
-    #             fontsize=13, fontweight='bold', y=0.96)
+    fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC',
+                 fontsize=13, fontweight='bold', y=0.96)
 
     plt.savefig(save_path, dpi=400, bbox_inches='tight')
     print(f"\n✓ Figure saved to: {save_path}")
@@ -876,16 +879,138 @@ def add_points_to_axes(ax, extent=None):
                     zorder=11)
 
 
+def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str = None,
+                                 add_points_confg: bool = True, extent: tuple = None):
+    """
+    Create a plot of topography from a single model.
+
+    Args:
+        topo_data: Dictionary with topography data for each model
+        model_key: Key for the model to plot (e.g., 'AROME_z', 'WRF_z_unstag', 'ICON', 'UM', etc.)
+        save_path: Path to save the figure
+        add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
+        extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
+    """
+    # Check if model exists in data
+    if model_key not in topo_data:
+        raise ValueError(f"Model '{model_key}' not found in topo_data. Available models: {list(topo_data.keys())}")
+
+    # Use terrain colormap
+    cmap = sequential_hcl("Terrain").cmap()
+
+    # Create figure with single subplot
+    fig, ax = plt.subplots(1, 1, figsize=(10, 8), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    # Set fixed colorbar limits
+    vmin = 400
+    vmax = 3000
+
+    print(f"\nTopography range: {vmin:.1f} m - {vmax:.1f} m")
+    print(f"Plotting model: {model_key}")
+
+    # Get data
+    data = topo_data[model_key]
+
+    # Create plot
+    im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax,
+                       transform=ccrs.PlateCarree(), shading='auto')
+
+    # Add contour lines
+    add_contour_lines(ax, data)
+
+    # Add features
+    ax.coastlines(resolution='10m', linewidth=1)
+    ax.add_feature(cfeature.BORDERS, linewidth=1)
+
+    if extent:
+        ax.set_extent(extent, crs=ccrs.PlateCarree())
+
+    # Add gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+
+    # Clean up model name for title
+    model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '')
+
+    # Add title
+    ax.text(0.5, 0.98, model_name, transform=ax.transAxes, fontsize=16, fontweight='bold',
+            ha='center', va='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+
+    if add_points_confg:
+        add_points_to_axes(ax, extent=extent)
+
+    # Add colorbar
+    fig.subplots_adjust(bottom=0.12)
+    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # [left, bottom, width, height]
+    cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+    cbar.set_label('Height [m]', fontsize=12)
+
+    # Save figure
+    if save_path:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"\n✓ Figure saved to: {save_path}")
+
+    return fig, ax
+
+
+def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int = 14, minute: int = 0,
+                                      add_points_confg: bool = True, extent: tuple = None):
+    """
+    Main function to read data and create a single model topography plot.
+
+    Args:
+        model_key: Key for the model to plot (e.g., 'AROME_z', 'WRF_z_unstag', 'ICON', 'UM', etc.)
+        day: Day of month (default: 15)
+        hour: Hour of day (default: 14 for 14:00)
+        minute: Minute of hour (default: 0)
+        add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
+        extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
+    """
+    # Use Hafelekar extent if no extent specified
+    if extent is None:
+        # extent = (confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max)
+        extent = (confg.lon_min_topo, confg.lon_max_topo, confg.lat_min_topo, confg.lat_max_topo)  # plot full analyzed
+        # model extent
+
+    print(f"\n{'=' * 70}")
+    print(f"Creating {model_key} Topography Plot")
+    print(f"{'=' * 70}")
+    print(f"Plot extent: lon [{extent[0]:.2f}, {extent[1]:.2f}], lat [{extent[2]:.2f}, {extent[3]:.2f}]")
+
+    # Read or load topo data
+    topo_data = check_read_topographies(day=day, hour=hour, minute=minute)
+
+    # Create save path
+    model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '').lower()
+    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_single.png")
+
+    # Create plot
+    fig, ax = plot_single_model_topography(topo_data, model_key=model_key, save_path=save_path,
+                                          add_points_confg=add_points_confg, extent=extent)
+
+    print(f"{'=' * 70}\n")
+    return fig, ax
+
+
 if __name__ == "__main__":
     # Choose which plot(s) to create:
 
     # 1. Create topography comparison plot for ALL models (5 models in grid)
-    plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_topography_comparison_main(day=15, hour=14, minute=0, add_points_confg=True)
 
     # 2. Create topography difference plots
-    plot_topography_differences_main(day=15, hour=14, minute=0)
+    # plot_topography_differences_main(day=15, hour=14, minute=0)
 
     # 3. Create AROME vs WRF topography comparison only (big side-by-side plot)
-    plot_arome_wrf_topography_main(day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_arome_wrf_topography_main(day=15, hour=14, minute=0, add_points_confg=True)
+
+    # 4. Plot single model topography using main function
+    plot_single_model_topography_main(model_key='AROME_z', day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_single_model_topography_main(model_key='ICON', day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_single_model_topography_main(model_key='UM', day=15, hour=14, minute=0, add_points_confg=True)
+    plot_single_model_topography_main(model_key='WRF_z_unstag', day=15, hour=14, minute=0, add_points_confg=True)
 
     plt.show()

@@ -9,12 +9,15 @@ Workflow:
 - Compute CAP height from timeseries data at each point (using cap_height_profile function)
 - Plot: small multiples timeline showing CAP height at all points over time
 """
-import fix_win_DLL_loading_issue
 from __future__ import annotations
 
+import fix_win_DLL_loading_issue
+fix_win_DLL_loading_issue
 import os
 from typing import Dict, List
 
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 import plotly.graph_objects as go
 import xarray as xr
@@ -27,7 +30,7 @@ from calculations_and_plots.manage_timeseries import (load_or_read_timeseries, M
 from confg import model_colors_temp_wind, icon_2te_hatpro_linestyle
 
 
-def compute_cap_for_point(model: str, point: dict, point_name: str, timestamps: List[str]) -> xr.DataArray:
+def compute_cap_for_point(model: str, point: dict, point_name: str) -> xr.DataArray:
     """
     Compute CAP height timeseries for a single model and point.
     
@@ -57,14 +60,14 @@ def compute_cap_for_point(model: str, point: dict, point_name: str, timestamps: 
         return None
 
     # Convert timestamps to numpy datetime64
-    ts_array = [np.datetime64(ts) for ts in timestamps]
+    # ts_array = [np.datetime64(ts) for ts in timestamps]
 
     # Select only the requested timestamps
-    ds_selected = ds.sel(time=ts_array, method="nearest")
+    # ds_selected = ds.sel(time=ts_array, method="nearest")
 
     # Compute CAP height using the same function as plot_vertical_profiles
     try:
-        ds_with_cap = cap_height_profile(ds_selected, consecutive=3, model=model)
+        ds_with_cap = cap_height_profile(ds, consecutive=3, model=model)
         cap_height_da = ds_with_cap["cap_height"]
     except Exception as e:
         print(f"    Warning: Could not compute CAP height for {model} at {point_name}: {e}")
@@ -75,7 +78,7 @@ def compute_cap_for_point(model: str, point: dict, point_name: str, timestamps: 
     return cap_height_da
 
 
-def compute_cap_all_points_all_models(point_names: List[str], timestamps: List[str]) -> Dict[
+def compute_cap_all_points_all_models(point_names: List[str]) -> Dict[
     str, Dict[str, xr.DataArray]]:
     """
     Compute CAP heights for all models at all specified points.
@@ -111,7 +114,7 @@ def compute_cap_all_points_all_models(point_names: List[str], timestamps: List[s
 
             print(f"  Computing CAP for {point['name']} ({point_name})...")
 
-            cap_da = compute_cap_for_point(model, point, point_name, timestamps)
+            cap_da = compute_cap_for_point(model, point, point_name)
             if cap_da is not None:
                 cap_data[model][point_name] = cap_da
                 print(f"    ✓ Success")
@@ -121,7 +124,7 @@ def compute_cap_all_points_all_models(point_names: List[str], timestamps: List[s
             # Load observation CAP heights for Innsbruck points
             if point_name.startswith("ibk"):
                 print(f"  Loading observations for {point['name']} ({point_name})...")
-                obs_cap = load_observation_cap_heights(point_name, timestamps)
+                obs_cap = load_observation_cap_heights(point_name)
 
                 for obs_type, cap_da in obs_cap.items():
                     cap_data[obs_type][point_name] = cap_da
@@ -237,47 +240,6 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
     return fig
 
 
-def compute_and_plot_cap_all_points(start_time: str = "2017-10-15T12:00:00", end_time: str = "2017-10-16T12:00:00",
-        time_step_hours: float = 0.5, max_height: float = 5000, point_names: List[str] = confg.ALL_POINTS) -> None:
-    """
-    Main function: Compute CAP heights for all models and points, then create small multiples plot.
-    
-    Args:
-        start_time: Start timestamp ISO format
-        end_time: End timestamp ISO format
-        time_step_hours: Time step in hours between timestamps
-        max_height: Maximum height for CAP computation
-        point_names: List of points to process (default: ALL_POINTS from confg)
-    """
-    import pandas as pd
-
-    # Generate list of timestamps
-    timestamps = pd.date_range(start=start_time, end=end_time, freq=f"{int(time_step_hours * 60)}min").strftime(
-        "%Y-%m-%dT%H:%M:%S").tolist()
-
-    print(f"\nTime range: {start_time} to {end_time}")
-    print(f"Time step: {time_step_hours}h ({len(timestamps)} timesteps)")
-    print(f"Points: {len(point_names)}")
-
-    # Compute CAP heights for all models and points
-    cap_data = compute_cap_all_points_all_models(point_names, timestamps)
-
-    # Create small multiples plot
-    print("\nCreating small multiples plot...")
-    fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=1000)
-
-    # Save plot
-    html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
-    os.makedirs(html_dir, exist_ok=True)
-    html_path = os.path.join(html_dir, "cap_depth_all_points_small_multiples.html")
-    fig.write_html(html_path)
-    fig.show(renderer="browser")
-
-    print(f"\n{'=' * 70}")
-    print(f"✓ Plot saved to: {html_path}")
-    print(f"{'=' * 70}\n")
-
-
 def load_observation_cap_heights(point_name: str, timestamps: List[str]) -> Dict[str, xr.DataArray]:
     """
     Load CAP heights for observations (HATPRO and Radiosonde) for Innsbruck points.
@@ -328,7 +290,128 @@ def load_observation_cap_heights(point_name: str, timestamps: List[str]) -> Dict
     return obs_cap_data
 
 
+def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], point_name: str = "ibk_uni",
+                                 ymin: int = 0, ymax: int = 800) -> None:
+    """
+    Create a simple matplotlib plot of CAP height timeline for a single point.
+
+    Args:
+        cap_data: Nested dict {model: {point_name: cap_height_da}}
+        point_name: Point name to plot (default: "ibk_uni")
+        ymin: Minimum y-axis value
+        ymax: Maximum y-axis value
+    """
+    point = confg.ALL_POINTS.get(point_name)
+    if point is None:
+        print(f"Error: Point {point_name} not found in confg.ALL_POINTS")
+        return
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot model data
+    for model in MODEL_ORDER:
+        if model not in cap_data or point_name not in cap_data[model]:
+            continue
+
+        cap_da = cap_data[model][point_name]
+
+        # Filter times from 14:00 onwards
+        cap_filtered = cap_da.where(cap_da.time >= np.datetime64("2017-10-15T14:00"), drop=True)
+
+        # Determine line style: dashed for ICON2TE, solid otherwise
+        linestyle = '--' if model == "ICON2TE" else '-'
+
+        plt.plot(cap_filtered["time"].values, cap_filtered.values,
+                color=confg.model_colors_temp_wind[model], linestyle=linestyle,
+                linewidth=1.5, label=model)
+
+    # Plot observation data for Innsbruck points
+    if point_name.startswith("ibk"):
+        # HATPRO
+        if "HATPRO" in cap_data and point_name in cap_data["HATPRO"]:
+            cap_hatpro = cap_data["HATPRO"][point_name]
+            cap_hatpro_filtered = cap_hatpro.where(cap_hatpro.time >= np.datetime64("2017-10-15T14:00"), drop=True)
+
+            plt.plot(cap_hatpro_filtered["time"].values, cap_hatpro_filtered.values,
+                    color=confg.model_colors_temp_wind["HATPRO"], linestyle=':',
+                    linewidth=1.5, label='HATPRO')
+
+        # Radiosonde
+        if "radiosonde" in cap_data and point_name in cap_data["radiosonde"]:
+            cap_radiosonde = cap_data["radiosonde"][point_name]
+            cap_radiosonde_filtered = cap_radiosonde.where(cap_radiosonde.time >= np.datetime64("2017-10-15T14:00"), drop=True)
+
+            plt.scatter(cap_radiosonde_filtered["time"].values, cap_radiosonde_filtered.values,
+                       color=confg.model_colors_temp_wind["Radiosonde"], s=80, marker='*',
+                       label='Radiosonde', zorder=5)
+
+    # Formatting
+    plt.xlim(np.datetime64("2017-10-15T14:00"), np.datetime64("2017-10-16T10:00"))
+    plt.ylim(ymin, ymax)
+    plt.xlabel("Time")
+    plt.ylabel("CAP height [m]")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    # Format x-axis
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=2))
+    plt.xticks(rotation=45)
+
+    plt.tight_layout()
+
+    # Save with reasonable filename
+    filename = f"cap_height_{point_name}.png"
+    filepath = os.path.join(confg.dir_PLOTS, "cap_depth", filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    plt.savefig(filepath, dpi=300, bbox_inches='tight')
+
+    print(f"✓ Plot saved to: {filepath}")
+    plt.show()
+
+
 if __name__ == "__main__":
     # Compute and plot CAP heights for all valley points
-    compute_and_plot_cap_all_points(start_time="2017-10-15T14:00:00", end_time="2017-10-16T12:00:00",
-                                    time_step_hours=0.5, max_height=5000, point_names=confg.get_valley_points_only())
+    start_time="2017-10-15T14:00:00",
+    end_time="2017-10-16T12:00:00",
+
+    max_height=5000,
+    point_names=confg.get_valley_points_only()
+
+    """
+    Main function: Compute CAP heights for all models and points, then create small multiples plot.
+
+    Args:
+        start_time: Start timestamp ISO format
+        end_time: End timestamp ISO format
+        max_height: Maximum height for CAP computation
+        point_names: List of points to process (default: ALL_POINTS from confg)
+    """
+    import pandas as pd
+
+    # Generate list of timestamps
+    # timestamps = pd.date_range(start=start_time, end=end_time, freq="30min").strftime(
+    #     "%Y-%m-%dT%H:%M:%S").tolist()
+
+    print(f"\nTime range: {start_time} to {end_time}")
+    print(f"Time step: 0.5h")
+    print(f"Points: {len(point_names)}")
+
+    # Compute CAP heights for all models and points
+    cap_data = compute_cap_all_points_all_models(point_names)
+
+    # Create small multiples plot
+    print("\nCreating small multiples plot...")
+    # fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=1000)  # plot small multiples
+    plot_single_point_matplotlib(cap_data, "ibk_uni")  # or any other point name
+
+    # Save plot
+    html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
+    os.makedirs(html_dir, exist_ok=True)
+    html_path = os.path.join(html_dir, "cap_depth_all_points_small_multiples.html")
+    # fig.write_html(html_path)
+    # fig.show(renderer="browser")
+
+    print(f"\n{'=' * 70}")
+    print(f"✓ Plot saved to: {html_path}")
+    print(f"{'=' * 70}\n")

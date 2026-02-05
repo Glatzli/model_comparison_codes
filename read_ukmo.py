@@ -4,11 +4,11 @@ re-written by Daniel
 
 """
 import fix_win_DLL_loading_issue
+
+fix_win_DLL_loading_issue
 import datetime
 
 import os
-
-import matplotlib
 import metpy.calc as mpcalc
 import xarray as xr
 from metpy.units import units
@@ -75,7 +75,7 @@ def convert_calc_variables(ds, vars_to_calc):  # , multiple_levels=True
     # Convert pressure from Pa to hPa
     try:
         if "p" in ds:
-            ds["p"] = (ds["p"] / 100) * units("hPa")
+            ds["p"] = (ds["p"].compute() / 100) * units("hPa")
             ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
     except Exception as e:
         print(f"  ✗ Error calculating pressure: {e}")
@@ -84,6 +84,9 @@ def convert_calc_variables(ds, vars_to_calc):  # , multiple_levels=True
     try:
         if "temp" in vars_to_calc:
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
+            ds["temp"] = ds["temp"].metpy.convert_units('degC')
+            ds["temp"] = ds['temp'].assign_attrs(units="degC",
+                                                 description="temperature calced from p & th (pot temp) using MetPy")
     except Exception as e:
         print(f"  ✗ Error calculating temperature: {e}")
 
@@ -106,17 +109,19 @@ def convert_calc_variables(ds, vars_to_calc):  # , multiple_levels=True
     except Exception as e:
         print(f"  ✗ Error calculating relative humidity: {e}")
 
+    # Calculate dewpoint temperature & dewpoint depression
+    try:
+        if "Td" in vars_to_calc:
+            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
+                                                              specific_humidity=ds["q"] * units("kg/kg"))
+            ds["Td_dep"] = ds.temp - ds.Td
+            ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
+                                                     description="Dewpoint temperature depression (temp - Td)")
+    except Exception as e:
+        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+
     # Dequantify metpy units
     ds = ds.metpy.dequantify()
-
-    # Convert temperature to Celsius
-    try:
-        if "temp" in vars_to_calc and "temp" in ds:
-            ds["temp"] = ds["temp"] - 273.15
-            ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature calced from th & p")
-    except Exception as e:
-        print(f"  ✗ Error converting temperature to Celsius: {e}")
-
     return ds
 
 
@@ -246,61 +251,6 @@ def read_ukmo_fixed_time(day=16, hour=12, min=0, variables=None):
     return data.compute()
 
 
-"""
-def read_ukmo_fixed_point_and_time(city_name=None, time="2017-10-15T14:00:00", lat=None, lon=None):
-    deprecated
-    read in UKMO Model at fixed point w all levels, either with city_name or with lat/lon, get xarray ds!
-
-    city_name: str
-    time: str
-    lat: float
-    lon: float
-    
-
-    if city_name is not None:
-        lat, lon = get_coordinates_by_station_name(city_name)
-    # original: my_lat, my_lon = get_coordinates_by_station_name(city_name)
-    xi, yi = get_rotated_index_of_lat_lon(latitude=lat, longitude=lon)
-
-    datasets = []  # List to hold datasets for each variable
-    for var in ["u", "v", "w", "z", "th", "q", "p"]:
-        data = xr.open_dataset(f"{ukmo_folder}/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_{var}.nc", decode_timedelta = True)
-        data = data.isel(grid_latitude=yi, grid_longitude=xi, bnds=1)
-        datasets.append(data)
-
-    dat = xr.merge(datasets, compat='override')
-    dat = convert_calc_variables(dat)
-    dat = dat.rename({"model_level_number": "height"})
-    return dat
-
-
-def read_full_ukmo(variables= ["u", "v", "w", "z", "th", "q", "p"]):
-    deprecated?
-    read all ukmo data (~40GB) as xarray dataset
-    Problem: "regular_longitude" and "regular_latitude" are not coordinates, but data variables!
-    (written by chatgpt, maybe coord. transform is totally useless)
-
-    
-    um_files = [ukmo_folder + "/MetUM_MetOffice_20171015T1200Z_CAP02_3D_30min_1km_optimal_" + var + ".nc"
-                for var in variables]
-    um = xr.open_mfdataset(um_files, combine='by_coords', compat='override', decode_timedelta=True)
-
-    # transform coordinates by chatgpt
-    proj_rot = ccrs.RotatedPole(pole_longitude= -168.6, pole_latitude= 42.7)
-    proj_ll = ccrs.PlateCarree()
-    lonr = um['grid_longitude'].values
-    latr = um['grid_latitude'].values
-    lonr2d, latr2d = np.meshgrid(lonr, latr)
-    lonlat = proj_ll.transform_points(proj_rot, lonr2d, latr2d)
-    regular_lon, regular_lat = lonlat[..., 0], lonlat[..., 1]
-
-    um['regular_longitude'] = (('grid_latitude', 'grid_longitude'), regular_lon)
-    um['regular_latitude'] = (('grid_latitude', 'grid_longitude'), regular_lat)
-
-    return um
-    """
-
-
 def save_um_topography(ds):
     """
     save the terrain height as netcdf and .tif file (for PCGP calc)
@@ -314,11 +264,11 @@ def save_um_topography(ds):
 
 
 if __name__ == '__main__':
-    matplotlib.use('Qt5Agg')
+    # matplotlib.use('Qt5Agg')
     # get values on lowest level
     # get_coordinates_by_station_name("IAO")
     # um = read_ukmo_fixed_point_and_time("IAO", "2017-10-15T14:00:00")
-    variables = ["udir", "wspd", "q", "p", "th", "temp", "z"]
+    variables = ["udir", "wspd", "q", "p", "th", "temp", "z", "Td", "Td_dep"]
     um = read_ukmo_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
                                variables=variables, height_as_z_coord="direct")  # , "hgt" , "rho"
     # um_extent = read_ukmo_fixed_time(day=16, hour=12, min=0, variables=["p", "temp", "th", "z"])

@@ -1,5 +1,6 @@
 """
-Plot heat budget timeseries for specific points from AROME and WRF models.
+Plot heat budget timeseries for specific points from AROME and WRF models. The data is freshly read each execution time,
+no timeseries is saved for the heat budget variables (otherwise than for other model data)!
 
 This script creates interactive Plotly plots showing the time evolution of all heat budget
 variables (hfs, lfs, lwd, lwu, swd, swu) for selected points. Each point gets its own plot
@@ -167,7 +168,7 @@ def plot_heat_budget_timeseries_for_point(point_name, point_info, save_dir):
 
     fig.update_layout(title=dict(text=title_text, x=0.5, font=dict(size=18, family="Arial, sans-serif")),
                       xaxis=dict(title='Time', showgrid=True, gridcolor='lightgray', gridwidth=1,
-                                 range=['2017-10-15 14:00:00', '2017-10-16 11:00:00']),
+                                 range=['2017-10-15 13:00:00', '2017-10-16 12:00:00']),
                       yaxis=dict(title='Heat Flux [W/m²]', showgrid=True, gridcolor='lightgray', gridwidth=1),
                       hovermode='x unified', template='plotly_white', width=1400, height=700,
                       margin=dict(l=80, r=50, t=100, b=80),
@@ -179,9 +180,7 @@ def plot_heat_budget_timeseries_for_point(point_name, point_info, save_dir):
 
     pyo.plot(fig, filename=output_file, auto_open=False)
     print(f"  Plot saved to: {output_file}")
-
-    # Also show the plot
-    fig.show()
+    return fig
 
 
 def plot_all_heat_budget_timeseries(point_names=None):
@@ -216,11 +215,14 @@ def plot_all_heat_budget_timeseries(point_names=None):
         point_info = confg.ALL_POINTS[point_name]
 
         try:
-            plot_heat_budget_timeseries_for_point(point_name=point_name, point_info=point_info, save_dir=save_dir)
+            fig = plot_heat_budget_timeseries_for_point(point_name=point_name, point_info=point_info, save_dir=save_dir)
+
         except Exception as e:
             print(f"\n Error processing {point_name}: {e}")
             continue
 
+    # show only the last created figure
+    fig.show()
     print(f"\n{'#' * 70}")
     print(f"#  All heat budget timeseries plots completed!")
     print(f"# Output location: {save_dir}")
@@ -230,7 +232,7 @@ def plot_all_heat_budget_timeseries(point_names=None):
 if __name__ == '__main__':
     # Example: Plot for a subset of valley points
     # You can change this to confg.VALLEY_POINTS or specific point names
-    points_to_plot = ["ibk_uni", "ibk_airport"]  # , "kufstein", "jenbach", "hafelekar"
+    points_to_plot = ["ibk_uni", "ibk_airport", "kufstein", "jenbach", "hafelekar", "hohe_warte"]  #
 
     # Or use all points:
     # points_to_plot = None

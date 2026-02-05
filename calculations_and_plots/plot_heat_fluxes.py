@@ -6,14 +6,18 @@ espc. AROME has low values near the surface, further up they increase (see Hanne
 
 sunset at 16:25 UTC: temp falls already since ~15:30? => heat flux turns around at sunset
 WRF hfs: UPWARD HEAT FLUX AT THE SURFACE
+
+lat/lons are only limited, not subsetted. Therefore pretty large files.
 """
+import sys
+
+sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes")
 import fix_win_DLL_loading_issue
+fix_win_DLL_loading_issue
 
 import os
 from datetime import datetime
 
-import matplotlib
-matplotlib.use('TkAgg')  # Set backend before importing pyplot to avoid Qt5 crashes
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
@@ -22,14 +26,12 @@ import pandas as pd
 import xarray as xr
 from colorspace import diverging_hcl
 
-import sys
-sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes/calculations_and_plots")
 import confg
 import read_in_arome
 import read_wrf_helen
 from plot_topo_comparison import calculate_lon_extent_for_km
 
-variables_to_plot = ["hfs", "lfs"] # , "lwd", "lwu", "swd", "swu"]
+variables_to_plot = ["hfs", "lfs", "lwd", "lwu", "swd", "swu"]  # plot all heat budget variables
 
 
 def add_scalebar(ax, length_km=10, location='lower right'):
@@ -63,15 +65,13 @@ def add_scalebar(ax, length_km=10, location='lower right'):
         scalebar_lat = lat_max - 0.02
 
     # Draw the scalebar as a thick black line
-    ax.plot([scalebar_lon_start, scalebar_lon_start + scalebar_lon_size],
-            [scalebar_lat, scalebar_lat],
-            color='black', linewidth=3, transform=ccrs.PlateCarree())
+    ax.plot([scalebar_lon_start, scalebar_lon_start + scalebar_lon_size], [scalebar_lat, scalebar_lat], color='black',
+            linewidth=3, transform=ccrs.PlateCarree())
 
     # Add text label
     scalebar_lon_center = scalebar_lon_start + scalebar_lon_size / 2
-    ax.text(scalebar_lon_center, scalebar_lat + 0.01, f'{length_km} km',
-            transform=ccrs.PlateCarree(), ha='center', va='bottom',
-            fontsize=9, fontweight='bold',
+    ax.text(scalebar_lon_center, scalebar_lat + 0.01, f'{length_km} km', transform=ccrs.PlateCarree(), ha='center',
+            va='bottom', fontsize=9, fontweight='bold',
             bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'))
 
 
@@ -79,54 +79,21 @@ def add_scalebar(ax, length_km=10, location='lower right'):
 # CONFIGURATION AND HELPER FUNCTIONS
 # ============================================================================
 
-def get_variable_metadata():
-    """
-    Get metadata for heat budget variables (labels, colormaps, symmetry).
+# Simple dictionaries for variable properties
+VARIABLE_COLORMAPS = {"hfs": diverging_hcl(palette="Blue-Red 2").cmap(),  # Sensible Heat Flux
+                      "lfs": diverging_hcl(palette="Blue-Red 2").cmap(),  # Latent Heat Flux
+                      "lwd": plt.colormaps["YlOrRd"],  # Downward Longwave Flux
+                      "lwu": plt.colormaps["YlOrRd"],  # Upward Longwave Flux
+                      "swd": plt.colormaps["YlOrRd"],  # Downward Shortwave Flux
+                      "swu": plt.colormaps["YlOrRd"],  # Upward Shortwave Flux
+                      }
 
-    Returns:
-        dict: Dictionary with variable metadata
-    """
-    return {"hfs": {"label": "Sensible Heat Flux", "cmap": "RdBu_r", "symmetric": True},
-        "lfs": {"label": "Latent Heat Flux", "cmap": "RdBu_r", "symmetric": True},
-        "lwd": {"label": "Downward Longwave Flux", "cmap": "YlOrRd", "symmetric": False},
-        "lwu": {"label": "Upward Longwave Flux", "cmap": "YlOrRd", "symmetric": False},
-        "swd": {"label": "Downward Shortwave Flux", "cmap": "YlOrRd", "symmetric": True},
-        "swu": {"label": "Upward Shortwave Flux", "cmap": "YlOrRd", "symmetric": True}, }
+VARIABLE_LABELS = {"hfs": "Sensible Heat Flux", "lfs": "Latent Heat Flux", "lwd": "Downward Longwave Flux",
+                   "lwu": "Upward Longwave Flux", "swd": "Downward Shortwave Flux", "swu": "Upward Shortwave Flux", }
 
-
-def get_variable_ranges():
-    """
-    Get default value ranges for heat budget variables.
-
-    Returns:
-        dict: Dictionary with vmin/vmax for each variable
-    """
-    return {"hfs": {"vmin": -100, "vmax": 100},  # Sensible heat flux (can be negative/positive)
-        "lfs": {"vmin": -150, "vmax": 150},  # Latent heat flux (mostly positive)
-        "lwd": {"vmin": 0, "vmax": 400},  # Downward longwave (always positive)
-        "lwu": {"vmin": 0, "vmax": 450},  # Upward longwave (always positive)
-        "swd": {"vmin": -800, "vmax": 800},  # Downward shortwave (0 at night)
-        "swu": {"vmin": -800, "vmax": 800},  # Upward shortwave (reflected, 0 at night)
-    }
-
-
-def get_colormap_for_variable(variable):
-    """
-    Get the appropriate colormap for a given variable.
-
-    Args:
-        variable: Variable name (hfs, lfs, etc.)
-
-    Returns:
-        matplotlib colormap object
-    """
-    var_metadata = get_variable_metadata()
-    metadata = var_metadata.get(variable, {"label": variable, "cmap": "viridis", "symmetric": False})
-
-    if metadata["symmetric"]:
-        return diverging_hcl(palette="Blue-Red 2").cmap()
-    else:
-        return plt.colormaps[metadata["cmap"]]
+VARIABLE_RANGES = {"hfs": {"vmin": -100, "vmax": 100}, "lfs": {"vmin": -150, "vmax": 150},
+                   "lwd": {"vmin": 0, "vmax": 400}, "lwu": {"vmin": 0, "vmax": 450}, "swd": {"vmin": -800, "vmax": 800},
+                   "swu": {"vmin": -800, "vmax": 800}, }
 
 
 def extract_topography_and_wind(ds_sel, model, step=2):
@@ -136,23 +103,36 @@ def extract_topography_and_wind(ds_sel, model, step=2):
     Args:
         ds_sel: Dataset slice for a specific time
         model: Model name ("WRF" or "AROME")
-        step: Subsample step for wind vectors (default: 2)
+        step: Subsample step for wind barbs (default: 2). Controls distance between wind barbs.
+              Lower values = more barbs (denser), higher values = fewer barbs (sparser).
+              E.g., step=1 plots every grid point, step=3 plots every 3rd grid point.
 
     Returns:
         tuple: (z, u, v) - topography and wind components (u, v can be None)
     """
-    if model == "WRF":
-        z = ds_sel.z_unstag.isel(height=0)
-        if "u" in ds_sel and "v" in ds_sel:
-            u = ds_sel.sel(height=1).u.values[::step, ::step]
-            v = ds_sel.sel(height=1).v.values[::step, ::step]
-        else:
-            u, v = None, None
-    elif model == "AROME":
+    if model == "AROME":
         z = ds_sel.hgt
         if "u" in ds_sel and "v" in ds_sel:
             u = ds_sel.u.values[::step, ::step]
             v = ds_sel.v.values[::step, ::step]
+        else:
+            u, v = None, None
+
+    elif model in ["ICON", "ICON2TE"]:
+        z = ds_sel.z
+        if "u" in ds_sel and "v" in ds_sel:
+            u = ds_sel.u.values[::step, ::step]  # .sel(height=1, method="nearest")
+            v = ds_sel.v.values[::step, ::step]  # .sel(height=1, method="nearest").
+    elif model == "UM":
+        z = ds_sel.z
+        if "u" in ds_sel and "v" in ds_sel:
+            u = ds_sel.u.values[::step, ::step]  # (height=1, method="nearest").
+            v = ds_sel.v.values[::step, ::step]  # .sel(height=1, method="nearest")
+    elif model == "WRF":
+        z = ds_sel.z  # for heat flux plot: _unstag.isel(height=0)
+        if "u" in ds_sel and "v" in ds_sel:
+            u = ds_sel.u.values[::step, ::step]  # hf-plot: .sel(height=1)
+            v = ds_sel.v.values[::step, ::step]  # hf-plot: .sel(height=1)
         else:
             u, v = None, None
     else:
@@ -167,6 +147,7 @@ def extract_topography_and_wind(ds_sel, model, step=2):
 
 def plot_heatflux(ds):
     """
+    Deprecated?
     Plot sensible heat flux with topography contours on a map projection.
 
     :param ds: xarray Dataset with variables 'lon', 'lat', 'hfs', 'z_unstag', and 'time'
@@ -235,117 +216,62 @@ def read_wrf_for_times(times, variables):
             ds = ds.isel(time=0)
         ds_list.append(ds)
     wrf = xr.concat(ds_list, dim="time")
-    return wrf
+
+    return wrf.sel(height=1, bottom_top_stag=1)  # return only the lowest model level
 
 
-def plot_small_multiples(ds, model="WRF", variable="hfs", vmin=None, vmax=None, **kwargs):
+def plot_small_multiples(ds, model="WRF", variable="hfs", vmin=None, vmax=None, figsize=(12, 8), ncols=3,
+        lon_extent=None, lat_extent=None, filename_suffix="", save_file=True, contour_line_dist=250, barb_length=3,
+        step=2, plot_dir="heat_flux", custom_label=None, **kwargs):
     """
-    plots small multiples of heat budget variables with topography contours and wind barbs
+    Base function for plotting small multiples with common functionality.
+    This eliminates code duplication between different plot types.
 
     :param ds: xarray Dataset with the heat budget variable, topography, and optionally wind
     :param model: Model name (WRF or AROME)
     :param variable: Variable name to plot (hfs, lfs, lwd, lwu, swd, swu)
-    :param vmin: Minimum value for colorbar (if None, will be determined automatically)
-    :param vmax: Maximum value for colorbar (if None, will be determined automatically)
+    :param vmin: Minimum value for colorbar
+    :param vmax: Maximum value for colorbar
+    :param figsize: Figure size tuple
+    :param ncols: Number of columns in subplot grid
+    :param lon_extent: Tuple (lon_min, lon_max) for axis limits (None uses config defaults)
+    :param lat_extent: Tuple (lat_min, lat_max) for axis limits (None uses config defaults)
+    :param filename_suffix: Suffix to add to filename
+    :param save_file: Whether to save the plot
+    :param contour_line_dist: Distance between contour lines in meters (for full extent 250m, for detail plots use
+    100m)
+    :param barb_length: Length of wind barbs (default: 3). Controls visual size of wind barbs.
+                        Larger values = longer barbs, smaller values = shorter barbs.
+                        Note: This only affects visual appearance, not the meteorological interpretation.
+    :param step: Subsample step for wind barbs (default: 2). Controls distance between wind barbs.
+                 Lower values = more barbs (denser), higher values = fewer barbs (sparser).
+    :param plot_dir: Directory name within confg.dir_PLOTS for saving plots (default: "heat_flux")
+    :param custom_label: Optional custom label to override default (default: None)
     """
-    # Get variable metadata and colormap
-    var_metadata = get_variable_metadata()
-    metadata = var_metadata.get(variable, {"label": variable, "cmap": "viridis", "symmetric": False})
-    cmap = get_colormap_for_variable(variable)
+    # Get colormap and label for the variable
+    cmap = confg.temperature_colormap
+    label = custom_label or VARIABLE_LABELS.get(variable, variable)
 
-    projection = ccrs.Mercator()  # use mercator projection per default
-    nplots, ncols = len(ds.time), 3
-    nrows = int((nplots + ncols - 1) / ncols)  # = 4 for 2hourly timesteps
-
-    # Increase figure size and adjust spacing for larger subplots
-    fig, axes = plt.subplots(nrows, ncols, figsize=(12, 8), subplot_kw={'projection': projection},
-                             gridspec_kw={'hspace': 0.15, 'wspace': 0.05})
-    axes = axes.flatten() if nrows > 1 else [axes] if nplots == 1 else axes
-
-    for i, time in enumerate(ds.time.values):
-        ax = axes[i]
-        ds_sel = ds.sel(time=time)
-
-        # Plot the selected variable
-        var_data = ds_sel[variable].values
-        lat, lon = ds_sel.lat.values, ds_sel.lon.values
-        im = ax.pcolormesh(lon, lat, var_data, cmap=cmap, vmin=vmin, vmax=vmax,
-                           transform=projection)
-
-        # Extract topography and wind data (by subsetting, want to plot only ever 2nd arrow)
-        step = 2  # plot only every 2nd grid point wind arrow
-        z, u, v = extract_topography_and_wind(ds_sel, model, step)
-
-        # --- plot topo contours
-        levels_thin = np.arange(0, 3500, 250)  # same as in plot_topo_comparison.py
-        ax.contour(lon, lat, z.values, levels=levels_thin, colors="k", linewidths=0.3,
-                   transform=projection)
-
-        # Add wind quivers if wind data is available
-        if u is not None and v is not None:  # only added if there's meaningful wind data
-            quiver = ax.quiver(x=lon[::step], y=lat[::step], u=u, v=v, scale=40, scale_units="inches", transform=projection)
-
-
-        ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
-
-        # Format timestamp
-        time_pd = pd.to_datetime(time)
-        ax.text(0.1, 0.8, f"{time_pd.hour:02d}h", transform=ax.transAxes, fontsize=10, fontweight="bold",
-                bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
-
-        ax.set_xlabel(""), ax.set_ylabel("")
-        ax.set_xlim([confg.lon_hf_min, confg.lon_hf_max]), ax.set_ylim(
-            [confg.lat_hf_min, confg.lat_hf_max])  # ax.set_xlim([11.76, 11.95]), ax.set_ylim([47.15, 47.4])
-
-    # Remove unused axes
-    for j in range(i + 1, len(axes)):
-        fig.delaxes(axes[j])
-
-    # Use subplots_adjust first to create space for colorbar
-    plt.subplots_adjust(left=0.05, right=0.80, top=0.95, bottom=0.05, hspace=0.15, wspace=0.05)
-
-    if u is not None and v is not None:  # add wind quiver key only if wind data was plotted
-        qk = ax.quiverkey(quiver, X=1.4, Y=-0.1, U=5, label='5 m/s', labelpos='E', coordinates='axes')
-    # Place colorbar with precise positioning using fig.add_axes
-    # [left, bottom, width, height] in figure coordinates
-    # cax = fig.add_axes([0.9, 0.15, 0.025, 0.7])
-    cbar = fig.colorbar(im, label=f"{model} {metadata['label']} [$W/m^2$]", orientation='vertical')  # cax=cax,
-    # cbar.ax.tick_params(size=0)
-
-    # Ensure the heat_flux directory exists
-    heat_flux_dir = os.path.join(confg.dir_PLOTS, "heat_flux")
-    os.makedirs(heat_flux_dir, exist_ok=True)
-
-    plt.savefig(os.path.join(heat_flux_dir, f"{variable}_{model}_small_multiples.png"), dpi=300)
-
-
-def plot_small_multiples_ziller_detail(ds, model="WRF", variable="hfs", vmin=None, vmax=None, lon_extent=(11.76, 11.95),
-        lat_extent=(47.15, 47.4), **kwargs):
-    """
-    Plot detailed small multiples for Zillertal region with specific extent and times.
-    Uses the same visualization as plot_small_multiples but for a zoomed-in region.
-
-    :param ds: xarray Dataset with the heat budget variable, topography, and optionally wind
-    :param model: Model name (WRF or AROME)
-    :param variable: Variable name to plot (hfs, lfs, lwd, lwu, swd, swu)
-    :param vmin: Minimum value for colorbar (if None, will be determined automatically)
-    :param vmax: Maximum value for colorbar (if None, will be determined automatically)
-    :param lon_extent: Tuple (lon_min, lon_max) for plot extent (only sets axis limits, not data subset)
-    :param lat_extent: Tuple (lat_min, lat_max) for plot extent (only sets axis limits, not data subset)
-    """
-    # Get variable metadata and colormap
-    var_metadata = get_variable_metadata()
-    metadata = var_metadata.get(variable, {"label": variable, "cmap": "viridis", "symmetric": False})
-    cmap = get_colormap_for_variable(variable)
-
-    projection = ccrs.Mercator()  # use mercator projection per default
-    nplots, ncols = len(ds.time), 2  # Use 2 columns for fewer timesteps
+    projection = ccrs.Mercator()
+    nplots = len(ds.time)
     nrows = int((nplots + ncols - 1) / ncols)
 
-    # Increase figure size and adjust spacing for larger subplots
-    fig, axes = plt.subplots(nrows, ncols, figsize=(10, 6), subplot_kw={'projection': projection},
+    # Create subplots
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize, subplot_kw={'projection': projection},
                              gridspec_kw={'hspace': 0.15, 'wspace': 0.05})
     axes = axes.flatten() if nrows > 1 else [axes] if nplots == 1 else axes
+
+    # Initialize variables to avoid "might be referenced before assignment" errors
+    im = None
+    u, v = None, None
+    ax = None
+    barbs = None
+
+    # Set default extents if not provided
+    if lon_extent is None:
+        lon_extent = (confg.lon_hf_min, confg.lon_hf_max)
+    if lat_extent is None:
+        lat_extent = (confg.lat_hf_min, confg.lat_hf_max)
 
     for i, time in enumerate(ds.time.values):
         ax = axes[i]
@@ -356,94 +282,144 @@ def plot_small_multiples_ziller_detail(ds, model="WRF", variable="hfs", vmin=Non
                            vmax=vmax, transform=projection)
 
         # Extract topography and wind data
-        step = 2  # plot only every 2nd grid point wind arrow
         z, u, v = extract_topography_and_wind(ds_sel, model, step)
 
-        # --- plot topo contours
-        levels_thin = np.arange(0, 3500, 250)
-        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin, colors="k", linewidths=0.3,
+        # Plot topo contours
+        levels_thin = np.arange(0, 3500, contour_line_dist)
+        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin, colors="k", linewidths=0.15,
                    transform=projection)
 
-        # Add wind quivers only if wind data is available
-        lat, lon = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+        # Add wind barbs if wind data is available (meteorologically correct)
         if u is not None and v is not None:
-            # scale_units='width': scale relative to plot width (simpler than inches)
-            # scale=200: 200 m/s wind would span the entire plot width
-            quiver = ax.quiver(x=lon, y=lat, u=u, v=v, scale=100, scale_units="width", transform=projection)
+            lat_subset, lon_subset = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
 
-        ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
+            # Convert wind speeds from m/s to knots (multiply by 1.94384)
+            u_knots = u * 1.94384
+            v_knots = v * 1.94384
+
+            # Wind barbs - meteorologically correct, no scaling needed!
+            barbs = ax.barbs(x=lon_subset, y=lat_subset, u=u_knots, v=v_knots,
+                           transform=projection, color='black', length=barb_length, linewidth=0.35)
 
         # Format timestamp
         time_pd = pd.to_datetime(time)
-        ax.text(0.1, 0.8, f"{time_pd.hour:02d}h", transform=ax.transAxes, fontsize=10,
-                fontweight="bold", bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
+        ax.text(0.1, 0.8, f"{time_pd.hour:02d}h", transform=ax.transAxes, fontsize=10, fontweight="bold",
+                bbox=dict(facecolor="white", alpha=0.6, edgecolor="none"))
 
         ax.set_xlabel(""), ax.set_ylabel("")
         ax.set_xlim(lon_extent), ax.set_ylim(lat_extent)
 
-    # Remove unused axes; necessary?!
-    for j in range(i + 1, len(axes)):
-        fig.delaxes(axes[j])
+    # Remove unused axes
+    if 'i' in locals():
+        for j in range(i + 1, len(axes)):
+            fig.delaxes(axes[j])
 
-    # Add quiver key only if wind data was plotted
-    if u is not None and v is not None:
-        qk = ax.quiverkey(quiver, X=1.2, Y=0, U=5, label='5 m/s', labelpos='E', coordinates='axes')
-
-    # Use subplots_adjust first to create space for colorbar
+    # Use subplots_adjust to create space for colorbar
     plt.subplots_adjust(left=0.05, right=0.80, top=0.95, bottom=0.05, hspace=0.15, wspace=0.05)
 
-    # Place colorbar with precise positioning using fig.add_axes
-    # [left, bottom, width, height] in figure coordinates
-    cax = fig.add_axes([0.85, 0.15, 0.025, 0.7])
-    cbar = fig.colorbar(im, cax=cax, label=f"{model} {metadata['label']} [$W/m^2$]", orientation='vertical')
-    cbar.ax.tick_params(size=0)
+    # Wind barbs are self-explanatory and don't need a legend
+    # Barb convention: half barb ≈ 3 m/s, full barb = 5 m/s, two full barbs = 10 m/s, pennant = 50 m/s
 
-    # Save with descriptive filename
-    filename = f"{variable}_{model}_small_multiples_ziller_detail.png"
-    plt.savefig(os.path.join(confg.dir_PLOTS, "heat_flux", filename), dpi=300)
-    print(f"    ✓ Saved: {filename}")
+    # Create colorbar
+    if im is not None:
+        cax = fig.add_axes([0.82, 0.1, 0.015, 0.7])
+        # Choose units based on variable type
+        if variable in ["temp"]:
+            units = "[°C]"
+        elif variable in ["th"]:
+            units = "[K]"
+        else:
+            units = "[$W/m^2$]"
+        cbar = fig.colorbar(im, cax=cax, label=f"{model} {label} {units}", orientation='vertical')
+        cbar.ax.tick_params(size=0)
+
+    # Save file if requested
+    if save_file:
+        filename = f"{variable}_{model}_small_multiples{filename_suffix}.png"  # Changed from .svg to .png
+
+        # Create directory if it doesn't exist
+        plots_dir = os.path.join(confg.dir_PLOTS, plot_dir)
+        os.makedirs(plots_dir, exist_ok=True)
+
+        filepath = os.path.join(plots_dir, filename)
+
+        # Delete existing file if it exists to ensure clean overwrite
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        plt.savefig(filepath, dpi=300, bbox_inches='tight')  # Added dpi=300
+        print(f"    ✓ Saved: {filename}")
+        plt.close()  # Close figure to free memory
 
 
-def plot_all_heat_budget_variables(arome_ds, wrf_ds, times):
+def plot_detail_for_extent(arome_ds, wrf_ds, times, lon_extent, lat_extent, figsize, contour_line_dist,
+        extent_name="detail", variables_to_plot=None, barb_length=None, step=2):
     """
-    Plot all heat budget variables for both AROME and WRF models.
+    Plot detailed small multiples for both models for a given extent.
 
-    :param arome_ds: AROME dataset with all heat budget variables
-    :param wrf_ds: WRF dataset with all heat budget variables
-    :param times: Time range to plot
+    Args:
+        arome_ds: AROME dataset
+        wrf_ds: WRF dataset
+        times: Time selection for plotting
+        lon_extent: Tuple (lon_min, lon_max) for plot extent
+        lat_extent: Tuple (lat_min, lat_max) for plot extent
+        extent_name: Name for the extent (used in print messages and filenames)
+        variables_to_plot: List of variables to plot (if None, uses global variables_to_plot)
+        barb_length: Length of wind barbs. Controls visual size of wind barbs.
+                     Larger values = longer barbs, smaller values = shorter barbs.
+        step: Subsample step for wind barbs (default: 2). Controls distance between wind barbs.
+              Lower values = more barbs (denser), higher values = fewer barbs (sparser).
+
+    Example usage:
+        # Plot Zillertal detail
+        times_detail = make_times(start_day=16, start_hour=10, start_minute=0,
+                                 end_day=16, end_hour=11, end_minute=30, freq="1h")
+        plot_detail_for_extent(arome2d, wrf_hf, times_detail,
+                              lon_extent=(11.76, 11.95), lat_extent=(47.15, 47.4),
+                              extent_name="Zillertal", step=3)
     """
-    # Get uniform colorbar ranges for each variable
-    var_ranges = get_variable_ranges()
+    if variables_to_plot is None:
+        variables_to_plot = globals()['variables_to_plot']
 
-    print(f"\n{'=' * 70}")
-    print(f"Plotting heat budget variables for AROME and WRF")
-    print(f"{'=' * 70}\n")
+    print(f"\n" + "=" * 70)
+    print(f"Creating {extent_name.upper()} DETAIL plots")
+    print("=" * 70)
 
+    # Subset datasets to the specified extent
+    arome_detail = arome_ds.sel(lat=slice(lat_extent[0], lat_extent[1]), lon=slice(lon_extent[0], lon_extent[1]))
+    wrf_detail = wrf_ds.sel(lat=slice(lat_extent[0], lat_extent[1]), lon=slice(lon_extent[0], lon_extent[1]))
+
+    # Plot all heat budget variables for the detail extent
     for var in variables_to_plot:
         print(f"  Processing {var}...")
 
-        # Check if variable exists in datasets
-        if var in arome_ds:
-            print(f"    Plotting AROME {var}...")
-            plot_small_multiples(ds=arome_ds.sel(time=times), model="AROME", variable=var, vmin=var_ranges[var]["vmin"],
-                                 vmax=var_ranges[var]["vmax"])
+        # Check if variable exists in AROME dataset
+        if var in arome_detail:
+            print(f"    Plotting AROME {var} ({extent_name} detail)...")
+            plot_small_multiples(ds=arome2d.sel(time=times), model="AROME", variable=var,
+                                 vmin=VARIABLE_RANGES[var]["vmin"], vmax=VARIABLE_RANGES[var]["vmax"],
+                                 lon_extent=lon_extent, lat_extent=lat_extent, figsize=figsize,
+                                 filename_suffix=extent_name, contour_line_dist=contour_line_dist,
+                                 barb_length=barb_length, step=step)
+
         else:
             print(f"    Warning: {var} not found in AROME dataset")
 
-        if var in wrf_ds:
-            print(f"    Plotting WRF {var}...")
-            plot_small_multiples(ds=wrf_ds.sel(time=times), model="WRF", variable=var, vmin=var_ranges[var]["vmin"],
-                                 vmax=var_ranges[var]["vmax"])
+        # Check if variable exists in WRF dataset
+        if var in wrf_detail:
+            print(f"    Plotting WRF {var} ({extent_name} detail)...")
+            # first must select WRF to 2D for plotting:
+
+            plot_small_multiples(ds=wrf_detail.sel(time=times), model="WRF", variable=var,
+                                 vmin=VARIABLE_RANGES[var]["vmin"], vmax=VARIABLE_RANGES[var]["vmax"],
+                                 lon_extent=lon_extent, lat_extent=lat_extent, figsize=figsize,
+                                 filename_suffix=extent_name, contour_line_dist=contour_line_dist,
+                                 barb_length=barb_length, step=step)
         else:
             print(f"    Warning: {var} not found in WRF dataset")
 
-    print(f"\n{'=' * 70}")
-    print(f"✓ All heat budget plots created successfully!")
-    print(f"  Location: {confg.dir_PLOTS}/heat_flux/")
-    print(f"{'=' * 70}\n")
 
-
-def plot_shortwave_comparison_arome(ds, time, lon_extent=(11.76, 11.95), lat_extent=(47.15, 47.4)):
+def plot_shortwave_comparison_arome(ds, time, lon_extent=(11.76, 11.95), lat_extent=(47.15, 47.4),
+                                   step=2, barb_length=4):
     """
     Plot AROME swd (left) and swu (right) as a side-by-side comparison for a single time.
     Uses shared colorbar for both plots.
@@ -452,14 +428,16 @@ def plot_shortwave_comparison_arome(ds, time, lon_extent=(11.76, 11.95), lat_ext
     :param time: Single timestamp to plot (datetime-like)
     :param lon_extent: Tuple (lon_min, lon_max) for plot extent
     :param lat_extent: Tuple (lat_min, lat_max) for plot extent
+    :param step: Subsample step for wind barbs (default: 2). Controls distance between wind barbs.
+                 Lower values = more barbs (denser), higher values = fewer barbs (sparser).
+    :param barb_length: Length of wind barbs (default: 4). Controls visual size of wind barbs.
+                        Larger values = longer barbs, smaller values = shorter barbs.
     """
-    var_metadata = get_variable_metadata()
-    var_ranges = get_variable_ranges()
-    cmap = get_colormap_for_variable("swd")  # Same colormap for both swd and swu
+    cmap = VARIABLE_COLORMAPS.get("swd", plt.colormaps["YlOrRd"])  # Same colormap for both swd and swu
 
     # Use same vmin/vmax for both to have consistent colorbar
     vmin = 0
-    vmax = max(var_ranges["swd"]["vmax"], var_ranges["swu"]["vmax"])
+    vmax = max(VARIABLE_RANGES["swd"]["vmax"], VARIABLE_RANGES["swu"]["vmax"])
 
     projection = ccrs.Mercator()
 
@@ -472,40 +450,43 @@ def plot_shortwave_comparison_arome(ds, time, lon_extent=(11.76, 11.95), lat_ext
 
     for i, (ax, var) in enumerate(zip(axes, variables)):
         # Plot the variable
-        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel[var].values,
-                           cmap=cmap, vmin=vmin, vmax=vmax, transform=projection)
+        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel[var].values, cmap=cmap, vmin=vmin, vmax=vmax,
+                           transform=projection)
 
         # Extract topography and wind data
-        step = 2
         z, u, v = extract_topography_and_wind(ds_sel, model="AROME", step=step)
 
         # Plot topo contours
         levels_thin = np.arange(0, 3500, 100)
-        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin,
-                   colors="k", linewidths=0.3, transform=projection)
+        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin, colors="k", linewidths=0.3,
+                   transform=projection)
 
-        # Add wind quivers only if wind data is available
+        # Add wind barbs if wind data is available (meteorologically correct)
         if u is not None and v is not None:
             lat_arr, lon_arr = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
-            quiver = ax.quiver(x=lon_arr, y=lat_arr, u=u, v=v, scale=100, scale_units="width",
-                               transform=projection)
+
+            # Convert wind speeds from m/s to knots (multiply by 1.94384)
+            u_knots = u * 1.94384
+            v_knots = v * 1.94384
+
+            # Wind barbs - meteorologically correct, no scaling needed!
+            barbs = ax.barbs(x=lon_arr, y=lat_arr, u=u_knots, v=v_knots,
+                           transform=projection, color='black', length=barb_length, linewidth=0.35)
 
         ax.add_feature(cfeature.BORDERS, linewidth=0.5, transform=projection)
         ax.set_xlim(lon_extent), ax.set_ylim(lat_extent)
 
         # Add subplot labels a) and b) with white background
         label = "a)" if i == 0 else "b)"
-        ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=12,
-                verticalalignment='top', horizontalalignment='left',
+        ax.text(0.02, 0.98, label, transform=ax.transAxes, fontsize=12, verticalalignment='top',
+                horizontalalignment='left',
                 bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='black', linewidth=1))
 
         # scalebar is not shown?!
         # Add scalebar to both subplots
         add_scalebar(ax, length_km=10, location='lower right')
 
-    # Add quiver key on the right side
-    if u is not None and v is not None:
-        qk = axes[1].quiverkey(quiver, X=1.1, Y=0, U=5, label='5 m/s', labelpos='E', coordinates='axes')
+    # Wind barbs are self-explanatory and don't need a legend
 
     # Add shared colorbar
     plt.subplots_adjust(left=0.05, right=0.85, top=0.92, bottom=0.08, wspace=0.05)
@@ -519,115 +500,84 @@ def plot_shortwave_comparison_arome(ds, time, lon_extent=(11.76, 11.95), lat_ext
 
     # Save figure
     filename = f"swd_swu_AROME_comparison_{time_pd.strftime('%Y%m%d_%H%M')}.png"
-    plt.savefig(os.path.join(confg.dir_PLOTS, "heat_flux", filename), dpi=300)
+    filepath = os.path.join(confg.dir_PLOTS, "heat_flux", filename)
+
+    # Delete existing file if it exists to ensure clean overwrite
+    if os.path.exists(filepath):
+        os.remove(filepath)
+
+    plt.savefig(filepath, dpi=300, bbox_inches='tight')
     print(f"    ✓ Saved: {filename}")
-
-
-def plot_all_heat_budget_variables_ziller_detail(arome_ds, wrf_ds, times, lon_extent=(11.76, 11.95),
-        lat_extent=(47.15, 47.4)):
-    """
-    Plot all heat budget variables for Zillertal detail region (zoomed-in view).
-
-    :param arome_ds: AROME dataset with all heat budget variables
-    :param wrf_ds: WRF dataset with all heat budget variables
-    :param times: Time range to plot (specific timesteps)
-    :param lon_extent: Tuple (lon_min, lon_max) for plot extent
-    :param lat_extent: Tuple (lat_min, lat_max) for plot extent
-    """
-    # Get uniform colorbar ranges for each variable
-    var_ranges = get_variable_ranges()
-
-    print(f"\n{'=' * 70}")
-    print(f"Plotting DETAILED heat budget variables for Zillertal region")
-    print(f"  Extent: lon {lon_extent}, lat {lat_extent}")
-    print(f"  Times: {len(times)} timesteps")
-    print(f"{'=' * 70}\n")
-
-    for var in variables_to_plot:
-        print(f"  Processing {var}...")
-
-        # Check if variable exists in datasets
-        if var in arome_ds:
-            print(f"    Plotting AROME {var} (Zillertal detail)...")
-            plot_small_multiples_ziller_detail(ds=arome_ds.sel(time=times), model="AROME", variable=var,
-                                               vmin=var_ranges[var]["vmin"], vmax=var_ranges[var]["vmax"],
-                                               lon_extent=lon_extent, lat_extent=lat_extent)
-        else:
-            print(f"    Warning: {var} not found in AROME dataset")
-
-        if var in wrf_ds:
-            print(f"    Plotting WRF {var} (Zillertal detail)...")
-            plot_small_multiples_ziller_detail(ds=wrf_ds.sel(time=times), model="WRF", variable=var,
-                                               vmin=var_ranges[var]["vmin"], vmax=var_ranges[var]["vmax"],
-                                               lon_extent=lon_extent, lat_extent=lat_extent)
-        else:
-            print(f"    Warning: {var} not found in WRF dataset")
-
-    print(f"\n{'=' * 70}")
-    print(f"✓ All detailed Zillertal heat budget plots created successfully!")
-    print(f"  Location: {confg.dir_PLOTS}heat_flux/")
-    print(f"{'=' * 70}\n")
+    plt.close()  # Close figure to free memory
 
 
 if __name__ == '__main__':
     colormap = diverging_hcl(palette="Blue-Red 2").cmap()
 
     # Choose which plots to create:
-    # Option 1: Full extent, longer time period (2-hourly from 14:00 to 12:00 next day)
-    create_full_extent_plots = True
+    create_full_extent_plots = False  # Full extent plots for all times
 
-    # Option 2: Detailed Zillertal region, specific morning hours (hourly from 10:00 to 11:30)
-    create_ziller_detail_plots = False
+    create_ziller_detail_plots = True  # Detailed Zillertal region
+
+    create_wipp_detail_plots = True  # Detailed Wipp Valley region
+
+    create_valley_exit_detail = False  # Specific detail plots for the valley exit region
 
     # Option 3: AROME swd/swu comparison plot at 10:00 UTC
     create_shortwave_comparison = False
+
+    times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=12, end_minute=0, freq="2h")
+    print("Loading AROME data...")
+    arome2d = read_in_arome.read_2D_variables_AROME(
+        variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
+        lon=slice(confg.lon_min, confg.lon_max), lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
+    print("Loading WRF data...")
+    wrf_hf = read_wrf_for_times(times=times,
+                                variables=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "z", "z_unstag", "u", "v"])
 
     if create_full_extent_plots:
         print("\n" + "=" * 70)
         print("Creating FULL EXTENT plots")
         print("=" * 70)
 
-        times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=12, end_minute=0,
-                           freq="2h")
+        lon_extent = (confg.lon_hf_min, confg.lon_hf_max)  # plot full extent
+        lat_extent = (confg.lat_hf_min, confg.lat_hf_max)
 
-        print("Loading AROME data...")
-        arome2d = read_in_arome.read_2D_variables_AROME(
-            variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
-            lon=slice(confg.lon_min, confg.lon_max), lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
+        plot_detail_for_extent(arome_ds=arome2d, wrf_ds=wrf_hf, times=times, lon_extent=lon_extent,
+                               lat_extent=lat_extent, figsize=(12, 8), contour_line_dist=250, extent_name="_full",
+                               variables_to_plot=variables_to_plot, barb_length=2, step=2)
 
-        print("Loading WRF data...")
-        wrf_hf = read_wrf_for_times(times=times,
-                                    variables=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "z", "z_unstag", "u", "v"])
+        # Close WRF dataset to free RAM  # wrf_hf.close()
 
-        # Plot all heat budget variables for both models
-        plot_all_heat_budget_variables(arome_ds=arome2d, wrf_ds=wrf_hf, times=times)
+    if create_wipp_detail_plots:
+        plot_detail_for_extent(arome_ds=arome2d, wrf_ds=wrf_hf, times=times, lon_extent=confg.lon_wipp_extent,
+                               lat_extent=confg.lat_wipp_extent, figsize=(8, 8), contour_line_dist=100,
+                               extent_name="_wipp_valley", variables_to_plot=variables_to_plot, barb_length=3,
+                               step=2)
+
+    if create_valley_exit_detail:
+        # from Achensee till Zell am See
+        # and Jenbach till Rosenheim
+
+        # Use the generic function for Zillertal plots
+        plot_detail_for_extent(arome_ds=arome2d, wrf_ds=wrf_hf, times=times, lon_extent=confg.lon_inn_exit_extent,
+                               lat_extent=confg.lat_inn_exit_extent, figsize=(11, 8), contour_line_dist=100,
+                               extent_name="_valley_exit", variables_to_plot=variables_to_plot, barb_length=3.2,
+                               step=2)
 
     if create_ziller_detail_plots:
-        print("\n" + "=" * 70)
-        print("Creating ZILLERTAL DETAIL plots")
-        print("=" * 70)
-
         # Specific times for detailed view: 10:00 to 11:30 on day 16, hourly
-        times_detail = make_times(start_day=16, start_hour=10, start_minute=0, end_day=16, end_hour=11, end_minute=30,
-                                  freq="1h")
+        # times_detail = make_times(start_day=16, start_hour=10, start_minute=0, end_day=16, end_hour=11, end_minute=30,
+        #                           freq="1h")
+        # Zillertal extent
 
-        # Zillertal extent (will only be used for axis limits)
-        lon_extent = (11.76, 11.95)
-        lat_extent = (47.15, 47.4)
+        # Use the generic function for Zillertal plots
+        plot_detail_for_extent(arome_ds=arome2d, wrf_ds=wrf_hf, times=times, lon_extent=confg.lon_ziller_extent,
+                               lat_extent=confg.lat_ziller_extent, figsize=(8, 8), contour_line_dist=100,
+                               extent_name="_ziller_valley", variables_to_plot=variables_to_plot, barb_length=3.5,
+                               step=2)
 
-        print(f"Loading AROME data (full extent, Zillertal will be shown via axis limits)...")
-        arome2d_detail = read_in_arome.read_2D_variables_AROME(
-            variableList=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "hgt", "u_v_from_3d"],
-            lon=slice(confg.lon_min, confg.lon_max), lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
 
-        print("Loading WRF data (full extent)...")
-        wrf_hf_detail = read_wrf_for_times(times=times_detail,
-                                           variables=["hfs", "lfs", "lwd", "lwu", "swd", "swu", "z", "z_unstag", "u",
-                                                      "v"])
-
-        # Plot all heat budget variables for Zillertal detail (axis limits only)
-        plot_all_heat_budget_variables_ziller_detail(arome_ds=arome2d_detail, wrf_ds=wrf_hf_detail, times=times_detail,
-                                                     lon_extent=lon_extent, lat_extent=lat_extent)
 
     if create_shortwave_comparison:
         print("\n" + "=" * 70)
@@ -642,11 +592,15 @@ if __name__ == '__main__':
         time_10h = datetime(2017, 10, 16, 10, 0)
 
         print(f"Loading AROME data...")
-        arome2d_sw = read_in_arome.read_2D_variables_AROME(
-            variableList=["swd", "swu", "hgt", "u_v_from_3d"],
-            lon=slice(confg.lon_min, confg.lon_max), lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
+        arome2d_sw = read_in_arome.read_2D_variables_AROME(variableList=["swd", "swu", "hgt", "u_v_from_3d"],
+                                                           lon=slice(confg.lon_min, confg.lon_max),
+                                                           lat=slice(confg.lat_min, confg.lat_max), slice_lat_lon=True)
 
         print(f"Plotting AROME shortwave comparison at {time_10h}...")
-        plot_shortwave_comparison_arome(ds=arome2d_sw, time=time_10h, lon_extent=lon_extent, lat_extent=lat_extent)
+        plot_shortwave_comparison_arome(ds=arome2d_sw, time=time_10h, lon_extent=lon_extent, lat_extent=lat_extent,
+                                       step=2, barb_length=4)
+
+        # Close shortwave dataset to free RAM
+        arome2d_sw.close()
 
     plt.show()

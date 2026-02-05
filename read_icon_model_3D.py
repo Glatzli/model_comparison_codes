@@ -4,15 +4,17 @@ evtl add variables to calc as in AROME
 
 """
 import fix_win_DLL_loading_issue
-#import sys
+fix_win_DLL_loading_issue
+# import sys
 
-
-#sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
-import confg
-import xarray as xr
-import metpy.calc as mpcalc
-from metpy.units import units
 import datetime
+
+import metpy.calc as mpcalc
+import xarray as xr
+from metpy.units import units
+
+# sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
+import confg
 
 
 # 3 Mal ", dims=["height"] entfernt"
@@ -61,7 +63,18 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
             ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
     except Exception as e:
         print(f"  ✗ Error calculating temperature: {e}")
-    
+    try:  # to check
+        if "Td" in variables:
+            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
+                                                              specific_humidity=ds["q"] * units('kg/kg'))
+            ds["Td"] = ds["Td"].assign_attrs(units="degC", description="Dewpoint temperature calculated from p and q "
+                                                                       "using MetPy")
+            ds["Td_dep"] = ds.temp - ds.Td
+            ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
+                                                     description="Dewpoint temperature depression (temp - Td)")
+    except Exception as e:
+        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+
     return ds.metpy.dequantify()  # remove units from the dataset
 
 
@@ -75,7 +88,7 @@ def create_ds_geopot_height_as_z_coordinate(ds):
     """
     geopot_height = ds.z
     # ds.z_ifc.isel(height_3=slice(1, 91))
-    
+
     ds_new = xr.Dataset(  # somehow lat & lon doesn't work => w/o those coords
         data_vars=dict(th=(["time", "height"], ds.th.values), temp=(["time", "height"], ds.temp.values),
                        p=(["time", "height"], ds.p.values), rho=(["time", "height"], ds.rho.values), ),
@@ -83,7 +96,7 @@ def create_ds_geopot_height_as_z_coordinate(ds):
                     # skip most upper level, different height coordinates => just trust in hannes' notes...
                     time=("time", ds.time.values)),
         attrs=dict(description="ICON data with z_ifc geometric height at half level center as vertical coordinate"))
-    
+
     return ds_new
 
 
@@ -95,7 +108,7 @@ def read_full_icon(variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
     data_vars = ["temp", "pres", "qv", "clc", "tke", "z_ifc", "rho", "theta_v", "u", "v", "w"]
     # list of available, original (regridded) ICON variables
     vars_to_calculate = set(variables) - set(data_vars)  # need to calculate the var's that are not in ds and are given
-    
+
     if variant == "ICON":
         ds_path = confg.icon_folder_3D + "/ICON_latlon_subset_tirol.nc"
     elif variant == "ICON2TE":
@@ -139,7 +152,7 @@ def unstagger_z_domain(ds):
 
 
 def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th", "rho", "z"],
-                          height_as_z_coord="direct"):
+        height_as_z_coord="direct"):
     """
     Read ICON 3D model at a fixed point, edit for consistent names etc:
     1. read full icon ds, 2. select given point, 3. rename vars so that given var string are the consistent names with
@@ -162,7 +175,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
         icon_point = unstagger_z_point(ds=icon_point)
     icon_point = convert_calc_variables(icon_point, variables=variables, vars_to_calculate=vars_to_calculate)
     icon_selected = icon_point[variables]  # select only the variables wanted
-    
+
     lowest_model_lvl_above_terrain = 10  # m, constant height of lowest model level above terrain
     if height_as_z_coord == "direct":
         # set unstaggered geopot. height as height coord. values
@@ -172,7 +185,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
         icon_selected["height"] = icon_selected.z_unstag.values[::-1]
         icon_selected["height"] = icon_selected["height"].assign_attrs(units="m",
                                                                        description="unstaggered geometric height amsl")
-    
+
     elif height_as_z_coord == "above_terrain":
         # Calculate height above terrain at this point (when lowest level is subtracted, we would be on the terrain,
         # therefore
@@ -187,12 +200,12 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
         icon_selected["height"] = icon_selected["height"].assign_attrs(units="m",
                                                                        description="unstaggered geometric height "
                                                                                    "above terrain")
-    
+
     elif height_as_z_coord not in [False, None]:
         # Warn if invalid value provided, but continue with default behavior
         print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
               f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
-    
+
     icon_selected = icon_selected.compute()
     icon_selected = reverse_height_indices(ds=icon_selected)
     return icon_selected
@@ -200,7 +213,7 @@ def read_icon_fixed_point(lat, lon, variant="ICON", variables=["p", "temp", "th"
 
 def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p", "temp", "th", "rho", "z"]):
     icon_full, vars_to_calculate = read_full_icon(variant=variant, variables=variables)
-    
+
     timestamp = datetime.datetime(2017, 10, day, hour, min, 00)
     icon = icon_full.sel(time=timestamp, method="nearest")  # old, why? height=90, height_3=91,
     icon = rename_icon_variables(ds=icon)  # rename z_ifc to z
@@ -208,7 +221,7 @@ def read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON", variables=["p",
         icon = unstagger_z_domain(ds=icon)
     icon = convert_calc_variables(icon, variables=variables)
     icon_selected = icon[variables]  # select only the variables wanted
-    
+
     icon_selected = icon_selected.compute()
     icon_selected = reverse_height_indices(ds=icon_selected)
     return icon_selected
@@ -244,31 +257,33 @@ if __name__ == '__main__':
     model = "ICON"  # either "ICON" or "ICON2TE"
     # testing cdo generates nc files:
     # icon_latlon = xr.open_dataset(confg.icon_folder_3D + "/ICON_20171015_latlon.nc")
-    
+
     # save_icon_topo(icon_extent)
-    
+
     # save lowest level as nc file for topo plotting
     # icon_extent.z.to_netcdf(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.nc", mode="w",
     # format="NETCDF4")
     # icon_extent.z.rio.to_raster(confg.icon_folder_3D + "/ICON_geometric_height_3dlowest_level.tif")  # for xdem
     # calc of slope I need .tif file
-    
-    icon_point = read_icon_fixed_point(lat=confg.ALL_POINTS["ibk_villa"]["lat"], lon=confg.ALL_POINTS["ibk_villa"]["lon"], variant=model,
-                                       variables=["z", "z_unstag", "temp", "wspd", "udir", "u", "v"], height_as_z_coord="above_terrain")
+
+    icon_point = read_icon_fixed_point(lat=confg.ALL_POINTS["kochel"]["lat"],
+                                       lon=confg.ALL_POINTS["kochel"]["lon"], variant=model,
+                                       variables=["z", "z_unstag", "temp", "wspd", "udir", "u", "v", "th", "q", "Td",
+                                                  "Td_dep"],
+                                       height_as_z_coord="above_terrain")
     # ["p", "th", "temp", "z", "z_unstag", "q", "wspd", "udir", "u", "v"]
     # icon_extent = read_icon_fixed_time(day=16, hour=12, min=0, variant="ICON",
     #                                   variables=["z", "z_unstag"])  # "p", "temp", "th", "rho",
     # icon_extent
     icon_point
-    
+
     # icon_plotting = create_ds_geopot_height_as_z_coordinate(icon_point)
     # icon_path = Path(confg.model_folder + f"/{model}/" + f"{model}_temp_p_rho_timeseries_ibk.nc")
     # icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
-    
+
     # create a new dataset with geometric height z_ifc as vertical coordinate
     """
     icon_plotting = create_ds_geopot_height_as_z_coordinate(icon)
     icon_path = Path(confg.model_folder + "/ICON/" + "ICON_temp_timeseries_ibk.nc")
     icon_plotting.to_netcdf(icon_path, mode="w", format="NETCDF4")
-    """  # icon 2te  # icon_2te_path = Path(confg.model_folder + "/ICON2TE/" + "ICON_2TE_temp_timeseries_ibk.nc")  #
-    # icon_plotting.to_netcdf(icon_2te_path, mode="w", format="NETCDF4")  # icon_plotting
+    """  # icon 2te  # icon_2te_path = Path(confg.model_folder + "/ICON2TE/" + "ICON_2TE_temp_timeseries_ibk.nc")  #  # icon_plotting.to_netcdf(icon_2te_path, mode="w", format="NETCDF4")  # icon_plotting

@@ -13,6 +13,7 @@ Use salem from Prof. Maussion (https://salem.readthedocs.io/en/stable/) to read 
 """
 import fix_win_DLL_loading_issue
 
+fix_win_DLL_loading_issue
 import datetime
 import os
 
@@ -21,7 +22,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib import pyplot as plt
 from metpy.units import units
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Polygon
 
 import confg
 
@@ -60,32 +61,13 @@ def open_wrf_mfdataset(filepaths, variables):
     :param filepaths: list of filepaths to regridded WRF-files
     :param variables: list of variables that need to be calculated (that are not in ds)
     """
-    """
-    if isinstance(filepaths, str):
-        filepaths = [filepaths]  # Einzelnen Pfad in eine Liste umwandeln
-    datasets = []  # i don't know exactly what these lines are doing...
-    for filepath in filepaths:  # iterate through all paths, do commands for each file
-        nc = netCDF4.Dataset(filepath)
-        nc.set_auto_mask(False)
-
-        # unstagger variables; from Hannes...
-        for vn, v in nc.variables.items():
-            if wrftools.Unstaggerer.can_do(v):
-                nc.variables[vn] = wrftools.Unstaggerer(v)
-
-        # Hinzufügen diagnostischer Variablen
-        for vn in wrftools.var_classes:
-            cl = getattr(wrftools, vn)
-            if vn not in nc.variables and cl.can_do(nc):
-                nc.variables[vn] = cl(nc)
-
-        # Trick xarray mit unserem benutzerdefinierten NetCDF
-        datasets.append(NetCDF4DataStore(nc))"""
-
     # Use data_vars='all' to include all variables
     # Use compat='override' to handle variables with inconsistent dimensions across files
     ds = xr.open_mfdataset(filepaths, chunks="auto", concat_dim="Time", combine="nested", data_vars='all',
                            coords='minimal', compat='override', decode_cf=False)
+    # ds = xr.open_mfdataset(filepaths, combine="by_coords", data_vars='minimal', coords='minimal', compat='override',
+    #                   decode_timedelta=True)  # try to read like AROME-data
+
     # need to calculate the var's that are not in ds and are given (there are also lat&lon, time in this list, but those
     # are not calculated...)
     vars_to_calculate = set(variables) - set(list(ds.data_vars))
@@ -174,6 +156,9 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
         if "temp" in vars_to_calc:
             # calculate temp in K
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
+            ds["temp"] = ds["temp"].metpy.convert_units('degC')
+            ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature calculated from p and th (pot "
+                                                                         "temp) using MetPy")
     except Exception as e:
         print(f"  ✗ Error calculating temperature: {e}")
 
@@ -186,6 +171,16 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
     except Exception as e:
         print(f"  ✗ Error calculating density: {e}")
 
+    try:  # to check
+        if "Td" in vars_to_calc:
+            ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
+                                                              specific_humidity=ds["q"] * units('kg/kg'))
+            ds["Td_dep"] = ds.temp - ds.Td
+            ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
+                                                     description="Dewpoint temperature depression (temp - Td)")
+    except Exception as e:
+        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+
     # ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["p"], ds["temperature"], ds["q_mixingratio"] * units(
     # "kg/kg")) * 100  # for percent
     # ds["Td"] = mpcalc.dewpoint_from_relative_humidity(ds["temp"], ds["rh"])  # I don't need it now, evtl. there is
@@ -193,12 +188,11 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
 
     ds = ds.metpy.dequantify()
 
-    try:
-        if "temp" in vars_to_calc:
-            ds["temp"] = ds["temp"] - 273.15  # convert temp to °C
-            ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature")
-    except Exception as e:
-        print(f"  ✗ Error converting temperature to Celsius: {e}")
+    # try:
+    #    if "temp" in vars_to_calc:
+    # ds["temp"] = ds["temp"] - 273.15  # convert temp to °C
+    # except Exception as e:
+    #     print(f"  ✗ Error converting temperature to Celsius: {e}")
 
     return ds
 
@@ -243,13 +237,15 @@ def unstagger_z_point(ds):
     """
     for unstaggering the geopotential height var, i.e. calculating it on the same levels as p and other
     vars are available, only for the point-read in: take mean between every 2nd level to compute it
+    take geopot. height from midnight (changes only little within 24hrs...)
     :param ds:
     :return:
     """
-    z_unstag = ds.z.rolling(bottom_top_stag=2, center=True).mean()[1:]  # geopot height is on staggered variable: take
+    z_unstag = ds.z.rolling(bottom_top_stag=2, center=True).mean().sel(bottom_top_stag=slice(2, 100)).isel(time=24)
+    # geopot height is on staggered variable: take
     # mean to compute it on unstaggered grid (height variable), where temp etc are calculated
-    ds = ds.assign(
-        z_unstag=(("height"), z_unstag.values))  # assign unstaggered variables as new data var (only height coord)
+    ds = ds.assign(z_unstag=(("height"), z_unstag.values))  # assign unstaggered variables as new data var (only
+    # height coord)
     return ds
 
 
@@ -266,34 +262,6 @@ def unstagger_z_domain(ds):
     return ds_new
 
 
-def create_new_dataset(ds):
-    """deprecated?
-    
-    needed due to regridding, create a new dataset with lat, lon, height and time as coordinates
-    only used for read wrf fixed time over full domain, for a single point it's not needed!
-
-    """
-    # Problem: we have lat & lon not as coordinates => need to redefine the dataset
-    # extract 1D- coordinates
-    lat_1d = ds['lat'][0, :, 0].values
-    lon_1d = ds['lon'][0, 0, :].values
-
-    # Erzeuge ein neues Dataset mit 1D-Koordinaten
-    wrf = xr.Dataset(
-        data_vars=dict(alb=(["time", "lat", "lon"], ds.alb.values), hfs=(["time", "lat", "lon"], ds.hfs.values),
-                       lfs=(["time", "lat", "lon"], ds.lfs.values), lwd=(["time", "lat", "lon"], ds.lwd.values),
-                       lwu=(["lat", "lon"], ds.lwu.values), p=(["height", "lat", "lon"], ds.p.values),
-                       swd=(["time", "lat", "lon"], ds.swd.values), swu=(["lat", "lon"], ds.swu.values),
-                       th=(["time", "height", "lat", "lon"], ds.th.values),
-                       tke=(["time", "height", "lat", "lon"], ds.tke.values),
-                       u=(["time", "height", "lat", "lon"], ds.u.values),
-                       v=(["time", "height", "lat", "lon"], ds.v.values),
-                       w=(["time", "height", "lat", "lon"], ds.w.values), z=(["height", "lat", "lon"], ds.z.values), ),
-        coords=dict(height=("height", ds.bottom_top.values), time=("time", ds.Time.values), lat=("lat", lat_1d),
-                    lon=("lon", lon_1d)), attrs=dict(description="WRF data with regridded lat/lon as coordinates"))
-    return wrf
-
-
 def generate_filenames():
     """
     create list of all wrf file names:
@@ -305,10 +273,10 @@ def generate_filenames():
         "1200"]  # 0000, 0030, ..., 1200
     wrf_files_15 = [os.path.join(confg.wrf_folder, "WRF_ACINN_20171015",
                                  f"WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171015T{hour}Z_regrid.nc") for hour
-        in hours_15]
+                    in hours_15]
     wrf_files_16 = [os.path.join(confg.wrf_folder, "WRF_ACINN_20171016",
                                  f"WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_20171016T{hour}Z_regrid.nc") for hour
-        in hours_16]
+                    in hours_16]
     wrf_files = wrf_files_15 + wrf_files_16  # list of path to all wrf files, not beautiful but works
     return wrf_files
 
@@ -370,9 +338,9 @@ def read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_P
         ds = unstagger_z_point(ds)
 
     ds = convert_calc_variables(ds, vars_to_calc=vars_to_calculate)
-    ds = ds[variables]
+    ds_subset = ds[variables]
 
-    ds = change_flux_signs(ds)
+    ds_subset = change_flux_signs(ds_subset)
 
     time_idx = 4  # skips first 2 hours of model initialization
     lowest_model_lvl_above_terrain = 10.6  # m, constant height of lowest model level above terrain for mean over full
@@ -380,27 +348,27 @@ def read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_P
 
     if height_as_z_coord == "direct":
         # set geopotential height directly as vertical coordinate
-        if "z_unstag" not in ds:
+        if "z_unstag" not in ds_subset:
             raise ValueError("Variable 'z_unstag' (unstaggered geopotential height) not in dataset. "
                              "Cannot set height as z coordinate. Add 'z_unstag' to variables list.")
-        ds["height"] = ds.z_unstag
-        ds["height"] = ds["height"].assign_attrs(units="m", description="unstaggered geopot. height amsl")
+        ds_subset["height"] = ds_subset.z_unstag
+        ds_subset["height"] = ds_subset["height"].assign_attrs(units="m", description="unstaggered geopot. height amsl")
 
     elif height_as_z_coord == "above_terrain":
         # Calculate height above terrain at this point
-        if "z_unstag" not in ds:
+        if "z_unstag" not in ds_subset:
             raise ValueError("Variable 'z_unstag' (unstaggered geopotential height) not in dataset. "
                              "Cannot set height as z coordinate. Add 'z_unstag' to variables list.")
-        z_lowest_model_lvl = ds.z_unstag.sel(height=1)  # geopot. height of lowest model level
-        ds["height"] = ds.z_unstag - z_lowest_model_lvl + lowest_model_lvl_above_terrain
-        ds["height"] = ds["height"].assign_attrs(units="m", description="unstaggered geopot. height above terrain")
+        z_lowest_model_lvl = ds_subset.z_unstag.sel(height=1)  # geopot. height of lowest model level
+        ds_subset["height"] = ds_subset.z_unstag - z_lowest_model_lvl + lowest_model_lvl_above_terrain
+        ds_subset["height"] = ds_subset["height"].assign_attrs(units="m", description="unstaggered geopot. height above terrain")
 
     elif height_as_z_coord not in [False, None]:
         # Warn if invalid value provided, but continue with default behavior
         print(f"Warning: Invalid height_as_z_coord value '{height_as_z_coord}'. "
               f"Using original model level indexing. Valid options: 'direct', 'above_terrain', False, None")
 
-    return ds.compute()
+    return ds_subset.compute()
 
 
 def read_wrf_fixed_time(day=16, hour=12, min=0,
@@ -413,7 +381,7 @@ def read_wrf_fixed_time(day=16, hour=12, min=0,
     """
     time = datetime.datetime(2017, 10, day, hour, min, 00)
     filepath = os.path.join(confg.wrf_folder, f"WRF_ACINN_201710{time.day:02d}",
-        f"WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710{time.day:02d}T{time.hour:02d}{time.minute:02d}Z_regrid.nc")
+                            f"WRF_ACINN_20171015T1200Z_CAP02_3D_30min_1km_HCW_201710{time.day:02d}T{time.hour:02d}{time.minute:02d}Z_regrid.nc")
 
     ds, vars_to_calc = open_wrf_mfdataset(filepaths=filepath, variables=variables)
     ds = rename_vars(ds=ds)
@@ -432,16 +400,20 @@ if __name__ == '__main__':
     # wrf_path = os.path.join(confg.wrf_folder, "WRF_temp_timeseries_ibk.nc")
     # wrf_plotting.to_netcdf(wrf_path, mode="w", format="NETCDF4")
 
-    # variables = ["udir", "wspd", "q", "p", "th", "rho", "temp", "z", "z_unstag"]
+    variables = ["u", "v", "udir", "wspd", "q", "p", "Td", "Td_dep", "ps", "th", "rho", "temp", "z", "z_unstag"]
     # wrf = read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
-    #                            variables=variables,  # ["p", "temp", "th", "rho", "hgt", "z", "z_unstag"],
-    #                            height_as_z_coord="above_terrain")
+    #                           variables=variables,  # ["p", "temp", "th", "rho", "hgt", "z", "z_unstag"],
+    #                           height_as_z_coord="above_terrain")
+
+    wrf = read_wrf_fixed_point(lat=47.27244427, lon=11.3921379,
+                               variables=['u', 'v', 'udir', 'wspd', 'q', 'Td', 'Td_dep', 'p', 'th', 'temp', 'rho', 'z',
+                                          'z_unstag', 'ps'], height_as_z_coord='above_terrain')
     # wrf_extent = read_wrf_fixed_time(day=16, hour=4, min=0, variables=["hgt", "hfs", "p", "q", "temp", "th", "z",
     # "z_unstag"])
     # wrf_extent
 
-    wrf = read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
-                               variables=["hfs", "lfs", "lwd", "lwu", "swd", "swu"], height_as_z_coord="False")
+    # wrf = read_wrf_fixed_point(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS["ibk_uni"]["lon"],
+    #                            variables=["hfs", "lfs", "lwd", "lwu", "swd", "swu"], height_as_z_coord="False")
     wrf
 
     # what would be better to take as var for model topography? terrain height hgt or geometric height z for  # consistency  # with other models?! ~ 20m difference...  # wrf_extent.hgt.to_netcdf(os.path.join(confg.wrf_folder, "WRF_geometric_height_3dlowest_level.nc"), mode="w", format="NETCDF4")  # wrf_tif = wrf_extent.rename({"lat": "y", "lon": "x", "hgt": "band_data"})  # rename for tif export  # wrf_tif.rio.write_crs("EPSG:4326", inplace=True)  # add WGS84-projection  # wrf_tif.isel(time=0).band_data.rio.to_raster(os.path.join(confg.wrf_folder, "WRF_geometric_height_3dlowest_level.tif"))  # for xdem calc of slope I need .tif file

@@ -10,14 +10,13 @@ Main functionality:
 - Add radiosonde and HATPRO observations for Innsbruck points
 - Create small multiples plots showing all points side-by-side
 - Save interactive HTML plots
+
+Would plotting VHD-area be useful?
 """
+# from __future__ import annotations
 import fix_win_DLL_loading_issue
-from __future__ import annotations
 
-# Fix for OpenMP duplicate library error on Windows
-import os
-
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+fix_win_DLL_loading_issue
 
 import os
 from typing import List
@@ -30,7 +29,7 @@ import xarray as xr
 from plotly.subplots import make_subplots
 
 import confg
-from confg import model_colors_temp_wind, model_colors_humidity, icon_2te_hatpro_linestyle
+from confg import model_colors_temp_wind, model_colors_humidity  # , icon_2te_hatpro_linestyle
 from read_in_hatpro_radiosonde import read_radiosonde_dataset
 from calculations_and_plots.calc_cap_height import cap_height_profile
 # Import timeseries management functions
@@ -75,7 +74,7 @@ def _get_cap_height_value(cap_height_da: xr.DataArray, point: dict, ts: np.datet
 
 
 def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dict, timestamps: List[str],
-        ts_array: List[np.datetime64], model_data: dict, max_height: float) -> dict:
+        ts_array: List[np.datetime64], model_data: dict) -> dict:
     """
     Compute CAP heights from timeseries (point) data.
     Returns dict mapping timestamp strings to (temp_at_cap, cap_height) tuples (tuple is needed so that the
@@ -90,7 +89,7 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
     for ts_str, ts in zip(timestamps, ts_array):
         cap_height = _get_cap_height_value(cap_height_da, point, ts)
 
-        if np.isnan(cap_height) or cap_height > max_height:
+        if np.isnan(cap_height):
             continue
 
         if ts_str not in model_data[model]:
@@ -107,9 +106,85 @@ def _load_or_compute_cap_heights(model: str, ds_filtered: xr.Dataset, point: dic
     return cap_data
 
 
-def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_height: float = 5000,
-        plot_max_height: float = 2000,
-        variables: list = ["udir", "wspd", "q", "p", "th", "temp", "z", "z_unstag"]) -> go.Figure:
+def _create_vhd_area_trace(th_values: np.ndarray, height_values: np.ndarray, th_hafelekar: float, point_height: float,
+        color: str, name: str, legendgroup: str) -> go.Scatter:
+    """
+    Create a filled area trace for VHD (Vertical Heat Deficit) visualization.
+
+    The VHD area is between:
+    - A vertical (neutral, well mixed) line at the minimum temperature (from terrain to hafelekar height)
+    - The potential temperature profile
+
+    The area represents the heat deficit: the difference between a well-mixed neutral state
+    and the actual stratified temperature profile.
+
+    Args:
+        th_values: Potential temperature values [K]
+        height_values: Height values above terrain [m]
+        th_hafelekar: Potential temperature at Hafelekar height [K] (used for height limit)
+        point_height: Terrain height of the point location [m]
+        color: Color for the fill
+        name: Name for the trace
+        legendgroup: Legend group for linking with main trace
+
+    Returns:
+        Plotly Scatter trace with fill
+    """
+    # Calculate the height relative to terrain for Hafelekar
+    hafelekar_height_above_terrain = confg.hafelekar_height - point_height
+
+    # Filter data to only include heights up to Hafelekar
+    mask = height_values <= hafelekar_height_above_terrain
+    th_filtered = th_values[mask]
+    height_filtered = height_values[mask]
+
+    if len(height_filtered) == 0:
+        # Return empty trace if no data
+        return go.Scatter(x=[], y=[], mode='none', showlegend=False)
+
+    # Find the minimum temperature in the profile (in night at the surface)
+    th_min = np.min(th_filtered)
+
+    # Find the maximum height in the filtered data (top of the VHD area)
+    height_max = np.max(height_filtered)
+    height_min = np.min(height_filtered)
+
+    # Create the filled polygon:
+    # 1. Start with vertical line at th_min from bottom to top
+    # 2. Go back down following the temperature profile
+    # 3. Close at bottom
+    # The area between the vertical line (well-mixed) and the profile (stratified) is the VHD
+
+    # Combine: vertical line up + profile points back down (reversed)
+    if name in ["AROME", "ICON", "ICON2TE"]:
+        x_fill_max, y_fill_max = th_filtered, height_filtered
+    else:
+        x_fill_max, y_fill_max = th_filtered[::-1], height_filtered[::-1]
+
+    x_fill = np.concatenate([[th_min, th_min], x_fill_max])
+    y_fill = np.concatenate([[height_min, height_max], y_fill_max])
+
+
+    # Convert color to rgba with transparency; is this working?
+    if 'rgba' in color:
+        # Already rgba format - replace the alpha value
+        import re
+        fillcolor = re.sub(r',\s*[\d.]+\s*\)', ', 0.025)', color)
+    elif 'rgb' in color:
+        # rgb format - convert to rgba
+        fillcolor = color.replace('rgb', 'rgba').replace(')', ', 0.025)')
+    else:
+        # Hex or named color - use as is with opacity parameter
+        fillcolor = color
+
+    return go.Scatter(x=x_fill, y=y_fill, mode='none', fill='toself', fillcolor=fillcolor, opacity=0.2,
+        # Make transparent (20% opacity)
+        name=f"{name} VHD", legendgroup=legendgroup, showlegend=False, hoverinfo='skip', xaxis='x1', yaxis='y1')
+
+
+def plot_single_point_with_slider(point_name: str, timestamps: List[str], plot_max_height: float = 2000,
+        variables: list = ["udir", "wspd", "Td_dep", "p", "th", "temp", "z", "z_unstag"],
+        temperature_var: str = "temp") -> go.Figure:
     """
     Create an interactive plot with time slider for a single point location.
     
@@ -121,7 +196,8 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
         timestamps: List of ISO format timestamp strings
         max_height: Maximum height in meters to load data (default: 5000m)
         plot_max_height: Maximum height in meters to display on y-axis (default: 2000m)
-    
+        temperature_var: Temperature variable to plot - "temp" for temperature in °C or "th" for potential temperature in K (default: "temp")
+
     Returns:
         Plotly figure object with the interactive time slider
     """
@@ -138,15 +214,18 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
     print(f"  Loading data for all models and timesteps...")
     model_data = {}  # {model: {timestamp: (temp, height)}}
     model_humidity_data = {}  # {model: {timestamp: (q, height)}}
+    model_dewpoint_dep_data = {}  # {model: {timestamp: (Td_dep, height)}}
     model_wspd_data = {}  # {model: {timestamp: (wspd, height)}}
     model_udir_data = {}  # {model: {timestamp: (wdir, height)}}
     obs_data = {}  # {obs_type: data}
     cap_data = {}  # {model: {timestamp: (temp_at_cap, cap_height)}}
+    vhd_hafelekar_th = {}  # {timestamp: th_hafelekar} - potential temp at Hafelekar height
 
     # Load model data
     for model in MODEL_ORDER:
         model_data[model] = {}
         model_humidity_data[model] = {}
+        model_dewpoint_dep_data[model] = {}
         model_wspd_data[model] = {}
         model_udir_data[model] = {}
 
@@ -164,42 +243,59 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
             continue
 
         height_var = ds.coords["height"]
-        ds_filtered = ds.where(height_var <= max_height, drop=True)
+        # ds = ds.where(height_var <= max_height, drop=True)  # I formerly subsetted the dataset
 
         # Extract temperature and height values for each timestamp
         for ts_str, ts in zip(timestamps, ts_array):
-            temp = ds_filtered["temp"].sel(time=ts).values
-            height = ds_filtered.coords["height"].values
+            temp = ds[temperature_var].sel(time=ts).values
+            height = ds.coords["height"].values
 
             # Filter NaNs for temperature
             valid = ~np.isnan(temp) & ~np.isnan(height)
             model_data[model][ts_str] = (temp[valid], height[valid])
 
-            # Extract humidity data (q) if available
-            if "q" in ds_filtered:
-                q = ds_filtered["q"].sel(time=ts).values
+            # For VHD calculation: get potential temperature at Hafelekar height (only for th plots)
+            if temperature_var == "th" and ts_str not in vhd_hafelekar_th:
+                hafelekar_height_above_terrain = confg.hafelekar_height - point["height"]
+                # Find th at Hafelekar height by interpolation
+                if len(height[valid]) > 0 and hafelekar_height_above_terrain <= height[valid].max():
+                    th_hafelekar = np.interp(hafelekar_height_above_terrain, height[valid], temp[valid])
+                    vhd_hafelekar_th[ts_str] = th_hafelekar
+
+            # deprecated: Extract humidity data (q) if available
+            if "q" in ds:
+                q = ds["q"].sel(time=ts).values
                 # Convert from kg/kg to g/kg
                 q = q * 1000
                 # Filter NaNs for humidity
                 valid_q = ~np.isnan(q) & ~np.isnan(height)
                 model_humidity_data[model][ts_str] = (q[valid_q], height[valid_q])
 
+            # Extract dewpoint depression (Td_dep) if available
+            if "Td_dep" in ds:
+                Td_dep = ds["Td_dep"].sel(time=ts).values
+                # Filter NaNs for dewpoint depression
+                valid_Td_dep = ~np.isnan(Td_dep) & ~np.isnan(height)
+                model_dewpoint_dep_data[model][ts_str] = (Td_dep[valid_Td_dep], height[valid_Td_dep])
+
             # Extract wind speed data (wspd) if available
-            if "wspd" in ds_filtered:
-                wspd = ds_filtered["wspd"].sel(time=ts).values
+            if "wspd" in ds:
+                wspd = ds["wspd"].sel(time=ts).values
                 valid_wspd = ~np.isnan(wspd) & ~np.isnan(height)
                 model_wspd_data[model][ts_str] = (wspd[valid_wspd], height[valid_wspd])
 
             # Extract wind direction data (udir) if available
-            if "udir" in ds_filtered:
-                udir = ds_filtered["udir"].sel(time=ts).values
+            if "udir" in ds:
+                udir = ds["udir"].sel(time=ts).values
                 valid_udir = ~np.isnan(udir) & ~np.isnan(height)
                 model_udir_data[model][ts_str] = (udir[valid_udir], height[valid_udir])
 
         # Load or compute CAP heights
         try:
-            cap_data[model] = _load_or_compute_cap_heights(model, ds_filtered, point, timestamps, ts_array, model_data,
-                                                           max_height)
+            cap_data[model] = _load_or_compute_cap_heights(model=model, ds_filtered=ds, point=point,
+                                                           timestamps=timestamps, ts_array=ts_array,
+                                                           model_data=model_data)
+
         except Exception as e:
             print(f"    Warning: Could not load/compute CAP height for {model}: {e}")
 
@@ -210,34 +306,41 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
         # Radiosonde (no time dimension)
         try:
             ds_radiosonde = read_radiosonde_dataset(height_as_z_coord="above_terrain")
-            ds_filtered = ds_radiosonde.where(ds_radiosonde["height"] <= max_height, drop=True)
-            temp = ds_filtered["temp"].values
-            height = ds_filtered["height"].values
+            # ds = ds_radiosonde.where(ds_radiosonde["height"] <= max_height, drop=True)  # formerly subsetted max
+            # height...
+            temp = ds_radiosonde[temperature_var].values
+            height = ds_radiosonde["height"].values
             valid = ~np.isnan(temp) & ~np.isnan(height)
             obs_data["radiosonde"] = (temp[valid], height[valid])
 
-            # Extract humidity data (q) if available
-            if "q" in ds_filtered:
-                q = ds_filtered["q"].values  # in kg/kg
+            # deprecated: Extract humidity data (q) if available
+            if "q" in ds_radiosonde:
+                q = ds_radiosonde["q"].values  # in kg/kg
                 # Convert from kg/kg to g/kg
                 q = q * 1000
                 valid_q = ~np.isnan(q) & ~np.isnan(height)  # filter NaNs ...
                 obs_data["radiosonde_humidity"] = (q[valid_q], height[valid_q])
 
+            # Extract dewpoint depression (Td_dep) if available
+            if "Td_dep" in ds_radiosonde:
+                Td_dep = ds_radiosonde["Td_dep"].values  # in °C
+                valid_Td_dep = ~np.isnan(Td_dep) & ~np.isnan(height)  # filter NaNs ...
+                obs_data["radiosonde_Td_dep"] = (Td_dep[valid_Td_dep], height[valid_Td_dep])
+
             # Extract wind speed data (wspd) if available
-            if "wspd" in ds_filtered:
-                wspd = ds_filtered["wspd"].values
+            if "wspd" in ds_radiosonde:
+                wspd = ds_radiosonde["wspd"].values
                 valid_wspd = ~np.isnan(wspd) & ~np.isnan(height)
                 obs_data["radiosonde_wspd"] = (wspd[valid_wspd], height[valid_wspd])
 
             # Extract wind direction data (udir) if available
-            if "udir" in ds_filtered:
-                udir = ds_filtered["udir"].values
+            if "udir" in ds_radiosonde:
+                udir = ds_radiosonde["udir"].values
                 valid_udir = ~np.isnan(udir) & ~np.isnan(height)
                 obs_data["radiosonde_udir"] = (udir[valid_udir], height[valid_udir])
 
             # Radiosonde CAP height was searched in plot and defined in confg
-            if not np.isnan(confg.radiosonde_cap_height) and confg.radiosonde_cap_height <= max_height:
+            if not np.isnan(confg.radiosonde_cap_height) and confg.radiosonde_cap_height:  # <= max_height
                 idx = np.argmin(np.abs(height[valid] - confg.radiosonde_cap_height))
                 obs_data["radiosonde_cap"] = (temp[valid][idx], confg.radiosonde_cap_height)
 
@@ -256,7 +359,7 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
                 for ts_str, ts in zip(timestamps, ts_array):
                     # Select nearest time
-                    ds_ts = ds_lidar.sel(time=ts, method='nearest', tolerance='3min')
+                    ds_ts = ds_lidar.sel(time=ts, method='nearest', tolerance='1min')
 
                     # Get height values in meters (from height_m coordinate)
                     if 'height_m' in ds_ts.coords:
@@ -266,22 +369,23 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                         continue
 
                     # Filter to max_height
-                    height_mask = height <= max_height
-                    height_filtered = height[height_mask]
+                    # height_mask = height <= max_height
+                    # height = height[height_mask]
 
                     # Extract wind speed (ff variable)
                     if 'ff' in ds_ts:
                         wspd = ds_ts['ff'].values
-                        wspd_filtered = wspd[height_mask]
-                        valid_wspd = ~np.isnan(wspd_filtered) & ~np.isnan(height_filtered)
-                        obs_data["lidar_wspd"][ts_str] = (wspd_filtered[valid_wspd], height_filtered[valid_wspd])
+                        wspd_filtered = wspd  # [height_mask]
+                        # valid_wspd = ~np.isnan(wspd_filtered) & ~np.isnan(height)
+                        ds_lidar.ucomp_unfiltered.dropna(dim="height")
+                        obs_data["lidar_wspd"][ts_str] = (wspd, height)  # [valid_wspd]
 
                     # Extract wind direction (dd variable)
                     if 'dd' in ds_ts:
                         wdir = ds_ts['dd'].values
-                        wdir_filtered = wdir[height_mask]
-                        valid_wdir = ~np.isnan(wdir_filtered) & ~np.isnan(height_filtered)
-                        obs_data["lidar_udir"][ts_str] = (wdir_filtered[valid_wdir], height_filtered[valid_wdir])
+                        wdir_filtered = wdir  # [height_mask]
+                        # valid_wdir = ~np.isnan(wdir_filtered) & ~np.isnan(height)
+                        obs_data["lidar_udir"][ts_str] = (wdir_filtered, height)  # [valid_wdir]
 
                 ds_lidar.close()
                 print(f"    ✓ SL88 LIDAR data loaded successfully")
@@ -307,8 +411,8 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
                 print(f"    Computing CAP height for HATPRO...")
                 # Filter to max_height before computing CAP
-                ds_hatpro_filtered = ds_hatpro.where(ds_hatpro["height"] <= max_height, drop=True)
-                ds_hatpro_with_cap = cap_height_profile(ds_hatpro_filtered, consecutive=3, model="HATPRO")
+                # ds_hatpro_filtered = ds_hatpro.where(ds_hatpro["height"] <= max_height, drop=True)
+                ds_hatpro_with_cap = cap_height_profile(ds_hatpro, consecutive=3, model="HATPRO")
 
                 # Add CAP height to original (non-filtered) dataset
                 ds_hatpro["cap_height"] = ds_hatpro_with_cap["cap_height"]
@@ -325,32 +429,39 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
             if ds_hatpro is not None:
                 obs_data["hatpro"] = {}
-                obs_data["hatpro_humidity"] = {}
+                obs_data["hatpro_humidity"] = {}  # deprecated
+                obs_data["hatpro_Td_dep"] = {}
                 obs_data["hatpro_wspd"] = {}
                 obs_data["hatpro_udir"] = {}
 
                 for ts_str, ts in zip(timestamps, ts_array):
                     ds_ts = ds_hatpro.sel(time=ts)
-                    ds_filtered = ds_ts.where(ds_ts["height"] <= max_height, drop=True)
+                    # ds = ds_ts.where(ds_ts["height"] <= max_height, drop=True)
 
-                    temp = ds_filtered["temp"].values
-                    height = ds_filtered["height"].values
+                    temp = ds_ts[temperature_var].values
+                    height = ds_ts["height"].values
                     valid = ~np.isnan(temp) & ~np.isnan(height)
                     obs_data["hatpro"][ts_str] = (temp[valid], height[valid])
                     # creates large dict w. radiosonde w. cap_height & hatpro data for that timestamp
 
-                    # Extract humidity data (q) if available; wind data isn't available -> maybe include LIDAR?
-                    if "q" in ds_filtered:
-                        q = ds_filtered["q"].values  # in kg/kg
+                    # deprecated (not used): Extract humidity data (q) if available
+                    if "q" in ds_ts:
+                        q = ds_ts["q"].values  # in kg/kg
                         # Convert from kg/kg to g/kg
                         q = q * 1000
                         valid_q = ~np.isnan(q) & ~np.isnan(height)  # filter NaNs ...
                         obs_data["hatpro_humidity"][ts_str] = (q[valid_q], height[valid_q])
 
+                    # Extract dewpoint depression (Td_dep) if available
+                    if "Td_dep" in ds_ts:
+                        Td_dep = ds_ts["Td_dep"].values  # in °C
+                        valid_Td_dep = ~np.isnan(Td_dep) & ~np.isnan(height)  # filter NaNs ...
+                        obs_data["hatpro_Td_dep"][ts_str] = (Td_dep[valid_Td_dep], height[valid_Td_dep])
+
                     # CAP height
                     if hatpro_cap_da is not None:
                         cap_height = hatpro_cap_da.sel(time=ts, method="nearest").item()
-                        if not np.isnan(cap_height) and cap_height <= max_height:
+                        if not np.isnan(cap_height):  # and cap_height <= max_height
                             idx = np.argmin(np.abs(height[valid] - cap_height))
                             key = f"hatpro_cap_{ts_str}"
                             obs_data[key] = (temp[valid][idx], cap_height)
@@ -361,7 +472,8 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
 
     print(f"  Creating frames...")
 
-    max_q = 30  # Maximum humidity for scale
+    # max_q = 30  # deprecated: Maximum humidity for scale
+    max_Td_dep = 15  # Maximum dewpoint depression for scale [°C]
 
     # Create figure with subplots: [Temp/Humidity] | [Wind Speed/Direction]
     fig = make_subplots(rows=1, cols=2, specs=[[{"secondary_y": False}, {"secondary_y": False}]],
@@ -373,15 +485,29 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
         frame_traces = []
 
         # ====== SUBPLOT 1: Temperature & Humidity ======
+
+        # Add VHD area traces first (so they appear behind the lines)
+        if temperature_var == "th" and ts_str in vhd_hafelekar_th:
+            th_hafelekar = vhd_hafelekar_th[ts_str]
+
+            # Add VHD areas for models
+            for model in MODEL_ORDER:
+                if ts_str in model_data.get(model, {}):
+                    temp, height = model_data[model][ts_str]
+                    vhd_trace = _create_vhd_area_trace(th_values=temp, height_values=height, th_hafelekar=th_hafelekar,
+                        point_height=point["height"], color=model_colors_temp_wind[model], name=model,
+                        legendgroup=model)
+                    frame_traces.append(vhd_trace)
+
         # Add model traces (temperature)
         for model in MODEL_ORDER:
             if ts_str in model_data.get(model, {}):
                 temp, height = model_data[model][ts_str]
-                line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
+                # line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
                 frame_traces.append(go.Scatter(x=temp, y=height, mode='lines', name=model,
-                                               line=dict(color=model_colors_temp_wind[model], dash=line_dash,
-                                                         width=1.5), legendgroup=model,
-                                               showlegend=True, xaxis='x1', yaxis='y1'))
+                                               line=dict(color=model_colors_temp_wind[model],  # dash=line_dash,
+                                                         width=1.5), legendgroup=model, showlegend=True, xaxis='x1',
+                                               yaxis='y1'))
 
                 # Add CAP marker
                 if ts_str in cap_data.get(model, {}):
@@ -390,30 +516,47 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                                                    marker=dict(symbol='x', size=8, color=model_colors_temp_wind[model],
                                                                line=dict(width=0.5,
                                                                          color=model_colors_temp_wind[model])),
-                                                   name=f"{model} CAP",
-                                                   legendgroup=model, showlegend=False,
+                                                   name=f"{model} CAP", legendgroup=model, showlegend=False,
                                                    hovertemplate=f"{model} CAP: {height_cap:.0f}m<extra></extra>",
                                                    xaxis='x1', yaxis='y1'))
 
-            # Add specific humidity traces (on secondary x-axis x3 = top of subplot 1)
-            if ts_str in model_humidity_data.get(model, {}):
-                q, height = model_humidity_data[model][ts_str]
-                line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
+            # deprecated: Add specific humidity traces (on secondary x-axis x3 = top of subplot 1)
+            # if ts_str in model_humidity_data.get(model, {}):
+            #     q, height = model_humidity_data[model][ts_str]
+            #     line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
+            #
+            #     frame_traces.append(go.Scatter(x=q, y=height, mode='lines', name=f"{model} q",
+            #                                    line=dict(color=model_colors_humidity[model], dash=line_dash, width=1.0),
+            #                                    legendgroup=model, showlegend=False, xaxis='x3', yaxis='y1'))
 
-                frame_traces.append(go.Scatter(x=q, y=height, mode='lines', name=f"{model} q",
-                                               line=dict(color=model_colors_humidity[model], dash=line_dash, width=1.0),
-                                               legendgroup=model,
-                                               showlegend=False, xaxis='x3', yaxis='y1'))
+            # Add dewpoint depression traces (on secondary x-axis x3 = top of subplot 1)
+            if ts_str in model_dewpoint_dep_data.get(model, {}):
+                Td_dep, height = model_dewpoint_dep_data[model][ts_str]
+                # line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
+
+                frame_traces.append(
+                    go.Scatter(x=Td_dep, y=height, mode='lines', name=f"{model} Td_dep",  # dash=line_dash,
+                               line=dict(color=model_colors_humidity[model], width=1.0), legendgroup=model,
+                               showlegend=False, xaxis='x3', yaxis='y1'))
 
         # Add observations (only for Innsbruck points; names in confg always start with "ibk") - subplot 1
         if point_name.startswith("ibk"):
+            # Add VHD area for Radiosonde (only for potential temperature)
+            if temperature_var == "th" and ts_str in vhd_hafelekar_th and "radiosonde" in obs_data:
+                th_hafelekar = vhd_hafelekar_th[ts_str]
+                temp, height = obs_data["radiosonde"]
+                vhd_trace = _create_vhd_area_trace(th_values=temp, height_values=height, th_hafelekar=th_hafelekar,
+                    point_height=point["height"], color=model_colors_temp_wind["Radiosonde"], name="Radiosonde",
+                    legendgroup="Radiosonde")
+                frame_traces.append(vhd_trace)
+
             # Add Radiosonde: all variables but only 1 measurement at 02:15 UTC
             if "radiosonde" in obs_data:
                 temp, height = obs_data["radiosonde"]
                 frame_traces.append(go.Scatter(x=temp, y=height, mode='lines', name="Radiosonde (from 02:18 UTC)",
-                                               line=dict(color=model_colors_temp_wind["Radiosonde"], width=1.5),
-                                               legendgroup="Radiosonde",
-                                               showlegend=True, xaxis='x1', yaxis='y1'))
+                                               line=dict(color=model_colors_temp_wind["Radiosonde"], dash="dot",
+                                                         width=1.5), legendgroup="Radiosonde", showlegend=True,
+                                               xaxis='x1', yaxis='y1'))
 
                 if "radiosonde_cap" in obs_data:
                     temp_cap, height_cap = obs_data["radiosonde_cap"]
@@ -425,21 +568,36 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                                                    name="Radiosonde CAP", legendgroup="Radiosonde", showlegend=False,
                                                    hovertemplate=f"Radiosonde CAP: {height_cap:.0f}m<extra></extra>",
                                                    xaxis='x1', yaxis='y1'))
-            # Add Radiosonde humidity
-            if "radiosonde_humidity" in obs_data:
-                q, height = obs_data["radiosonde_humidity"]
-                frame_traces.append(
-                    go.Scatter(x=q, y=height, mode='lines', name="Radiosonde q",
-                               line=dict(color=model_colors_humidity["Radiosonde"], width=1.0),
-                               legendgroup="Radiosonde", showlegend=False, xaxis='x3', yaxis='y1'))
+            # deprecated: Add Radiosonde humidity
+            # if "radiosonde_humidity" in obs_data:
+            #     q, height = obs_data["radiosonde_humidity"]
+            #     frame_traces.append(go.Scatter(x=q, y=height, mode='lines', name="Radiosonde q",
+            #                                    line=dict(color=model_colors_humidity["Radiosonde"], width=1.0),
+            #                                    legendgroup="Radiosonde", showlegend=False, xaxis='x3', yaxis='y1'))
+
+            # Add Radiosonde dewpoint depression
+            if "radiosonde_Td_dep" in obs_data:
+                Td_dep, height = obs_data["radiosonde_Td_dep"]
+                frame_traces.append(go.Scatter(x=Td_dep, y=height, mode='lines', name="Radiosonde Td_dep",
+                                               line=dict(color=model_colors_humidity["Radiosonde"], dash="dot",
+                                                         width=1.0), legendgroup="Radiosonde", showlegend=False,
+                                               xaxis='x3', yaxis='y1'))
 
             # HATPRO (time-dependent)
             if "hatpro" in obs_data and ts_str in obs_data["hatpro"]:
+                # Add VHD area for HATPRO (only for potential temperature)
+                if temperature_var == "th" and ts_str in vhd_hafelekar_th:
+                    th_hafelekar = vhd_hafelekar_th[ts_str]
+                    temp, height = obs_data["hatpro"][ts_str]
+                    vhd_trace = _create_vhd_area_trace(th_values=temp, height_values=height, th_hafelekar=th_hafelekar,
+                        point_height=point["height"], color=model_colors_temp_wind["HATPRO"], name="HATPRO",
+                        legendgroup="HATPRO")
+                    frame_traces.append(vhd_trace)
+
                 temp, height = obs_data["hatpro"][ts_str]
                 frame_traces.append(go.Scatter(x=temp, y=height, mode='lines', name="HATPRO",
-                                               line=dict(color=model_colors_temp_wind["HATPRO"], width=2.0, dash="dot"),
-                                               legendgroup="HATPRO",
-                                               showlegend=True, xaxis='x1', yaxis='y1'))
+                                               line=dict(color=model_colors_temp_wind["HATPRO"], width=1.5, dash="dot"),
+                                               legendgroup="HATPRO", showlegend=True, xaxis='x1', yaxis='y1'))
 
                 cap_key = f"hatpro_cap_{ts_str}"
                 if cap_key in obs_data:
@@ -449,42 +607,48 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                                                                color=model_colors_temp_wind["HATPRO"],
                                                                line=dict(width=0.8,
                                                                          color=model_colors_temp_wind["HATPRO"])),
-                                                   name="HATPRO CAP",
-                                                   legendgroup="HATPRO", showlegend=False,
+                                                   name="HATPRO CAP", legendgroup="HATPRO", showlegend=False,
                                                    hovertemplate=f"HATPRO CAP: {height_cap:.0f}m<extra></extra>",
                                                    xaxis='x1', yaxis='y1'))
 
-            # HATPRO humidity (time-dependent)
-            if "hatpro_humidity" in obs_data and ts_str in obs_data["hatpro_humidity"]:
-                q, height = obs_data["hatpro_humidity"][ts_str]
-                frame_traces.append(go.Scatter(x=q, y=height, mode='lines', name="HATPRO q",
+            # deprecated: HATPRO humidity (time-dependent)
+            # if "hatpro_humidity" in obs_data and ts_str in obs_data["hatpro_humidity"]:
+            #     q, height = obs_data["hatpro_humidity"][ts_str]
+            #     frame_traces.append(go.Scatter(x=q, y=height, mode='lines', name="HATPRO q",
+            #                                    line=dict(color=model_colors_humidity["HATPRO"], width=1, dash="dot"),
+            #                                    legendgroup="HATPRO", showlegend=False, xaxis='x3', yaxis='y1'))
+
+            # HATPRO dewpoint depression (time-dependent)
+            if "hatpro_Td_dep" in obs_data and ts_str in obs_data["hatpro_Td_dep"]:
+                Td_dep, height = obs_data["hatpro_Td_dep"][ts_str]
+                frame_traces.append(go.Scatter(x=Td_dep, y=height, mode='lines', name="HATPRO Td_dep",
                                                line=dict(color=model_colors_humidity["HATPRO"], width=1, dash="dot"),
-                                               legendgroup="HATPRO",
-                                               showlegend=False, xaxis='x3', yaxis='y1'))
+                                               legendgroup="HATPRO", showlegend=False, xaxis='x3', yaxis='y1'))
 
         # ====== SUBPLOT 2: Wind Speed & Direction ======
         # Add wind speed traces (bottom x-axis of subplot 2) - row=1, col=2
         for model in MODEL_ORDER:
             if ts_str in model_wspd_data.get(model, {}):
                 wspd, height = model_wspd_data[model][ts_str]
-                line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
+                # line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
 
                 frame_traces.append(go.Scatter(x=wspd, y=height, mode='lines', name=f"{model} wspd",
-                                               line=dict(color=model_colors_temp_wind[model], dash=line_dash,
-                                                         width=1.5), legendgroup=model,
-                                               showlegend=False, xaxis='x2', yaxis='y2'))
+                                               line=dict(color=model_colors_temp_wind[model],  # dash=line_dash,
+                                                         width=1.5), legendgroup=model, showlegend=False, xaxis='x2',
+                                               yaxis='y2'))
 
             # Add wind direction traces (top x-axis x4 of subplot 2)
             if ts_str in model_udir_data.get(model, {}):
                 wdir, height = model_udir_data[model][ts_str]
 
                 # Use open circles for ICON2TE to match its dashed line style
-                marker_symbol = 'circle-open' if model == "ICON2TE" else 'circle'
+                # marker_symbol = 'circle-open' if model == "ICON2TE" else 'circle'
 
+                # take filled circle for models
                 frame_traces.append(go.Scatter(x=wdir, y=height, mode='markers', name=f"{model} wdir",
                                                marker=dict(color=model_colors_temp_wind[model], size=5,
-                                                           symbol=marker_symbol), legendgroup=model,
-                                               showlegend=False, xaxis='x4', yaxis='y2'))
+                                                           symbol="circle"), legendgroup=model, showlegend=False,
+                                               xaxis='x4', yaxis='y2'))
 
         # Add observation wind data (only for Innsbruck points) - subplot 2
         if point_name.startswith("ibk"):
@@ -492,38 +656,37 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
             if "radiosonde_wspd" in obs_data:
                 wspd, height = obs_data["radiosonde_wspd"]
                 frame_traces.append(go.Scatter(x=wspd, y=height, mode='lines', name="Radiosonde wspd",
-                                               line=dict(color=model_colors_temp_wind["Radiosonde"], width=1.5),
-                                               legendgroup="Radiosonde", showlegend=False, xaxis='x2', yaxis='y2'))
+                                               line=dict(color=model_colors_temp_wind["Radiosonde"], width=1.5,
+                                                         dash="dot"), legendgroup="Radiosonde", showlegend=False,
+                                               xaxis='x2', yaxis='y2'))
 
             # Radiosonde wind direction (constant)
             if "radiosonde_udir" in obs_data:
                 wdir, height = obs_data["radiosonde_udir"]
                 frame_traces.append(go.Scatter(x=wdir, y=height, mode='markers', name="Radiosonde wdir",
                                                marker=dict(color=model_colors_temp_wind["Radiosonde"], size=5,
-                                                           symbol='circle'),
-                                               legendgroup="Radiosonde", showlegend=False, xaxis='x4', yaxis='y2'))
+                                                           symbol='circle-open'), legendgroup="Radiosonde",
+                                               showlegend=False, xaxis='x4', yaxis='y2'))
 
             # SL88 LIDAR wind speed (time-dependent)
             if "lidar_wspd" in obs_data and ts_str in obs_data["lidar_wspd"]:
                 wspd, height = obs_data["lidar_wspd"][ts_str]
                 frame_traces.append(go.Scatter(x=wspd, y=height, mode='lines', name="SL88 LIDAR",
-                                               line=dict(color=model_colors_temp_wind["HATPRO"], width=2.0, dash="dot"),
-                                               legendgroup="SL88_LIDAR",
-                                               showlegend=True, xaxis='x2', yaxis='y2'))
+                                               line=dict(color=model_colors_temp_wind["HATPRO"], width=1.5, dash="dot"),
+                                               legendgroup="SL88_LIDAR", showlegend=True, xaxis='x2', yaxis='y2'))
 
             # SL88 LIDAR wind direction (time-dependent)
             if "lidar_udir" in obs_data and ts_str in obs_data["lidar_udir"]:
                 wdir, height = obs_data["lidar_udir"][ts_str]
                 frame_traces.append(go.Scatter(x=wdir, y=height, mode='markers', name="SL88 LIDAR wdir",
                                                marker=dict(color=model_colors_temp_wind["HATPRO"], size=5,
-                                                           symbol='circle'),
-                                               legendgroup="SL88_LIDAR", showlegend=False, xaxis='x4', yaxis='y2'))
+                                                           symbol='circle-open'), legendgroup="SL88_LIDAR",
+                                               showlegend=False, xaxis='x4', yaxis='y2'))
 
         # Format current timestamp for this frame
         formatted_ts = pd.to_datetime(ts_str).strftime('%dth %H:%M')
-        frames.append(go.Frame(data=frame_traces, name=ts_str,
-                               layout=go.Layout(
-                                   title_text=f"Vertical profiles at {point['name']}, {point['height']} m - {formatted_ts} UTC")))
+        frames.append(go.Frame(data=frame_traces, name=ts_str, layout=go.Layout(
+            title_text=f"Vertical profiles at {point['name']}, {point['height']} m - {formatted_ts} UTC")))
 
     # Add initial data (first timestep)
     for trace in frames[0].data:
@@ -535,8 +698,7 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
     # Create slider
     sliders = [dict(active=0, yanchor="top", y=-0.12, xanchor="left", x=0.1,
                     currentvalue=dict(prefix="Time: ", visible=True, xanchor="center", font=dict(size=14)),
-                    pad=dict(b=10, t=50),
-                    len=0.8, transition=dict(duration=0), steps=[dict(
+                    pad=dict(b=10, t=50), len=0.8, transition=dict(duration=0), steps=[dict(
             args=[[ts_str], dict(frame=dict(duration=0, redraw=True), mode="immediate", transition=dict(duration=0))],
             label="",  # Empty label
             method="animate") for ts_str in timestamps])]
@@ -547,41 +709,53 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], max_he
                       height=700, width=1400, hovermode='closest', template='plotly_white', sliders=sliders,
                       legend=dict(orientation="h", yanchor="top", y=-0.14, xanchor="center", x=0.5,
                                   bgcolor="rgba(255, 255, 255, 0.8)", bordercolor="lightgray", borderwidth=1),
-                      updatemenus=[
-                          dict(type="buttons", direction="left", x=0.0, y=-0.12, xanchor="left", yanchor="top",
-                               pad=dict(t=10, b=10),
-                               buttons=[dict(label="▶ Play", method="animate",
-                                             args=[None, dict(frame=dict(duration=800, redraw=True),
-                                                              fromcurrent=True, mode="immediate",
-                                                              transition=dict(duration=0))]),
-                                        dict(label="⏸ Pause", method="animate",
-                                             args=[[None], dict(frame=dict(duration=0, redraw=False),
-                                                                mode="immediate",
-                                                                transition=dict(duration=0))])])])
+                      updatemenus=[dict(type="buttons", direction="left", x=0.0, y=-0.12, xanchor="left", yanchor="top",
+                                        pad=dict(t=10, b=10), buttons=[dict(label="▶ Play", method="animate",
+                                                                            args=[None, dict(
+                                                                                frame=dict(duration=800, redraw=True),
+                                                                                fromcurrent=True, mode="immediate",
+                                                                                transition=dict(duration=0))]),
+                                                                       dict(label="⏸ Pause", method="animate",
+                                                                            args=[[None], dict(
+                                                                                frame=dict(duration=0, redraw=False),
+                                                                                mode="immediate",
+                                                                                transition=dict(duration=0))])])])
 
     # Update x-axes and y-axes
     # Subplot 1 (Temperature & Humidity)
-    fig.update_xaxes(title_text="Temperature [°C]", range=[8, 20], row=1, col=1)
+    if temperature_var == "th":
+        fig.update_xaxes(title_text="Potential Temperature [K]", range=[280, 303], row=1, col=1)
+    else:
+        fig.update_xaxes(title_text="Temperature [°C]", range=[8, 25], row=1, col=1)
     fig.update_yaxes(title_text="Height above terrain [m]", range=[0, plot_max_height], row=1, col=1)
 
     # Subplot 2 (Wind) - no y-axis labels (redundant with left plot), but synchronized zoom
     fig.update_xaxes(title_text="Wind Speed [m/s]", range=[0, 10], row=1, col=2)
-    fig.update_yaxes(title_text="", range=[0, plot_max_height], showticklabels=False, matches='y', row=1, col=2)
+    fig.update_yaxes(title_text="", range=[0, plot_max_height], showticklabels=False, showgrid=True, matches='y',
+                     row=1, col=2)
 
-    # Add secondary x-axis for humidity (top of subplot 1) - x3
+    # deprecated: Add secondary x-axis for humidity (top of subplot 1) - x3
+    # fig.update_layout(
+    #     xaxis3=dict(title="Specific Humidity [g/kg]", overlaying='x', side='top', range=[0, max_q], anchor='y',
+    #                 showgrid=False))
+
+    # Add secondary x-axis for dewpoint depression (top of subplot 1) - x3
     fig.update_layout(
-        xaxis3=dict(title="Specific Humidity [g/kg]", overlaying='x', side='top', range=[0, max_q], anchor='y',
+        xaxis3=dict(title="Dewpoint Depression [°C]", overlaying='x', side='top', range=[0, 50], anchor='y',
                     showgrid=False))
 
     # Add secondary x-axis for wind direction (top of subplot 2) - x4
-    fig.update_layout(xaxis4=dict(title="Wind Direction [°]", overlaying='x2', side='top', range=[0, 360], anchor='y2',
-                                  showgrid=False))
+    fig.update_layout(xaxis4=dict(title="Wind Direction", overlaying='x2', side='top', range=[0, 360], anchor='y2',
+                                  showgrid=False,
+                                  tickmode='array',
+                                  tickvals=[0, 90, 180, 270, 360],
+                                  ticktext=['N', 'E', 'S', 'W', 'N']))
     return fig
 
 
-def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", end_time: str = "2017-10-16T12:00:00",
-        time_step_hours: float = 1.0, max_height: float = 5000, plot_max_height: float = 2000,
-        point_names: List[str] = confg.ALL_POINTS) -> None:
+def plot_save_all_points_with_slider(start_time: str = "2017-10-12T00:00:00", end_time: str = "2017-10-16T12:00:00",
+        time_step_hours: float = 1.0, plot_max_height: float = 2000, point_names: List[str] = confg.ALL_POINTS,
+        temperature_var: str = "temp") -> None:
     """
     Create and save individual slider plots for each point location.
     
@@ -595,6 +769,7 @@ def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", en
         max_height: Maximum height in meters to load data (default: 5000m)
         plot_max_height: Maximum height in meters to display initially (default: 2000m)
         point_names: List of points to plot (default: confg.ALL_POINTS)
+        temperature_var: Temperature variable to plot - "temp" for temperature in °C or "th" for potential temperature in K (default: "temp")
     """
     print(f"\n{'=' * 70}")
     print(f"Creating individual slider plots for {len(point_names)} points")
@@ -622,10 +797,11 @@ def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", en
             print(f"{'-' * 70}")
 
             # Create the plot with slider
-            fig = plot_single_point_with_slider(point_name, timestamps=timestamps, max_height=max_height,
-                                                plot_max_height=plot_max_height)
+            fig = plot_single_point_with_slider(point_name, timestamps=timestamps, plot_max_height=plot_max_height,
+                                                temperature_var=temperature_var)
             # Save to HTML
-            html_path = os.path.join(html_dir, f"vertical_profile_{point_name}_slider.html")
+            temp_suffix = "_theta" if temperature_var == "th" else ""
+            html_path = os.path.join(html_dir, f"vertical_profile_{point_name}{temp_suffix}_slider.html")
             fig.write_html(html_path)
             print(f"✓ Saved: {html_path}")
 
@@ -638,7 +814,7 @@ def plot_save_all_points_with_slider(start_time: str = "2017-10-16T00:00:00", en
     print(f"  Location: {html_dir}")
     print(f"  - Use the slider to move through timesteps")
     print(f"  - Click 'Play' to animate")
-    print(f"  - Data loaded up to {max_height}m, displayed up to {plot_max_height}m")
+    print(f"  - Data displayed up to {plot_max_height}m")
     print(f"{'=' * 70}\n")
 
 
@@ -648,8 +824,10 @@ if __name__ == "__main__":
     # Users can zoom out in the interactive HTML to see higher altitudes
     # plot_save_vertical_profiles(timestamp="2017-10-16T04:00:00", max_height=5000, plot_max_height=2000)
 
-    # Create interactive plot with time slider
+    # Create interactive plot with time slider - Temperature in °C
     # Shows profiles from midnight to noon on October 16, 2017
-    plot_save_all_points_with_slider(start_time="2017-10-15T14:00:00", end_time="2017-10-16T12:00:00",
-                                     time_step_hours=0.5, max_height=3000, plot_max_height=800,
-                                     point_names=confg.VALLEY_POINTS)
+    plot_save_all_points_with_slider(start_time="2017-10-15T12:00:00", end_time="2017-10-16T12:00:00",
+                                     time_step_hours=0.5, plot_max_height=1650, point_names=confg.VALLEY_POINTS,
+                                     #["ibk_uni"],
+                                     temperature_var="th")  #  ['ibk_airport', 'woergl', 'jenbach',
+    # 'kufstein', 'kiefersfelden', 'telfs', 'wipp_valley', 'ziller_valley',  # 'ziller_ried'])

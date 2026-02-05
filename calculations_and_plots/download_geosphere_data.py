@@ -497,11 +497,6 @@ def reduce_model_pressure_to_reference_station(model_data, stations_metadata, re
         model_data_reduced[point_name] = {}
 
         for model_name, ds in models.items():
-            if model_name == "WRF":
-                # Skip WRF due to no time dimension for pressure
-                print(f"  Skipping {model_name} - no time dimension for pressure")
-                continue
-
             if 'p' not in ds.variables or 'height' not in ds.variables or 'temp' not in ds.variables:
                 print(f"  Warning: Missing required variables for {model_name} at {point_name}")
                 model_data_reduced[point_name][model_name] = ds
