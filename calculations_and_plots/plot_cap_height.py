@@ -27,7 +27,7 @@ import confg
 from calculations_and_plots.calc_cap_height import cap_height_profile
 # Import timeseries and CAP computation functions from manage_timeseries
 from calculations_and_plots.manage_timeseries import (load_or_read_timeseries, MODEL_ORDER, variables)
-from confg import model_colors_temp_wind, icon_2te_hatpro_linestyle
+from confg import model_colors_temp_wind
 
 
 def compute_cap_for_point(model: str, point: dict, point_name: str) -> xr.DataArray:
@@ -124,7 +124,7 @@ def compute_cap_all_points_all_models(point_names: List[str]) -> Dict[
             # Load observation CAP heights for Innsbruck points
             if point_name.startswith("ibk"):
                 print(f"  Loading observations for {point['name']} ({point_name})...")
-                obs_cap = load_observation_cap_heights(point_name)
+                obs_cap = load_observation_cap_heights(point_name)  # timestamps not needed for loading observations
 
                 for obs_type, cap_da in obs_cap.items():
                     cap_data[obs_type][point_name] = cap_da
@@ -163,7 +163,7 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
             subplot_titles.append(point_name)
 
     # Create subplots (function from plotly)
-    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=subplot_titles, vertical_spacing=0.12,
+    fig = make_subplots(rows=n_rows, cols=n_cols, subplot_titles=subplot_titles, vertical_spacing=0.05,
                         horizontal_spacing=0.1)
 
     # Plot for each point
@@ -186,14 +186,11 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
             # Filter times from 14:00 onwards
             cap_filtered = cap_da.where(cap_da.time >= np.datetime64("2017-10-15T14:00"), drop=True)
 
-            # Determine line style: dashed for ICON2TE, solid otherwise
-            line_dash = icon_2te_hatpro_linestyle if model == "ICON2TE" else "solid"
-
             # Only show legend for first subplot
             show_legend = (idx == 0)
 
             fig.add_trace(go.Scatter(x=cap_filtered["time"].values, y=cap_filtered.values, mode='lines', name=model,
-                                     line=dict(color=model_colors_temp_wind[model], dash=line_dash, width=1.5),
+                                     line=dict(color=model_colors_temp_wind[model], width=1.5),
                                      legendgroup=model, showlegend=show_legend), row=row, col=col)
 
         # Plot observation data for Innsbruck points
@@ -207,7 +204,7 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
                 fig.add_trace(
                     go.Scatter(x=cap_hatpro_filtered["time"].values, y=cap_hatpro_filtered.values, mode='lines',
                         name='HATPRO',
-                        line=dict(color=model_colors_temp_wind["HATPRO"], dash=icon_2te_hatpro_linestyle, width=1.5),
+                        line=dict(color=model_colors_temp_wind["HATPRO"], dash="dot", width=1.5),
                         legendgroup="HATPRO", showlegend=show_legend), row=row, col=col)
 
             # Radiosonde
@@ -222,7 +219,7 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
                     marker=dict(symbol='star', size=12, color=model_colors_temp_wind["Radiosonde"]),
                     legendgroup="radiosonde", showlegend=show_legend), row=row, col=col)
 
-    fig.update_layout(title_text="CAP Height Timelines at Multiple Points", height=350 * n_rows, hovermode='x unified',
+    fig.update_layout(title_text="CAP Height Timelines at Multiple Points", height=500 * n_rows, hovermode='x unified',
                       template='plotly_white',
                       legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="center", x=0.5))
 
@@ -240,13 +237,12 @@ def plot_cap_timeseries_small_multiples(cap_data: Dict[str, Dict[str, xr.DataArr
     return fig
 
 
-def load_observation_cap_heights(point_name: str, timestamps: List[str]) -> Dict[str, xr.DataArray]:
+def load_observation_cap_heights(point_name: str) -> Dict[str, xr.DataArray]:
     """
     Load CAP heights for observations (HATPRO and Radiosonde) for Innsbruck points.
 
     Args:
         point_name: Name of the point location (must contain "ibk" for Innsbruck)
-        timestamps: List of ISO format timestamp strings
 
     Returns:
         Dict with keys "HATPRO" and/or "radiosonde" containing CAP height DataArrays
@@ -256,6 +252,10 @@ def load_observation_cap_heights(point_name: str, timestamps: List[str]) -> Dict
     # Only load observations for Innsbruck points
     if "ibk" not in point_name.lower():
         return obs_cap_data
+
+    start_time="2017-10-15T14:00:00"
+    end_time="2017-10-16T12:00:00"
+    timestamps = pd.date_range(start=start_time, end=end_time, freq="30min").strftime("%Y-%m-%dT%H:%M:%S").tolist()
 
     ts_array = [np.datetime64(ts) for ts in timestamps]
 
@@ -318,12 +318,8 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
         # Filter times from 14:00 onwards
         cap_filtered = cap_da.where(cap_da.time >= np.datetime64("2017-10-15T14:00"), drop=True)
 
-        # Determine line style: dashed for ICON2TE, solid otherwise
-        linestyle = '--' if model == "ICON2TE" else '-'
-
         plt.plot(cap_filtered["time"].values, cap_filtered.values,
-                color=confg.model_colors_temp_wind[model], linestyle=linestyle,
-                linewidth=1.5, label=model)
+                color=confg.model_colors_temp_wind[model], linewidth=1.5, label=model)
 
     # Plot observation data for Innsbruck points
     if point_name.startswith("ibk"):
@@ -333,7 +329,7 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
             cap_hatpro_filtered = cap_hatpro.where(cap_hatpro.time >= np.datetime64("2017-10-15T14:00"), drop=True)
 
             plt.plot(cap_hatpro_filtered["time"].values, cap_hatpro_filtered.values,
-                    color=confg.model_colors_temp_wind["HATPRO"], linestyle=':',
+                    color=confg.model_colors_temp_wind["HATPRO"], linestyle='dotted',
                     linewidth=1.5, label='HATPRO')
 
         # Radiosonde
@@ -372,8 +368,8 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
 
 if __name__ == "__main__":
     # Compute and plot CAP heights for all valley points
-    start_time="2017-10-15T14:00:00",
-    end_time="2017-10-16T12:00:00",
+    # start_time="2017-10-15T14:00:00",
+    # end_time="2017-10-16T12:00:00",
 
     max_height=5000,
     point_names=confg.get_valley_points_only()
@@ -390,10 +386,9 @@ if __name__ == "__main__":
     import pandas as pd
 
     # Generate list of timestamps
-    # timestamps = pd.date_range(start=start_time, end=end_time, freq="30min").strftime(
-    #     "%Y-%m-%dT%H:%M:%S").tolist()
+    # timestamps = pd.date_range(start=start_time, end=end_time, freq="30min").strftime("%Y-%m-%dT%H:%M:%S").tolist()
 
-    print(f"\nTime range: {start_time} to {end_time}")
+    # print(f"\nTime range: {start_time} to {end_time}")
     print(f"Time step: 0.5h")
     print(f"Points: {len(point_names)}")
 
@@ -402,15 +397,15 @@ if __name__ == "__main__":
 
     # Create small multiples plot
     print("\nCreating small multiples plot...")
-    # fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=1000)  # plot small multiples
-    plot_single_point_matplotlib(cap_data, "ibk_uni")  # or any other point name
+    fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=1000)  # plot small multiples
+    # plot_single_point_matplotlib(cap_data, "ibk_uni")  # or any other point name
 
-    # Save plot
+    # Save small multiples plot
     html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
     os.makedirs(html_dir, exist_ok=True)
     html_path = os.path.join(html_dir, "cap_depth_all_points_small_multiples.html")
-    # fig.write_html(html_path)
-    # fig.show(renderer="browser")
+    fig.write_html(html_path)
+    fig.show(renderer="browser")
 
     print(f"\n{'=' * 70}")
     print(f"✓ Plot saved to: {html_path}")

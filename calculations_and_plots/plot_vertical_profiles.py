@@ -142,27 +142,25 @@ def _create_vhd_area_trace(th_values: np.ndarray, height_values: np.ndarray, th_
         # Return empty trace if no data
         return go.Scatter(x=[], y=[], mode='none', showlegend=False)
 
-    # Find the minimum temperature in the profile (in night at the surface)
-    th_min = np.min(th_filtered)
+    # Combine: vertical line up + profile points back down (reversed)
+    if name in ["AROME", "ICON", "ICON2TE"]:
+        th_filtered_model, height_filtered_model = th_filtered, height_filtered
+    else:
+        th_filtered_model, height_filtered_model = (th_filtered[::-1],  height_filtered[::-1])
+        # need to turn around due to different indexing
 
-    # Find the maximum height in the filtered data (top of the VHD area)
-    height_max = np.max(height_filtered)
-    height_min = np.min(height_filtered)
+    # more intuitive, direct approach: for x I need the pot. temperatures; and for y heights!
+    # Rectangle bottom-right corner to top-right, then follow profile back down
+    x_fill = np.concatenate([[th_filtered.min(), th_filtered.max(), th_filtered.max()], th_filtered_model])
+    y_fill = np.concatenate([[height_filtered.min(), height_filtered.min(), height_filtered.max()], height_filtered_model])
 
     # Create the filled polygon:
-    # 1. Start with vertical line at th_min from bottom to top
+    # 1. Start with the vertical line at(min) from (bottom to top)
     # 2. Go back down following the temperature profile
     # 3. Close at bottom
     # The area between the vertical line (well-mixed) and the profile (stratified) is the VHD
-
-    # Combine: vertical line up + profile points back down (reversed)
-    if name in ["AROME", "ICON", "ICON2TE"]:
-        x_fill_max, y_fill_max = th_filtered, height_filtered
-    else:
-        x_fill_max, y_fill_max = th_filtered[::-1], height_filtered[::-1]
-
-    x_fill = np.concatenate([[th_min, th_min], x_fill_max])
-    y_fill = np.concatenate([[height_min, height_max], y_fill_max])
+    # x_fill = np.concatenate([[np.min(th_filtered), np.min(th_filtered)], th_filtered_model])
+    # y_fill = np.concatenate([[np.min(height_filtered), np.max(height_filtered)], height_filtered_model])
 
 
     # Convert color to rgba with transparency; is this working?
@@ -724,7 +722,7 @@ def plot_single_point_with_slider(point_name: str, timestamps: List[str], plot_m
     # Update x-axes and y-axes
     # Subplot 1 (Temperature & Humidity)
     if temperature_var == "th":
-        fig.update_xaxes(title_text="Potential Temperature [K]", range=[280, 303], row=1, col=1)
+        fig.update_xaxes(title_text="Potential Temperature [K]", range=[280, 307], row=1, col=1)
     else:
         fig.update_xaxes(title_text="Temperature [°C]", range=[8, 25], row=1, col=1)
     fig.update_yaxes(title_text="Height above terrain [m]", range=[0, plot_max_height], row=1, col=1)
@@ -827,7 +825,7 @@ if __name__ == "__main__":
     # Create interactive plot with time slider - Temperature in °C
     # Shows profiles from midnight to noon on October 16, 2017
     plot_save_all_points_with_slider(start_time="2017-10-15T12:00:00", end_time="2017-10-16T12:00:00",
-                                     time_step_hours=0.5, plot_max_height=1650, point_names=confg.VALLEY_POINTS,
-                                     #["ibk_uni"],
-                                     temperature_var="th")  #  ['ibk_airport', 'woergl', 'jenbach',
+                                     time_step_hours=0.5, plot_max_height=1650, point_names= confg.VALLEY_POINTS,
+                                     # ["ibk_uni"], # ["patsch_EC_south"],
+                                     temperature_var="temp")  #  ['ibk_airport', 'woergl', 'jenbach',
     # 'kufstein', 'kiefersfelden', 'telfs', 'wipp_valley', 'ziller_valley',  # 'ziller_ried'])

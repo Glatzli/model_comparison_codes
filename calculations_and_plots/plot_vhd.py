@@ -11,6 +11,8 @@ the calc_vhd_single_point(ds_point, model="AROME")-function in calc_vhd.py, espc
 height coord.
 
 """
+import datetime
+
 import fix_win_DLL_loading_issue
 
 fix_win_DLL_loading_issue
@@ -22,17 +24,17 @@ import cartopy.feature as cfeature
 import xarray as xr
 
 import confg
-from calculations_and_plots.calc_vhd import calc_vhd_single_point, select_pcgp_vhd
+from calculations_and_plots.calc_vhd import calc_vhd_single_point
 from calculations_and_plots.manage_timeseries import load_or_read_timeseries
 from read_in_hatpro_radiosonde import read_radiosonde_dataset
 
 importlib.reload(confg)
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from colorspace import qualitative_hcl, sequential_hcl
+from colorspace import sequential_hcl
 
 
-def calc_vhd_using_new_timeseries(point_name: str, height_as_z_coord: str = "above_terrain"):
+def calc_vhd_using_timeseries(point_name: str, height_as_z_coord: str = "above_terrain"):
     """
     Calculate VHD for all models using the new manage_timeseries system.
     Uses the "above_terrain" feature for consistent height coordinates.
@@ -96,9 +98,15 @@ def plot_vhds_point(vhd_results: dict, point_name: str, vhd_origin: str = "new_t
 
     # Plot observational data if available
     if "HATPRO" in vhd_results and vhd_results["HATPRO"] is not None:
-        (vhd_results["HATPRO"].vhd / 10 ** 6).plot(ax=ax, label="HATPRO (uni)", color=confg.model_colors_temp_wind["HATPRO"],
-                                                   linewidth=2, linestyle="dotted")
-    plt.ylim(0.05, 0.45)
+        (vhd_results["HATPRO"].vhd / 10 ** 6).plot(ax=ax, label="HATPRO (uni)",
+                                                   color=confg.model_colors_temp_wind["HATPRO"], linewidth=2,
+                                                   linestyle="dotted")
+    # Plot observational data if available
+    if "radio" in vhd_results and vhd_results["radio"] is not None:
+        ax.scatter(datetime.datetime(2017, 10, 16, 2, 15, 0), vhd_results["radio"].vhd / 10 ** 6,
+                   label="Radiosonde (Airport)", color=confg.model_colors_temp_wind["Radiosonde"], s=100, marker="*",
+                   zorder=10)
+    plt.ylim(2, 21)
     plt.ylabel(r"valley heat deficit $[\frac{MJ}{m^2}]$")
     plt.grid()
     plt.title("")
@@ -109,7 +117,6 @@ def plot_vhds_point(vhd_results: dict, point_name: str, vhd_origin: str = "new_t
     output_dir = os.path.join(confg.dir_PLOTS, "vhd_plots")
     os.makedirs(output_dir, exist_ok=True)
     fig.savefig(os.path.join(output_dir, f"vhd_model_comp_{point_name.replace(" ", "_")}_{vhd_origin}.svg"))
-
 
 
 def plot_vhd_full_domain(ds_extent, time, model="ICON"):
@@ -161,7 +168,7 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
         ds_extent_sel = (ds_extent.sel(time=time) / 1e6).sel(
             lat=slice(confg.lat_min_cap_height, confg.lat_max_cap_height),
             lon=slice(confg.lon_min_cap_height, confg.lon_max_cap_height))
-        im = ds_extent_sel.vhd.plot(ax=ax, cmap=darkblue_hcl_cont_rev, transform=projection, vmin=0.05, vmax=0.36,
+        im = ds_extent_sel.vhd.plot(ax=ax, cmap=darkblue_hcl_cont_rev, transform=projection,  # vmin=0.05, vmax=0.36,
                                     add_colorbar=False)
 
         # shows extent of max: plot a contour line for 80% of the maximum of current VHD:
@@ -181,8 +188,9 @@ def plot_vhd_small_multiples(ds_extent, model="ICON"):
     # Create output directory if it doesn't exist
     output_dir = os.path.join(confg.dir_PLOTS, "vhd_plots")
     os.makedirs(output_dir, exist_ok=True)
-    # fig.savefig(os.path.join(output_dir, f"{model}_VHD_small_multiples.png"), dpi=600)
+    fig.savefig(os.path.join(output_dir, f"{model}_VHD_small_multiples.png"), dpi=600)
     fig.show()
+
 
 def plot_vhd_single_valley_point(point_name: str, height_coords: str = "above_terrain"):
     """
@@ -208,7 +216,7 @@ def plot_vhd_single_valley_point(point_name: str, height_coords: str = "above_te
     for height_coord in height_coords:
         try:
             print(f"  Calculating VHD with {height_coord} height coordinate...")
-            vhd_results = calc_vhd_using_new_timeseries(point_name=point_name, height_as_z_coord=height_coord)
+            vhd_results = calc_vhd_using_timeseries(point_name=point_name, height_as_z_coord=height_coord)
 
             plot_vhds_point(vhd_results=vhd_results, point_name=point_info['name'], vhd_origin=height_coord)
 
@@ -227,7 +235,7 @@ if __name__ == '__main__':
 
     print(f"Creating VHD plots for {len(valley_points)} valley points")
     print("=" * 70)
-
+    """
     for i, (point_name, point_info) in enumerate(valley_points.items(), 1):
         print(f"\n[{i}/{len(valley_points)}] Processing: {point_info['name']} ({point_name})")
         print(f"Location: {point_info['lat']:.3f}°N, {point_info['lon']:.3f}°E")
@@ -235,8 +243,8 @@ if __name__ == '__main__':
 
         try:
             # calculate VHD using "direct" height-coordinate (directly geopot. height as height coord)
-            vhd_results_terrain = calc_vhd_using_new_timeseries(point_name=point_name, height_as_z_coord="direct")
-            plot_vhds_point(vhd_results=vhd_results_terrain, point_name=point_info['name'], vhd_origin="direct")
+            vhd_results = calc_vhd_using_timeseries(point_name=point_name, height_as_z_coord="direct")
+            plot_vhds_point(vhd_results=vhd_results, point_name=point_info['name'], vhd_origin="direct")
 
             print(f"  ✓ Comparison plot saved: vhd_model_comp_{point_info['name']}_above_terrain.svg")
 
@@ -247,11 +255,10 @@ if __name__ == '__main__':
     print("\n" + "=" * 70)
     print("✓ VHD plot generation completed for all valley points!")
     print(f"Plots saved to: {os.path.join(confg.dir_PLOTS, 'vhd_plots')}")
-    plt.show()
+    # plt.show()
 
     # Optional: Show plots at the end (comment out if running in batch mode)
     # plt.show()
-
 
     # Small multiples plotting (still works with existing domain VHD files)
     # Uncomment these lines if you want to generate spatial VHD plots as well:
@@ -260,14 +267,17 @@ if __name__ == '__main__':
     print("\nGenerating spatial VHD small multiples plots...")
     vhd_arome = xr.open_dataset(os.path.join(confg.dir_AROME, "AROME_vhd_full_domain_full_time.nc"))
     vhd_icon = xr.open_dataset(os.path.join(confg.icon_folder_3D, "ICON_vhd_full_domain_full_time.nc"))
+    """
     vhd_icon2te = xr.open_dataset(os.path.join(confg.icon2TE_folder_3D, "ICON2TE_vhd_full_domain_full_time.nc"))
     vhd_um = xr.open_dataset(os.path.join(confg.ukmo_folder, "UM_vhd_full_domain_full_time.nc"))
     vhd_wrf = xr.open_dataset(os.path.join(confg.wrf_folder, "WRF_vhd_full_domain_full_time.nc"))
-
+    """
     plot_vhd_small_multiples(vhd_arome, model="AROME")
     plot_vhd_small_multiples(vhd_icon, model="ICON")
+    """
     plot_vhd_small_multiples(vhd_icon2te, model="ICON2TE")
     plot_vhd_small_multiples(vhd_um, model="UM")
     plot_vhd_small_multiples(vhd_wrf, model="WRF")
     """
+    plt.show()
     print("")

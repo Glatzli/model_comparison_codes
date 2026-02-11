@@ -346,9 +346,9 @@ def plot_small_multiples(ds, model="WRF", variable="hfs", vmin=None, vmax=None, 
         # Delete existing file if it exists to ensure clean overwrite
         if os.path.exists(filepath):
             os.remove(filepath)
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')  # Added dpi=300
+        plt.savefig(filepath, dpi=400, bbox_inches='tight')  # Added dpi=300
         print(f"    ✓ Saved: {filename}")
-        plt.close()  # Close figure to free memory
+        # plt.close()  # Close figure to free memory
 
 
 def plot_detail_for_extent(arome_ds, wrf_ds, times, lon_extent, lat_extent, figsize, contour_line_dist,
@@ -603,4 +603,4 @@ if __name__ == '__main__':
         # Close shortwave dataset to free RAM
         arome2d_sw.close()
 
-    plt.show()
+    # plt.show()

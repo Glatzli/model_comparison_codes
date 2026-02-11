@@ -16,7 +16,9 @@ lat: 47.0 - 47.6
 lon: 11.1 - 12.1
 """
 from __future__ import annotations
+
 import fix_win_DLL_loading_issue
+
 fix_win_DLL_loading_issue
 import os
 import sys
@@ -569,8 +571,8 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
     cbar.set_label('Height Difference [m]', fontsize=12)
 
     # Overall title
-    fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC',
-                 fontsize=13, fontweight='bold', y=0.96)
+    fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold',
+                 y=0.96)
 
     plt.savefig(save_path, dpi=400, bbox_inches='tight')
     print(f"\n✓ Figure saved to: {save_path}")
@@ -844,43 +846,41 @@ def plot_arome_wrf_topography_main(day: int = 15, hour: int = 14, minute: int = 
     return fig, axes
 
 
-def add_points_to_axes(ax, extent=None):
+def add_points_to_axes(ax, lon_extent=confg.lon_hf_extent, lat_extent=confg.lat_hf_extent):
     """
     Add location markers from confg.ALL_POINTS to a map axes.
 
     Args:
         ax: Matplotlib axes with cartopy projection
-        extent: Tuple (lon_min, lon_max, lat_min, lat_max) to check if points are within extent
+        lon_extent: Tuple (lon_min, lon_max)
+        lat_extent: Tuple (lat_min, lat_max) to check if points are within extent
     """
-    if extent is None:  # define default here so that it's not mutable
-        extent = [confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max]
-
     # Unpack extent if provided
-    if extent:
-        lon_min, lon_max, lat_min, lat_max = extent
+    lon_min, lon_max = lon_extent[0], lon_extent[1]
+    lat_min, lat_max = lat_extent[0], lat_extent[1]
 
     # Plot each point from ALL_POINTS dictionary
     for point_name, point_data in confg.ALL_POINTS.items():
+        if point_name == "ibk_villa":  # plot all except ibk villa, otherwise it's too scattered
+            continue
         # Check if point is within extent
-        if extent:
-            if not ((lon_min <= point_data["lon"] <= lon_max) and (lat_min <= point_data["lat"] <= lat_max)):
-                continue  # Skip points outside extent
+        if not ((lon_min <= point_data["lon"] <= lon_max) and (lat_min <= point_data["lat"] <= lat_max)):
+            continue  # Skip points outside extent
 
         # Plot marker
-        ax.plot(point_data["lon"], point_data["lat"], marker='o', markersize=6, markerfacecolor='red',
+        ax.plot(point_data["lon"], point_data["lat"], marker='o', markersize=6, markerfacecolor='black',
                 markeredgecolor='white', markeredgewidth=1, transform=ccrs.PlateCarree(), zorder=10)
 
         # Add label below the point_data with automatic adjustment
-        ax.annotate(point_data['name'], xy=(point_data["lon"], point_data["lat"]), xytext=(0, -10),
-                    # Offset: 10 points below
-                    textcoords='offset points', transform=ccrs.PlateCarree(), fontsize=8, fontweight='bold',
-                    ha='center', va='top',
+        ax.annotate(point_data['name'], xy=(point_data["lon"], point_data["lat"]), xytext=(0, -8),
+                    # Offset: 8 points below
+                    textcoords='offset points', transform=ccrs.PlateCarree(), fontsize=10, ha='center', va='top',
                     bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='black', linewidth=0.5),
                     zorder=11)
 
 
-def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str = None,
-                                 add_points_confg: bool = True, extent: tuple = None):
+def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str = None, add_points_confg: bool = True,
+        lat_extent: tuple = None, lon_extent: tuple = None):
     """
     Create a plot of topography from a single model.
 
@@ -889,7 +889,8 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
         model_key: Key for the model to plot (e.g., 'AROME_z', 'WRF_z_unstag', 'ICON', 'UM', etc.)
         save_path: Path to save the figure
         add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
-        extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
+        lat_extent: Tuple (lat_min, lat_max) for plot extent
+        lon_extent: Tuple (lon_min, lon_max) for plot extent
     """
     # Check if model exists in data
     if model_key not in topo_data:
@@ -910,54 +911,57 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
 
     # Get data
     data = topo_data[model_key]
+    data = data.sel(lat=slice(lat_extent[0] - 0.01, lat_extent[1] + 0.01),  # subset data, to have smaller .svg-files...
+                    lon=slice(lon_extent[0] - 0.01, lon_extent[1] + 0.01))
 
     # Create plot
-    im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax,
-                       transform=ccrs.PlateCarree(), shading='auto')
+    im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree(),
+                       shading='auto')
 
     # Add contour lines
     add_contour_lines(ax, data)
 
     # Add features
     ax.coastlines(resolution='10m', linewidth=1)
-    ax.add_feature(cfeature.BORDERS, linewidth=1)
-
-    if extent:
-        ax.set_extent(extent, crs=ccrs.PlateCarree())
+    ax.add_feature(cfeature.BORDERS, linewidth=2)
+    ax.set_extent((lon_extent[0], lon_extent[1], lat_extent[0], lat_extent[1]), crs=ccrs.PlateCarree())
 
     # Add gridlines
-    gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
-    gl.top_labels = False
-    gl.right_labels = False
+    # gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+    # gl.top_labels = False
+    # gl.right_labels = False
 
     # Clean up model name for title
     model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '')
 
     # Add title
-    ax.text(0.5, 0.98, model_name, transform=ax.transAxes, fontsize=16, fontweight='bold',
-            ha='center', va='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+    ax.text(0.5, 0.98, model_name, transform=ax.transAxes, fontsize=16, fontweight='bold', ha='center', va='top',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     if add_points_confg:
-        add_points_to_axes(ax, extent=extent)
+        add_points_to_axes(ax, lon_extent=lon_extent, lat_extent=lat_extent)
 
     # Add colorbar
     fig.subplots_adjust(bottom=0.12)
     cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
     cbar.set_label('Height [m]', fontsize=12)
+    plt.xlabel("")
+    plt.ylabel("")
 
     # Save figure
     if save_path:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path)
         print(f"\n✓ Figure saved to: {save_path}")
 
     return fig, ax
 
 
 def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int = 14, minute: int = 0,
-                                      add_points_confg: bool = True, extent: tuple = None):
+        add_points_confg: bool = True, lat_extent: tuple = confg.lat_hf_extent, lon_extent: tuple = confg.lon_hf_extent,
+        extent_name: str = "heat_flux"):
     """
     Main function to read data and create a single model topography plot.
 
@@ -967,29 +971,30 @@ def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int =
         hour: Hour of day (default: 14 for 14:00)
         minute: Minute of hour (default: 0)
         add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
-        extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
+        lat_extent: Tuple (lat_min, lat_max) for plot extent
+        lon_extent: Tuple (lon_min, lon_max) for plot extent
     """
-    # Use Hafelekar extent if no extent specified
-    if extent is None:
-        # extent = (confg.lon_hf_min, confg.lon_hf_max, confg.lat_hf_min, confg.lat_hf_max)
-        extent = (confg.lon_min_topo, confg.lon_max_topo, confg.lat_min_topo, confg.lat_max_topo)  # plot full analyzed
-        # model extent
+    if lat_extent and lon_extent is None:
+        lat_extent = confg.lat_hf_extent
+        lon_extent = confg.lon_hf_extent
 
     print(f"\n{'=' * 70}")
     print(f"Creating {model_key} Topography Plot")
     print(f"{'=' * 70}")
-    print(f"Plot extent: lon [{extent[0]:.2f}, {extent[1]:.2f}], lat [{extent[2]:.2f}, {extent[3]:.2f}]")
+    print(f"Plot extent: lon [{lon_extent[0]:.2f}, {lon_extent[1]:.2f}], lat [{lat_extent[0]:.2f},"
+          f" {lat_extent[1]:.2f}]")
 
     # Read or load topo data
     topo_data = check_read_topographies(day=day, hour=hour, minute=minute)
 
     # Create save path
     model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '').lower()
-    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_single.png")
+    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_" + extent_name + ".svg")
 
     # Create plot
     fig, ax = plot_single_model_topography(topo_data, model_key=model_key, save_path=save_path,
-                                          add_points_confg=add_points_confg, extent=extent)
+                                           add_points_confg=add_points_confg, lon_extent=lon_extent,
+                                           lat_extent=lat_extent)
 
     print(f"{'=' * 70}\n")
     return fig, ax
@@ -1011,6 +1016,12 @@ if __name__ == "__main__":
     plot_single_model_topography_main(model_key='AROME_z', day=15, hour=14, minute=0, add_points_confg=True)
     # plot_single_model_topography_main(model_key='ICON', day=15, hour=14, minute=0, add_points_confg=True)
     # plot_single_model_topography_main(model_key='UM', day=15, hour=14, minute=0, add_points_confg=True)
-    plot_single_model_topography_main(model_key='WRF_z_unstag', day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_single_model_topography_main(model_key='WRF_z_unstag', day=15, hour=14, minute=0, add_points_confg=True)
+
+    # plot areas of interest Topography plots:
+    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True, lon_extent=confg.lon_wipp_extent,
+                                      lat_extent=confg.lat_wipp_extent, extent_name="wipp")
+    plot_single_model_topography_main(model_key='AROME_z', add_points_confg=True, lon_extent=confg.lon_inn_exit_extent,
+                                      lat_extent=confg.lat_inn_exit_extent, extent_name="inn_exit")
 
     plt.show()

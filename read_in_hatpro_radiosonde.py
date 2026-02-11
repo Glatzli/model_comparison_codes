@@ -380,6 +380,9 @@ def read_radiosonde_dataset(height_as_z_coord: str | bool = "direct"):
         radiosonde dataset with geopot. height as z coordinate either amsl, above terrain or original height indices
     """
     radio = xr.open_dataset(confg.radiosonde_dataset)
+    # drops duplicate height lvls if any is there
+    radio = radio.drop_duplicates(dim="height", keep=False)
+
     if height_as_z_coord == "direct":
         radio["height"] = radio["z"]
         radio["height"] = radio["height"].assign_attrs(units="m", description="geopotential height amsl")

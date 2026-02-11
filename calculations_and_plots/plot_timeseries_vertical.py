@@ -97,8 +97,8 @@ def add_wind_barbs(ax, wind_u, wind_v, model, interface_height, debug=False):
 
     ax_wind.set_ylim([0, interface_height])  # Same limits as main axis
     # ax_wind.grid()
-    # ax_wind.set_ylabel('')  # No label needed for secondary axis
-    # ax_wind.set_yticks([])  # Hide tick labels on secondary axis
+    ax_wind.set_ylabel('')  # No label needed for secondary axis
+    ax_wind.set_yticks([])  # Hide tick labels on secondary axis
     return ax_wind
 
 

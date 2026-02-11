@@ -34,6 +34,17 @@ ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.3842
               # 2279m, with 3 digits; moved from lat=47.315 to .316
               "hohe_warte": {"name": "Hohe Warte", "lat": 47.302, "lon": 11.33, "height":2440},
               # found by looking into model topos, highest point west of Hafelekar
+              "brenner_saddle": {"name": "Brenner Saddle", "lat": 47.006, "lon": 11.507, "height": 1368},
+              "wipp_stafflach_steinach": {"name": "between Stafflach and Steinach", "lat": 47.072,
+                                          "lon": 11.485, "height": 1080},
+              "wipp_schoenberg_matrei": {"name": "between Schoenberg and Matrei", "lat": 47.13,
+                                         "lon": 11.45,"height": 1044},
+              # between Schönberg & Matrei
+              "wipp_schoenberg": {"name": "Schoenberg in Stubai", "lat": 47.187, "lon": 11.405, "height": 1012.5},
+              # Schönberg im Stubaital, ACINN station would be at Ellbögen, but that's on the slope in models...
+              "patsch_EC_south": {"name": "Patsch Pfaffenbichl", "lat": 47.209068, "lon": 11.411932, "height": 971.6},
+              # took coords from Hannes' dict further down
+
               "kochel": {"name": "Kochel", "lat": 47.67, "lon": 11.35, "height": 599},
               "woergl": {"name": "Woergl", "lat": 47.494, "lon": 12.059, "height": 504},
               # coords for wörgl (504m), lower Inn valley
@@ -43,14 +54,11 @@ ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.3842
               # coords of geosphere station
               "kiefersfelden": {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480},
               # coords for kiefersfelden (480m), Germany, entrance Inn valley
-              "rosenheim": {"name": "Rosenheim", "lat": 47.856, "lon": 12.121, "height": 450},
-              # coords for rosenheim (440m)
+              "rosenheim": {"name": "Rosenheim", "lat": 47.8667, "lon": 12.1333, "height": 440},
+              # coords for rosenheim station (440m); DWD ID: 4261
               "telfs": {"name": "Telfs", "lat": 47.3, "lon": 11.1, "height": 622},  # 622m
               # valley points in wipp & ziller valley for stability plots (where valleys are narrow):
-              "wipp_valley": {"name": "wipp valley", "lat": 47.13, "lon": 11.45, "height": 1044},
-              # between Schönberg & Matrei
-              "wipp_schoenberg": {"name": "Schoenberg in Stubai", "lat": 47.187, "lon": 11.405, "height": 1012.5},
-              # Schönberg im Stubaital, ACINN station would be at Ellbögen, but that's on the slope in models...
+
               "ziller_valley": {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
               # between Zell am Ziller & Zillertal
               "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
@@ -69,8 +77,9 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
-VALLEY_POINTS = ["ibk_villa", "ibk_uni", "ibk_airport", "kochel", "woergl", "jenbach", "kufstein", "kiefersfelden",
-                 "telfs", "wipp_valley", "wipp_schoenberg", "ziller_valley", "ziller_ried"]
+VALLEY_POINTS = (["telfs", "ibk_villa", "ibk_uni", "ibk_airport", "brenner_saddle", "wipp_stafflach_steinach",
+                  "wipp_schoenberg_matrei", "wipp_schoenberg", "patsch_EC_south",
+                  "kochel", "woergl", "jenbach", "kufstein", "kiefersfelden", "rosenheim", "ziller_valley", "ziller_ried"])
 MOUNTAIN_SLOPE_POINTS = ["hafelekar", "slope_north_patscherkofel", "ziller_ne_slope", "ziller_sw_slope"]
 
 
@@ -160,6 +169,7 @@ jenbach_zamg_new = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data
 rinn_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes",
                          "data_station11123-Rinn_20171015T1200_20171016T1210.csv")
 munchen_zamg = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_munich_T2m.csv")
+rosenheim_data = os.path.join(data_folder, "Observations", "ZAMG_Tawes", "data_OBS_DEU_PT10M_T2M_Rosenheim.csv")
 
 # mobile stations, cut to our period
 momma_our_period_file = os.path.join(data_folder, "Observations", "MOMMA", "MOMMA_our_period.nc")

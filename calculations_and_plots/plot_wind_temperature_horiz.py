@@ -28,6 +28,7 @@ fix_win_DLL_loading_issue
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -44,7 +45,7 @@ TEMPERATURE_LABELS = {"temp": "Temperature", "th": "Potential Temperature", }
 
 # Temperature ranges - global definition for [5, 25] degrees Celsius
 TEMPERATURE_RANGES = {"temp": {"vmin": 5, "vmax": 25},  # [5, 25]°C
-                      "th": {"vmin": 278, "vmax": 298},  # [5, 25]°C in Kelvin (potential temp)
+                      "th": {"vmin": 288, "vmax": 305},  # [5, 25]°C in Kelvin (potential temp)
                       }
 
 
@@ -413,6 +414,117 @@ def read_and_save_wrf_data(times, variables):
     return wrf_ds
 
 
+def plot_single_timestamp(model_dataset, time, model_name, variable, lon_extent, lat_extent,
+                         figsize=(10, 8), contour_line_dist=100, barb_length=4, step=2,
+                         extent_name="single", save_file=True):
+    """
+    Plot a single timestamp for a given region with the same settings as small multiples.
+
+    Args:
+        model_dataset: xarray Dataset for a single model
+        time: Single datetime object to plot
+        model_name: Name of the model (e.g., "AROME", "WRF", "ICON")
+        variable: Variable to plot (e.g., "temp", "th")
+        lon_extent: Tuple (lon_min, lon_max) for plot extent
+        lat_extent: Tuple (lat_min, lat_max) for plot extent
+        figsize: Figure size tuple (default: (10, 8))
+        contour_line_dist: Distance between contour lines in meters (default: 100)
+        barb_length: Length of wind barbs (default: 4)
+        step: Subsample step for wind barbs (default: 2)
+        extent_name: Name for the extent (used in filename)
+        save_file: Whether to save the plot (default: True)
+
+    Returns:
+        Figure and axis objects
+    """
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    from plot_heat_fluxes import extract_topography_and_wind
+
+    # Get colormap and range for the variable
+    cmap = confg.temperature_colormap
+    vmin = TEMPERATURE_RANGES[variable]["vmin"]
+    vmax = TEMPERATURE_RANGES[variable]["vmax"]
+    label = TEMPERATURE_LABELS[variable]
+
+    # Choose units based on variable type
+    if variable in ["temp"]:
+        units = "[°C]"
+    elif variable in ["th"]:
+        units = "[K]"
+    else:
+        units = ""
+
+    # Set up projection and figure
+    projection = ccrs.Mercator()
+    fig, ax = plt.subplots(figsize=figsize, subplot_kw={'projection': projection})
+
+    # Select data for the given time
+    ds_sel = model_dataset.sel(time=time)
+
+    # Plot the temperature variable
+    im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel[variable].values,
+                       cmap=cmap, vmin=vmin, vmax=vmax, transform=projection)
+
+    # Extract topography and wind data
+    z, u, v = extract_topography_and_wind(ds_sel, model_name, step)
+
+    # Plot topography contours
+    levels_thin = np.arange(0, 3500, contour_line_dist)
+    ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin,
+               colors="k", linewidths=0.3, transform=projection)
+
+    # Add wind barbs if wind data is available
+    if u is not None and v is not None:
+        lat_subset, lon_subset = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+
+        # Convert wind speeds from m/s to knots (multiply by 1.94384)
+        u_knots = u * 1.94384
+        v_knots = v * 1.94384
+
+        # Plot wind barbs
+        ax.barbs(x=lon_subset, y=lat_subset, u=u_knots, v=v_knots,
+                transform=projection, color='black', length=barb_length, linewidth=0.5)
+
+    # Format timestamp for title
+    time_pd = pd.to_datetime(time)
+    time_str = time_pd.strftime("%Y-%m-%d %H:%M UTC")
+    ax.set_title(f"{model_name} {label} - {time_str}", fontsize=14, fontweight='bold')
+
+    # Set extent
+    ax.set_xlim(lon_extent)
+    ax.set_ylim(lat_extent)
+
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax, orientation='vertical', shrink=0.8, pad=0.02)
+    cbar.set_label(f"{label} {units}", fontsize=12)
+    cbar.ax.tick_params(labelsize=10)
+
+    # Add borders
+    ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+
+    plt.tight_layout()
+
+    # Save file if requested
+    if save_file:
+        time_str_file = time_pd.strftime("%Y%m%d_%H%M")
+        filename = f"{variable}_{model_name}_single_{extent_name}_{time_str_file}.png"
+
+        # Create directory if it doesn't exist
+        plots_dir = os.path.join(confg.dir_PLOTS, "temperature_wind")
+        os.makedirs(plots_dir, exist_ok=True)
+
+        filepath = os.path.join(plots_dir, filename)
+
+        # Delete existing file if it exists to ensure clean overwrite
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        plt.savefig(filepath, dpi=300, bbox_inches='tight')
+        print(f"✓ Saved: {filename}")
+
+    return fig, ax
+
+
 def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_extent, figsize, contour_line_dist,
         extent_name="detail", variables_to_plot=None, barb_length=None, step=2):
     """
@@ -482,17 +594,17 @@ def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_ex
 
 if __name__ == "__main__":
     # Choose which plots to create (similar to plot_heat_fluxes.py):
-    create_orig_hf_plots = True  # extent of original heat flux plots (around Ibk)
-    create_wipp_detail_plots = False  # Detailed Wipp Valley region
+    create_orig_hf_plots = False  # extent of original heat flux plots (around Ibk)
+    create_wipp_detail_plots = True  # Detailed Wipp Valley region
     create_valley_exit_detail = False  # Specific detail plots for the valley exit region
-    create_ziller_detail_plots = True  # Detailed Zillertal region
+    create_ziller_detail_plots = False  # Detailed Zillertal region
 
     # Data saving options
     save_data_to_timeseries = True  # Save data to timeseries folders
 
     # Variables to process and plot (as requested: ["th", "temp", "u", "v"])
     variables_to_process = ["th", "temp", "u", "v", "z"]  # z needed for terrain contours
-    variables_to_plot = ["temp"]  # Plot temperature with wind barbs
+    variables_to_plot = ["th"]  # Plot temperature with wind barbs
 
     # Create time range
     times = make_times(start_day=15, start_hour=14, start_minute=0, end_day=16, end_hour=12, end_minute=0, freq="2h")
@@ -539,7 +651,7 @@ if __name__ == "__main__":
         plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times, lon_extent=confg.lon_wipp_extent,
                                            lat_extent=confg.lat_wipp_extent, figsize=(8, 8), contour_line_dist=100,
                                            extent_name="_wipp_valley", variables_to_plot=variables_to_plot,
-                                           barb_length=3, step=2)
+                                           barb_length=2.3, step=1)
 
     if create_valley_exit_detail:
         # from Achensee till Zell am See and Jenbach till Rosenheim
@@ -555,6 +667,22 @@ if __name__ == "__main__":
                                            figsize=(8, 8), contour_line_dist=100, extent_name="_ziller_valley",
                                            variables_to_plot=variables_to_plot, barb_length=3, step=1)
 
+    # EXAMPLE: Plot a single timestamp for a specific region (uncomment to use)
+    """
+    plot_single_timestamp(
+        model_dataset=model_datasets["AROME"],  # Choose model: "AROME", "WRF", "ICON", "ICON2TE", "UM"
+        time=times[5],  # Select a specific time from the times array
+        model_name="AROME",
+        variable="th",  # or "temp"
+        lon_extent=confg.lon_wipp_extent,  # Choose region extent
+        lat_extent=confg.lat_wipp_extent,
+        figsize=(12, 10),  # Larger figure for single plot
+        contour_line_dist=100,
+        barb_length=5,  # Larger barbs for single plot
+        step=2,
+        extent_name="wipp_valley",
+        save_file=True)
+    """
 
     print("\n" + "=" * 70)
     print("Temperature and wind plotting completed!")

@@ -46,7 +46,7 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rh", "rho"]):
             ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                  description="wind direction calced from u & v using MetPy")
     except Exception as e:
-        print(f"  ✗ Error calculating wind speed/direction: {e}")
+        print(f"  ✗ Error/or not needed to calculate wind speed/direction: {e}")
 
     # Convert pressure from Pa to hPa
     try:
