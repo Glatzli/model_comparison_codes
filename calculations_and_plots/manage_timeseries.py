@@ -193,12 +193,7 @@ def load_or_read_timeseries(model: str, point: dict, point_name: str, variables_
         height_as_z_coord: str = "above_terrain") -> xr.Dataset | None:
     """
     Load timeseries from saved file if it exists, otherwise read fresh data and save it.
-    
-    This function implements the core logic for efficient data loading:
-    1. Check if saved timeseries file exists
-    2. If yes: load from file
-    3. If no: read fresh data from model output and save for future use
-    
+
     Args:
         model: Name of the weather model (AROME, ICON, ICON2TE, UM, WRF)
         point: Dictionary with 'lat' and 'lon' keys
@@ -287,4 +282,4 @@ def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES, 
 
 if __name__ == "__main__":
     # Compute and save timeseries for all points and all models
-    compute_and_save_all_timeseries(point_names=confg.ALL_POINTS, height_as_z_coord="above_terrain")
+    compute_and_save_all_timeseries(point_names=confg.get_valley_points_only(), height_as_z_coord="direct")

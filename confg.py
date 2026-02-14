@@ -32,14 +32,13 @@ ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.3842
               "ibk_airport": {"name": "ibk airport", "lat": 47.26, "lon": 11.34, "height": 577},
               "hafelekar": {"name": "Hafelekar", "lat": 47.316, "lon": 11.383, "height": hafelekar_height},
               # 2279m, with 3 digits; moved from lat=47.315 to .316
-              "hohe_warte": {"name": "Hohe Warte", "lat": 47.302, "lon": 11.33, "height":2440},
+              "hohe_warte": {"name": "Hohe Warte", "lat": 47.302, "lon": 11.33, "height": 2440},
               # found by looking into model topos, highest point west of Hafelekar
               "brenner_saddle": {"name": "Brenner Saddle", "lat": 47.006, "lon": 11.507, "height": 1368},
-              "wipp_stafflach_steinach": {"name": "between Stafflach and Steinach", "lat": 47.072,
-                                          "lon": 11.485, "height": 1080},
-              "wipp_schoenberg_matrei": {"name": "between Schoenberg and Matrei", "lat": 47.13,
-                                         "lon": 11.45,"height": 1044},
-              # between Schönberg & Matrei
+              "wipp_stafflach_steinach": {"name": "between Stafflach and Steinach", "lat": 47.072, "lon": 11.485,
+                                          "height": 1080},
+              "wipp_schoenberg_matrei": {"name": "between Schoenberg and Matrei", "lat": 47.13, "lon": 11.45,
+                                         "height": 1044},  # between Schönberg & Matrei
               "wipp_schoenberg": {"name": "Schoenberg in Stubai", "lat": 47.187, "lon": 11.405, "height": 1012.5},
               # Schönberg im Stubaital, ACINN station would be at Ellbögen, but that's on the slope in models...
               "patsch_EC_south": {"name": "Patsch Pfaffenbichl", "lat": 47.209068, "lon": 11.411932, "height": 971.6},
@@ -77,9 +76,10 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
-VALLEY_POINTS = (["telfs", "ibk_villa", "ibk_uni", "ibk_airport", "brenner_saddle", "wipp_stafflach_steinach",
-                  "wipp_schoenberg_matrei", "wipp_schoenberg", "patsch_EC_south",
-                  "kochel", "woergl", "jenbach", "kufstein", "kiefersfelden", "rosenheim", "ziller_valley", "ziller_ried"])
+VALLEY_POINTS = (
+["telfs", "ibk_villa", "ibk_uni", "ibk_airport", "brenner_saddle", "wipp_stafflach_steinach", "wipp_schoenberg_matrei",
+ "wipp_schoenberg", "patsch_EC_south", "kochel", "woergl", "jenbach", "kufstein", "kiefersfelden", "rosenheim",
+ "ziller_valley", "ziller_ried"])
 MOUNTAIN_SLOPE_POINTS = ["hafelekar", "slope_north_patscherkofel", "ziller_ne_slope", "ziller_sw_slope"]
 
 
@@ -114,29 +114,25 @@ lon_min_vhd, lon_max_vhd = 10.8, 12  # 10.8, 12
 
 lat_min_topo, lat_max_topo = 47, 47.9
 lon_min_topo, lon_max_topo = 11, 12.4
-lat_min_cap_height, lat_max_cap_height = 47, 48.2
-lon_min_cap_height, lon_max_cap_height = 10.6, 13
+lat_cap_height_extent = (47, 48.2)
+lon_cap_height_extent = (10.6, 13)
 
 lat_min, lat_max = 46.5, 48.2
 lon_min, lon_max = 9.2, 13
 
 # -------------------------------------------------------------------------------------------------------------
 radiosonde_folder = os.path.join(data_folder, "Observations", "Radiosonde")
-radiosonde_csv = os.path.join(radiosonde_folder,
-                              "2017101603_bufr309052.csv")  # radiosonden aufstieg at innsbruck airport
-# deprecated: radiosonde_edited = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603.csv")  # calculated pot. temp & rho
-# from other vars
-radiosonde_dataset = os.path.join(radiosonde_folder,
-                                  "radiosonde_ibk_2017101603.nc")  # for same handling for plots & calcs  save
-# Radiosonde as dataset
-# radiosonde_dataset_height_as_z = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603_height_as_z.nc")  # deprecated,
-# use fct in réad_in_hatpro_radiosonde.py
-# only geopot. height instead of "height values"
+# rawdata: radiosonden aufstieg at innsbruck airport
+radiosonde_csv = os.path.join(radiosonde_folder, "2017101603_bufr309052.csv")
+# for same handling for plots & calcs  save Radiosonde as dataset
+radiosonde_dataset = os.path.join(radiosonde_folder, "radiosonde_ibk_2017101603.nc")
+# ATTENTION: to read radiosonde & HATPRO data consistent with model data:
+# use functions in read_in_hatpro_radiosonde.py to have geopot height as height coordinate!
+
 # deprecated? radiosonde_smoothed = os.path.join(radiosonde_folder, "radiosonde_ibk_smoothed.nc")
 
-all_model_topographies = os.path.join(model_folder, "AROME",
-                                      "all_model_topographies.nc")  # all topography-values extracted (lowest
-# lvl) of geopot. height + "hgt" - vars for AROME & WRF and put into one file
+# all topography-values extracted (lowest lvl) of geopot. height + "hgt" - vars for AROME & WRF and put into one file
+all_model_topographies = os.path.join(model_folder, "AROME", "all_model_topographies.nc")
 
 JSON_TIROL = os.path.join(data_folder, "Height", "gadm41_AUT_1.json")  # tirol json file
 DEMFILE_CLIP = os.path.join(data_folder, "Height", "dem_clipped.tif")  # dem file (höhe)
@@ -144,8 +140,8 @@ TIROL_DEMFILE = os.path.join(data_folder, "Height", "dem.tif")  # changed dem fi
 dem_smoothed = os.path.join(data_folder, "Height", "dem_smoothed.tif")
 filepath_arome_height = os.path.join(model_folder, "AROME", "AROME_TEAMx_CAP_3D_fields",
                                      "AROME_Geosphere_20171015T1200Z_CAP02_3D_30min_1km_best_z.nc")
-dem_file_hobos_extent = os.path.join(data_folder, "Height",
-                                     "dem_cut_hobos.tif")  # created DEM (in model_topography) to see real
+# created DEM (in model_topography) to see real
+dem_file_hobos_extent = os.path.join(data_folder, "Height", "dem_cut_hobos.tif")
 # heights with HOBOS
 
 # ZAMG Datahub files
@@ -244,7 +240,9 @@ lidar_slxr142 = os.path.join(lidar_obs_folder, "SLXR142_vad_l2")
 lidar_sl88_merged_path = os.path.join(lidar_sl88, 'sl88_merged.nc')
 lidar_slxr142_merged_path = os.path.join(lidar_slxr142, 'slxr142_merged.nc')
 
-# HATPRO obs
+# ATTENTION: to read radiosonde & HATPRO data consistent with model data:
+# use functions in read_in_hatpro_radiosonde.py to have geopot height as height coordinate!
+# DON'T directly read .nc files if height a.m.s.l. is needed f.e.
 hatpro_folder = os.path.join(data_folder, "Observations", "HATPRO_obs")  # nicht vorhanden?
 hatpro_merged = os.path.join(hatpro_folder, "hatpro_merged.nc")  # + "hatpro_merged.nc"
 hatpro_smoothed = os.path.join(hatpro_folder, "hatpro_smoothed.nc")

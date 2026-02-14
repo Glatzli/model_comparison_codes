@@ -1,7 +1,8 @@
 """Read in the 3D ICON Model, re-written by Daniel
 evtl add variables to calc as in AROME
 
-
+geopotential height is on unstaggered grid but temp, pressure and everything else is on staggered grid
+vertical velocity w is also unstaggered, but not used in my analysis
 """
 import fix_win_DLL_loading_issue
 fix_win_DLL_loading_issue
@@ -18,7 +19,7 @@ import confg
 
 
 # 3 Mal ", dims=["height"] entfernt"
-def convert_calc_variables(ds, variables, vars_to_calculate=None):
+def convert_calc_variables(ds, variables, vars_to_calculate=["p", "th"]):
     """
     Converts and calculates meteorological variables for a xarray Dataset.
 
@@ -30,41 +31,46 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
     Returns:
     ds: xarray Dataset with added/converted variables.
     """
-    try:
-        if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
+    # Calculate wind speed and/or direction
+    if ("wspd" in vars_to_calculate) or ("udir" in vars_to_calculate):
+        try:
             u_wind = ds["u"].compute() * units("m/s")
             v_wind = ds["v"].compute() * units("m/s")
-            # Calculate wind speed and/or direction from u and v components
             ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
             ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
             ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
             ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                  description="wind direction calced from u & v using MetPy")
-    except Exception as e:
-        print(f"  ✗ Error calculating wind speed/direction: {e}")
-    try:
-        if "p" in variables:
-            # Convert pressure from Pa to hPa
+        except Exception as e:
+            print(f"  ✗ Error calculating wind speed/direction: {e}")
+
+    # Convert pressure from Pa to hPa
+    if "p" in variables:
+        try:
             ds['p'] = (ds['p'] / 100.0) * units.hPa
             ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
-    except Exception as e:
-        print(f"  ✗ Error calculating pressure: {e}")
-    try:
-        if "th" in variables:
-            # calc pot temp
+        except Exception as e:
+            print(f"  ✗ Error calculating pressure: {e}")
+
+    # Calculate potential temperature
+    if "th" in variables:
+        try:
             ds["th"] = mpcalc.potential_temperature(ds['p'], ds["temp"] * units.kelvin)
             ds["th"] = ds['th'].assign_attrs(units="K", description="potential temperature calced from p and temp")
-    except Exception as e:
-        print(f"  ✗ Error calculating potential temperature: {e}")
-    try:
-        if "temp" in variables:
-            # convert temp to °C
+        except Exception as e:
+            print(f"  ✗ Error calculating potential temperature: {e}")
+
+    # Convert temperature to °C
+    if "temp" in variables:
+        try:
             ds["temp"] = (ds["temp"] - 273.15) * units.degC
             ds["temp"] = ds['temp'].assign_attrs(units="degC", description="temperature")
-    except Exception as e:
-        print(f"  ✗ Error calculating temperature: {e}")
-    try:  # to check
-        if "Td" in variables:
+        except Exception as e:
+            print(f"  ✗ Error calculating temperature: {e}")
+
+    # Calculate dewpoint temperature
+    if "Td" in variables:
+        try:
             ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
                                                               specific_humidity=ds["q"] * units('kg/kg'))
             ds["Td"] = ds["Td"].assign_attrs(units="degC", description="Dewpoint temperature calculated from p and q "
@@ -72,8 +78,8 @@ def convert_calc_variables(ds, variables, vars_to_calculate=None):
             ds["Td_dep"] = ds.temp - ds.Td
             ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
                                                      description="Dewpoint temperature depression (temp - Td)")
-    except Exception as e:
-        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating dewpoint temperature: {e}")
 
     return ds.metpy.dequantify()  # remove units from the dataset
 

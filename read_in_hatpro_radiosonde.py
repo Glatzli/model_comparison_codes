@@ -20,6 +20,7 @@ all HATPRO functions are defined, then all radiosonde fcts
 (written by Daniel)
 """
 import fix_win_DLL_loading_issue
+
 fix_win_DLL_loading_issue
 import os
 import matplotlib.pyplot as plt
@@ -380,45 +381,33 @@ def read_radiosonde_dataset(height_as_z_coord: str | bool = "direct"):
         radiosonde dataset with geopot. height as z coordinate either amsl, above terrain or original height indices
     """
     radio = xr.open_dataset(confg.radiosonde_dataset)
-    # drops duplicate height lvls if any is there
-    radio = radio.drop_duplicates(dim="height", keep=False)
 
-    if height_as_z_coord == "direct":
+    if height_as_z_coord == "direct":  # set geopot height as z coordinate values
         radio["height"] = radio["z"]
         radio["height"] = radio["height"].assign_attrs(units="m", description="geopotential height amsl")
     elif height_as_z_coord == "above_terrain":
         radio["height"] = radio.z - radio.isel(height=0).z + 1
         radio["height"] = radio["height"].assign_attrs(units="m", description="geopotential height above terrain")
 
+    # drops duplicate height lvls if any is there
+    radio = radio.drop_duplicates(dim="height", keep="first")
+
     return radio.compute()
 
 
-def plot_height_levels(arome_heights, icon_heights, um_heights, wrf_heights, radio_heights, hatpro_heights=None):
+def read_hatpro_dataset(height_as_z_coord: str | bool = "direct"):
     """
-    plots the different geopot. height levels for all models incl. radiosonde & hatpro data, for
-    getting an overview which data should be interpolated onto which levels...
-    :param arome_heights:
-    :param icon_heights:
-    :param um_heights:
-    :param wrf_heights:
-    :param radio_heights:
-    :param hatpro_heights:
+    read in merged HATPRO dataset (temp & humidity) with height as z coordinate
+    :param filepath:
     :return:
     """
-    model_names = ['AROME', 'ICON', 'UM', 'WRF', 'Radiosonde', 'HATPRO']
-    height_arrays = [arome_heights, icon_heights, um_heights, wrf_heights, radio_heights, hatpro_heights]
-
-    plt.figure(figsize=(5, 8))
-    for i, heights in enumerate(height_arrays):
-        plt.plot([model_names[i]] * len(heights), heights, linestyle="None", label=model_names[i], ms=5, marker="_")
-
-    plt.ylabel('geopotential height [m]')
-    plt.ylim([500, 3000])
-    plt.title('vertical level comparison models & measurments')
-    plt.grid(True, axis='y')
-    plt.tight_layout()
-    plt.savefig(confg.dir_PLOTS + "model_infos_general/vertical_geopot_height_levels_comp.svg")
-    plt.show()
+    ds = xr.open_dataset(confg.hatpro_calced_vars)
+    if height_as_z_coord == "above_terrain":
+        ds["height"] = ds["height"].assign_attrs(units="m", description="height above terrain")
+    elif height_as_z_coord == "direct":  # in HATPROs' case it is not direct, but for models it a.m.s.l- is direct...
+        ds["height"] = ds["height"] + 612
+        ds["height"] = ds["height"].assign_attrs(units="m", description="height above m.s.l.")
+    return ds
 
 
 if __name__ == '__main__':
@@ -429,6 +418,7 @@ if __name__ == '__main__':
 
     # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
     hatpro = xr.open_dataset(confg.hatpro_merged)
+
     # deprecated?!
     # hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
     # hatpro_sel = hatpro_sel.resample(time="30min").mean()  # resample to 1/2 hourly timesteps(as in models)
@@ -437,12 +427,28 @@ if __name__ == '__main__':
 
     arome = xr.open_dataset(os.path.join(confg.dir_AROME, "timeseries", "arome_ibk_uni_timeseries_above_terrain.nc"))
     # read PCGP around HATPRO for comparing:
-    # Difficulty: AROME is for that gridpoint on 645 m, HATPRO on 612 m => ignore difference!
+    # Difficulty: AROME is for that gridpoint on 645 m, HATPRO on 612 m => ignore difference (pressure difference is
+    # only 3-4 hPa...)
 
     # run to interpolate HATPRO to AROME lvls and use AROME p to calc vars & save it:
-    hatpro_sel = interpolate_hatpro_arome(hatpro, arome)
-    hatpro_w_pressure = calc_vars_hatpro_w_pressure(ds=hatpro_sel)
-    hatpro_w_pressure.to_netcdf(confg.hatpro_calced_vars)
+    # hatpro_sel = interpolate_hatpro_arome(hatpro, arome)
+    # hatpro_w_pressure = calc_vars_hatpro_w_pressure(ds=hatpro_sel)
+    # hatpro_w_pressure.to_netcdf(confg.hatpro_calced_vars)
+
+    hatpro = read_hatpro_dataset(height_as_z_coord="direct")
+
+    # lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset
+    # radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to
+    # uniform units, drop not needed vars
+    # radio = calc_vars_radiosonde(df=radio_orig)  # calc pot temp, rho & q
+    # radio_ds = convert_to_dataset(radio)  # modify radiosonde data (calc th & rho) and save it as dataset
+    # radio_ds.to_netcdf(confg.radiosonde_dataset)  # save it as .nc file (dataset)
+
+    # read radisonde dataset with different height options:
+    radio = read_radiosonde_dataset(height_as_z_coord="above_terrain")
+    radio  # and then the radiosonde dataset can be used the same way as the model datasets
+
+
 
     # sensitivity test (probably won't work directly because some things changed...)
     # icon = xr.open_dataset(confg.icon_folder_3D + "/timeseries/" + "/icon_ibk_uni_timeseries_height_as_z.nc")
@@ -452,15 +458,3 @@ if __name__ == '__main__':
     # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],
     #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,  #  #  #  #  #
     #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)
-
-    # lines used for reading orig. radiosonde data & manipulating it, calcing th & rho and saving it as a dataset
-    radio_orig = read_radiosonde_csv(confg.radiosonde_csv)  # read in orignal radiosonde data and transform to
-    # uniform units, drop not needed vars
-
-    radio = calc_vars_radiosonde(df=radio_orig)  # calc pot temp, rho & q
-    radio_ds = convert_to_dataset(radio)  # modify radiosonde data (calc th & rho) and save it as dataset
-    radio_ds.to_netcdf(confg.radiosonde_dataset)  # save it as .nc file (dataset)
-
-    # read radisonde dataset with different height options:
-    radio = read_radiosonde_dataset(height_as_z_coord="above_terrain")
-    radio  # and then the radiosonde dataset can be used the same way as the model datasets

@@ -109,7 +109,7 @@ def plot_four_vertical_profiles(point_names: List[str], model: str = "AROME", ti
             # Load timeseries data directly
             print(f"    Loading data for {point_name}...")
             ds = load_or_read_timeseries(model=model, point=point, point_name=point_name, variables_list=variables,
-                                         height_as_z_coord="above_terrain")
+                                         height_as_z_coord="direct")
 
             if ds is None:
                 print(f"      Warning: Could not load timeseries for {model} at {point_name}")
@@ -156,23 +156,23 @@ def plot_four_vertical_profiles(point_names: List[str], model: str = "AROME", ti
             continue
 
     # Configure subplot 1 (Temperature & Humidity)
-    ax1.set_xlabel("Temperature [°C]" if temperature_var == "temp" else "Potential Temperature [K]", fontsize=11)
+    ax1.set_xlabel("Temperature [°C]" if temperature_var == "temp" else "Potential Temperature [K]", fontsize=12)
     ax1.set_xlim([285, 310])
-    ax1.set_ylabel("Height above terrain [m]", fontsize=11)
-    ax1.set_ylim([0, plot_max_height])
+    ax1.set_ylabel("Height above terrain [m]", fontsize=12)
+    ax1.set_ylim([600, plot_max_height])
     ax1.grid(True, alpha=0.3)
 
-    ax1_top.set_xlabel("Dewpoint Depression [°C]", fontsize=11)
+    ax1_top.set_xlabel("Dewpoint Depression [°C]", fontsize=12)
     ax1_top.set_xlim([0, 70])
-    ax1.legend(loc='upper left', fontsize=10)
+    ax1.legend(loc='upper left', fontsize=12)
 
     # Configure subplot 2 (Wind Speed & Direction)
     ax2.set_xlim([0, 10])
-    ax2.set_xlabel("Wind Speed [m/s]", fontsize=11)
-    ax2.set_ylim([0, plot_max_height])
+    ax2.set_xlabel("Wind Speed [m/s]", fontsize=12)
+    ax2.set_ylim([600, plot_max_height])
     ax2.grid(True, alpha=0.3)
 
-    ax2_top.set_xlabel("Wind Direction", fontsize=11)
+    ax2_top.set_xlabel("Wind Direction", fontsize=12)
     ax2_top.set_xlim([0, 360])
     ax2_top.set_xticks([0, 90, 180, 270, 360])
     ax2_top.set_xticklabels(["N", "E", "S", "W", "N"])
@@ -184,7 +184,7 @@ def plot_four_vertical_profiles(point_names: List[str], model: str = "AROME", ti
         formatted_ts = timestamp
 
     # Add overall title
-    fig.suptitle(f"{model} at {formatted_ts} UTC", fontsize=14)
+    fig.suptitle(f"{model} at {formatted_ts} UTC", fontsize=12)
     plt.tight_layout()
     return fig
 
@@ -198,16 +198,16 @@ if __name__ == "__main__":
     """
     # Configuration
     # List of point names to plot (now 4 points)
-    point_names = ["brenner_saddle", "wipp_schoenberg_matrei", "patsch_EC_south", "ibk_villa"]
+    point_names = ["brenner_saddle", "wipp_schoenberg_matrei", "patsch_EC_south", "ibk_uni"]
 
     # Which models to extract and compare
     models = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]  # Can be: AROME, ICON, ICON2TE, UM, WRF
 
     # Select timestamp once (ISO format)
-    timestamp = "2017-10-16T00:00:00"
+    timestamp = "2017-10-16T00:30:00"
 
     # Other parameters
-    plot_max_height = 1650  # m
+    plot_max_height = 2500  # m
     temperature_var = "th"  # "temp" or "th"
 
     # Save plot directory
@@ -229,8 +229,8 @@ if __name__ == "__main__":
                                               plot_max_height=plot_max_height, temperature_var=temperature_var)
 
             # Save plot
-            output_file = os.path.join(output_dir, f"brenner_cross_section_{model}_{ts_clean}.svg")
-            fig.savefig(output_file, bbox_inches='tight')
+            output_file = os.path.join(output_dir, f"brenner_cross_section_{model}_{ts_clean}.pdf")
+            fig.savefig(output_file, format="pdf", bbox_inches='tight')
             print(f"✓ Plot saved to: {output_file}")
 
             # Close figure to free memory

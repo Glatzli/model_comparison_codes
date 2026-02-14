@@ -122,64 +122,68 @@ def convert_calc_variables(ds, vars_to_calc=["temp", "rho"]):
       'pressure' in hPa and 'temperature' in degrees Celsius.
     """
     R_dryair = 287.05  # J / kgK
-    try:
-        if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+
+    # Calculate wind speed and/or direction
+    if ("wspd" in vars_to_calc) or ("udir" in vars_to_calc):
+        try:
             u_wind = ds["u"].compute() * units("m/s")
             v_wind = ds["v"].compute() * units("m/s")
-            # Calculate wind speed and/or direction from u and v components
             ds["wspd"] = mpcalc.wind_speed(u_wind, v_wind)
             ds["wspd"] = ds['wspd'].assign_attrs(units="m/s", description="wind speed calced from u & v using MetPy")
             ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
             ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                  description="wind direction calced from u & v using MetPy")
-    except Exception as e:
-        print(f"  ✗ Error calculating wind speed/direction: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating wind speed/direction: {e}")
 
-    try:
-        if "th" in ds:
+    # Process potential temperature
+    if "th" in ds:
+        try:
             # ds["th"] = ds["th"] + 300 # th is original the perturbation potential temp,
             # WRF user manual says https://www2.mmm.ucar.edu/wrf/users/wrf_users_guide/build/html/output.html
             ds["th"] = ds['th'].assign_attrs(units="K",
                                              description="potential temperature, calced from pert. pot. temp + 300K")
-    except Exception as e:
-        print(f"  ✗ Error processing potential temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error processing potential temperature: {e}")
 
-    try:
-        if "p" in ds:
-            # Convert pressure from Pa to hPa
+    # Convert pressure from Pa to hPa
+    if "p" in ds:
+        try:
             ds["p"] = (ds["p"] / 100) * units.hPa
             ds["p"] = ds["p"].assign_attrs(units="hPa", description="pressure")
-    except Exception as e:
-        print(f"  ✗ Error transforming pressure units: {e}")
+        except Exception as e:
+            print(f"  ✗ Error transforming pressure units: {e}")
 
-    try:
-        if "temp" in vars_to_calc:
-            # calculate temp in K
+    # Calculate temperature from potential temperature
+    if "temp" in vars_to_calc:
+        try:
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds['p'], ds["th"] * units("K"))
             ds["temp"] = ds["temp"].metpy.convert_units('degC')
             ds["temp"] = ds['temp'].assign_attrs(units="°C", description="temperature calculated from p and th (pot "
                                                                          "temp) using MetPy")
-    except Exception as e:
-        print(f"  ✗ Error calculating temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating temperature: {e}")
 
-    try:
-        if "rho" in vars_to_calc:
-            ds["rho"] = (ds["p"] * 100) / (R_dryair * ds[
-                "temp"])  # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
+    # Calculate air density using ideal gas law
+    if "rho" in vars_to_calc:
+        try:
+            ds["rho"] = (ds["p"].metpy.dequantify() * 100) / (R_dryair * (ds["temp"].metpy.dequantify() + 273.15))
+            # using ideal gas law: rho [kg/m^3] = p [Pa] / (R * T [K]) with R_dryair = 287.05 J/kgK
             ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
                                                description="air density, calced w R_dryair = 287.05 J/kgK")
-    except Exception as e:
-        print(f"  ✗ Error calculating density: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating density: {e}")
 
-    try:  # to check
-        if "Td" in vars_to_calc:
+    # Calculate dewpoint temperature
+    if "Td" in vars_to_calc:
+        try:
             ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
                                                               specific_humidity=ds["q"] * units('kg/kg'))
             ds["Td_dep"] = ds.temp - ds.Td
             ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
                                                      description="Dewpoint temperature depression (temp - Td)")
-    except Exception as e:
-        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating dewpoint temperature: {e}")
 
     # ds["rh"] = mpcalc.relative_humidity_from_mixing_ratio(ds["p"], ds["temperature"], ds["q_mixingratio"] * units(
     # "kg/kg")) * 100  # for percent

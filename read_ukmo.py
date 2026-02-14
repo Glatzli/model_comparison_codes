@@ -57,8 +57,8 @@ def convert_calc_variables(ds, vars_to_calc):  # , multiple_levels=True
     R_dryair = 287.05  # J/(kg*K), specific gas constant for dry air
 
     # Calculate wind speed and/or direction
-    try:
-        if "wspd" in vars_to_calc or "udir" in vars_to_calc:
+    if "wspd" in vars_to_calc or "udir" in vars_to_calc:
+        try:
             u_wind = ds["u"].compute() * units("m/s")  # somehow sometimes brought error if not computed before...
             v_wind = ds["v"].compute() * units("m/s")
             if "wspd" in vars_to_calc:
@@ -69,56 +69,56 @@ def convert_calc_variables(ds, vars_to_calc):  # , multiple_levels=True
                 ds["udir"] = mpcalc.wind_direction(u_wind, v_wind)
                 ds["udir"] = ds['udir'].assign_attrs(units="deg",
                                                      description="wind direction calced from u & v using MetPy")
-    except Exception as e:
-        print(f"  ✗ Error calculating wind speed/direction: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating wind speed/direction: {e}")
 
     # Convert pressure from Pa to hPa
-    try:
-        if "p" in ds:
+    if "p" in ds:
+        try:
             ds["p"] = (ds["p"].compute() / 100) * units("hPa")
             ds['p'] = ds['p'].assign_attrs(units="hPa", description="pressure")
-    except Exception as e:
-        print(f"  ✗ Error calculating pressure: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating pressure: {e}")
 
     # Calculate temperature from potential temperature
-    try:
-        if "temp" in vars_to_calc:
+    if "temp" in vars_to_calc:
+        try:
             ds["temp"] = mpcalc.temperature_from_potential_temperature(ds["p"], ds["th"] * units("K"))
             ds["temp"] = ds["temp"].metpy.convert_units('degC')
             ds["temp"] = ds['temp'].assign_attrs(units="degC",
                                                  description="temperature calced from p & th (pot temp) using MetPy")
-    except Exception as e:
-        print(f"  ✗ Error calculating temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating temperature: {e}")
 
     # Calculate air density using ideal gas law
-    try:
-        if "rho" in vars_to_calc:
-            # rho [kg/m^3] = p [Pa] / (R * T [K])
-            ds["rho"] = (ds["p"] * 100) / (R_dryair * ds["temp"])
+    if "rho" in vars_to_calc:
+        try:
+            # rho [kg/m^3] = p [Pa] / (R * T [K]); units: that is not beautiful but error-robust
+            ds["rho"] = (ds["p"].metpy.dequantify() * 100) / (R_dryair * (ds["temp"].metpy.dequantify() + 273.15))
             ds["rho"] = ds['rho'].assign_attrs(units="kg/m^3",
                                                description=f"air density calced from p & temp using ideal gas law (R_dry = {R_dryair} J/(kg*K))")
-    except Exception as e:
-        print(f"  ✗ Error calculating density: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating density: {e}")
 
     # Calculate relative humidity; not used...
-    try:
-        if "rh" in vars_to_calc:
+    if "rh" in vars_to_calc:
+        try:
             ds['rh'] = mpcalc.relative_humidity_from_specific_humidity(ds['p'], ds["temp"], ds['q'] * units(
                 "kg/kg")) * 100  # convert to percent
             ds['rh'] = ds['rh'].assign_attrs(units="%", description="relative humidity calced from p, temp & q")
-    except Exception as e:
-        print(f"  ✗ Error calculating relative humidity: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating relative humidity: {e}")
 
     # Calculate dewpoint temperature & dewpoint depression
-    try:
-        if "Td" in vars_to_calc:
+    if "Td" in vars_to_calc:
+        try:
             ds["Td"] = mpcalc.dewpoint_from_specific_humidity(pressure=ds["p"],
                                                               specific_humidity=ds["q"] * units("kg/kg"))
             ds["Td_dep"] = ds.temp - ds.Td
             ds["Td_dep"] = ds["Td_dep"].assign_attrs(units="degC",
                                                      description="Dewpoint temperature depression (temp - Td)")
-    except Exception as e:
-        print(f"  ✗ Error calculating dewpoint temperature: {e}")
+        except Exception as e:
+            print(f"  ✗ Error calculating dewpoint temperature: {e}")
 
     # Dequantify metpy units
     ds = ds.metpy.dequantify()

@@ -911,7 +911,7 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
 
     # Get data
     data = topo_data[model_key]
-    data = data.sel(lat=slice(lat_extent[0] - 0.01, lat_extent[1] + 0.01),  # subset data, to have smaller .svg-files...
+    data = data.sel(lat=slice(lat_extent[0] - 0.01, lat_extent[1] + 0.01),  # subset data, to have smaller .pdf-files...
                     lon=slice(lon_extent[0] - 0.01, lon_extent[1] + 0.01))
 
     # Create plot
@@ -946,14 +946,16 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
     cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
     cbar.set_label('Height [m]', fontsize=12)
+    # plt.grid(False)  # deactivate grid
     plt.xlabel("")
     plt.ylabel("")
+    # plt.tight_layout()
 
     # Save figure
     if save_path:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path)
+        plt.savefig(save_path, bbox_inches='tight')
         print(f"\n✓ Figure saved to: {save_path}")
 
     return fig, ax
@@ -989,7 +991,7 @@ def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int =
 
     # Create save path
     model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '').lower()
-    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_" + extent_name + ".svg")
+    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_" + extent_name + ".pdf")
 
     # Create plot
     fig, ax = plot_single_model_topography(topo_data, model_key=model_key, save_path=save_path,

@@ -232,7 +232,7 @@ def plot_all_heat_budget_timeseries(point_names=None):
 if __name__ == '__main__':
     # Example: Plot for a subset of valley points
     # You can change this to confg.VALLEY_POINTS or specific point names
-    points_to_plot = ["ibk_uni", "ibk_airport", "kufstein", "jenbach", "hafelekar", "hohe_warte"]  #
+    points_to_plot = ["patsch_EC_south"]  # "ibk_uni", "ibk_airport", "kufstein", "jenbach", "hafelekar", "hohe_warte",
 
     # Or use all points:
     # points_to_plot = None

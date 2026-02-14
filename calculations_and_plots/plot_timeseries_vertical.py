@@ -163,9 +163,9 @@ def plot_pot_temp_time_contours(pot_temp, wind_u=None, wind_v=None, model="AROME
     vertical_timeseries_dir = os.path.join(confg.dir_PLOTS, "vertical_timeseries")
     os.makedirs(vertical_timeseries_dir, exist_ok=True)
 
-    # Save the figure as SVG with improved error handling
+    # Save the figure as pdf with improved error handling
     output_path = os.path.join(vertical_timeseries_dir,
-                               f"{point_name}_{model}_pot_temp_timeseries_{interface_height}m.svg")
+                               f"{point_name}_{model}_pot_temp_timeseries_{interface_height}m.pdf")
 
     try:
         # Close existing file if it exists and might be locked
@@ -175,7 +175,7 @@ def plot_pot_temp_time_contours(pot_temp, wind_u=None, wind_v=None, model="AROME
             except PermissionError:
                 print(f"  Warning: Could not remove existing file {output_path}. File may be open in another program.")
 
-        plt.savefig(output_path, format='svg', bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.savefig(output_path, format='pdf', bbox_inches='tight', facecolor='white', edgecolor='none')
         print(f"  Saved: {output_path}")
     except Exception as e:
         print(f"  Error saving plot to {output_path}: {e}")
@@ -246,9 +246,9 @@ def plot_dewpoint_depression_time_contours(td_dep, pot_temp, wind_u=None, wind_v
     vertical_timeseries_dir = os.path.join(confg.dir_PLOTS, "vertical_timeseries")
     os.makedirs(vertical_timeseries_dir, exist_ok=True)
 
-    # Save the figure as SVG with improved error handling
+    # Save the figure as pdf with improved error handling
     output_path = os.path.join(vertical_timeseries_dir,
-                               f"{point_name}_{model}_dewpoint_depression_timeseries_{interface_height}m.svg")
+                               f"{point_name}_{model}_dewpoint_depression_timeseries_{interface_height}m.pdf")
 
     try:
         # Close existing file if it exists and might be locked
@@ -258,7 +258,7 @@ def plot_dewpoint_depression_time_contours(td_dep, pot_temp, wind_u=None, wind_v
             except PermissionError:
                 print(f"  Warning: Could not remove existing file {output_path}. File may be open in another program.")
 
-        plt.savefig(output_path, format='svg', bbox_inches='tight', facecolor='white', edgecolor='none')
+        plt.savefig(output_path, format='pdf', bbox_inches='tight', facecolor='white', edgecolor='none')
         print(f"  Saved: {output_path}")
     except Exception as e:
         print(f"  Error saving plot to {output_path}: {e}")
@@ -420,7 +420,8 @@ def plot_models_and_measurements(point_name="ibk_uni", interface_height=2500, mo
 
 if __name__ == '__main__':
     # points to plot:
-    point_names = ["ibk_uni"] # "telfs", "ziller_ried", "jenbach",  # "woergl", "rosenheim"  , "ibk_airport",
+    point_names = confg.get_valley_points_only()  # ["ibk_uni"] # "telfs", "ziller_ried", "jenbach",  # "woergl",
+    # "rosenheim"  , "ibk_airport",
     # "jenbach", "woergl", "hafelekar"
     interface_height = 1650  # default y limit for plots
 

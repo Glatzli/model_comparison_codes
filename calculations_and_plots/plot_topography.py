@@ -285,7 +285,7 @@ def plot_stations_and_AROME_height_filled(df, model_name, ext_lat, ext_lon, ext_
     ax.add_artist(scalebar)
     
     plt.tight_layout()
-    plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_filled.svg")
+    plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_filled.pdf")
 
 
 def plot_stations_detail(df, model_name, ext_lat, ext_lon):
@@ -376,7 +376,7 @@ def plot_stations_detail(df, model_name, ext_lat, ext_lon):
               bbox_to_anchor=(-0.1, 1))
     #  labels=["EC station", "LIDAR", "Radiosonde", "AWS", "T/RH Logger", ""]
     plt.tight_layout()
-    plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_detail.svg")
+    plt.savefig(f"{dir_PLOTS}topography_plots/contour_{model_name}_detail.pdf")
 
 
 def plot_lidar_and_Modelgrid_points(dataset, model_name, ext_lat, ext_lon):
