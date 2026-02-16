@@ -1,6 +1,361 @@
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
 GOAL: till end of the year/mid Jan 1. draft of full thesis!
+NEW GOAL: first draft as soon as realistically possible...
+
+Creating VHD plots for 17 valley points
+======================================================================
+
+[1/17] Processing: ibk villa (ibk_villa)
+Location: 47.260°N, 11.384°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at ibk villa...
+  Loading AROME from saved timeseries: arome_ibk_villa_timeseries_direct.nc
+Point AROME HAF height = 2230.487060546875 m
+Loading/calculating VHD for ICON at ibk villa...
+  Loading ICON from saved timeseries: icon_ibk_villa_timeseries_direct.nc
+Point ICON HAF height = 2146.096923828125 m
+Loading/calculating VHD for ICON2TE at ibk villa...
+  Loading ICON2TE from saved timeseries: icon2te_ibk_villa_timeseries_direct.nc
+Point ICON2TE HAF height = 2146.096923828125 m
+Loading/calculating VHD for UM at ibk villa...
+  Loading UM from saved timeseries: um_ibk_villa_timeseries_direct.nc
+Point UM HAF height = 2118.859375 m
+Loading/calculating VHD for WRF at ibk villa...
+  Loading WRF from saved timeseries: wrf_ibk_villa_timeseries_direct.nc
+Point WRF HAF height = 2130.05712890625 m
+Adding observational data (HATPRO)...
+Point HATPRO HAF height = 2245 m
+Point radio HAF height = 2276 m
+  ✓ Comparison plot saved: vhd_model_comp_ibk villa_above_terrain.pdf
+
+[2/17] Processing: ibk uni (ibk_uni)
+Location: 47.264°N, 11.385°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at ibk uni...
+  Loading AROME from saved timeseries: arome_ibk_uni_timeseries_direct.nc
+Point AROME HAF height = 2253.736572265625 m
+Loading/calculating VHD for ICON at ibk uni...
+  Loading ICON from saved timeseries: icon_ibk_uni_timeseries_direct.nc
+Point ICON HAF height = 2146.096923828125 m
+Loading/calculating VHD for ICON2TE at ibk uni...
+  Loading ICON2TE from saved timeseries: icon2te_ibk_uni_timeseries_direct.nc
+Point ICON2TE HAF height = 2146.096923828125 m
+Loading/calculating VHD for UM at ibk uni...
+  Loading UM from saved timeseries: um_ibk_uni_timeseries_direct.nc
+Point UM HAF height = 2118.859375 m
+Loading/calculating VHD for WRF at ibk uni...
+  Loading WRF from saved timeseries: wrf_ibk_uni_timeseries_direct.nc
+Point WRF HAF height = 2118.91162109375 m
+Adding observational data (HATPRO)...
+Point HATPRO HAF height = 2245 m
+Point radio HAF height = 2276 m
+  ✓ Comparison plot saved: vhd_model_comp_ibk uni_above_terrain.pdf
+
+[3/17] Processing: ibk airport (ibk_airport)
+Location: 47.260°N, 11.340°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at ibk airport...
+  Loading AROME from saved timeseries: arome_ibk_airport_timeseries_direct.nc
+Point AROME HAF height = 2233.34228515625 m
+Loading/calculating VHD for ICON at ibk airport...
+  Loading ICON from saved timeseries: icon_ibk_airport_timeseries_direct.nc
+Point ICON HAF height = 2142.67333984375 m
+Loading/calculating VHD for ICON2TE at ibk airport...
+  Loading ICON2TE from saved timeseries: icon2te_ibk_airport_timeseries_direct.nc
+Point ICON2TE HAF height = 2142.67333984375 m
+Loading/calculating VHD for UM at ibk airport...
+  Loading UM from saved timeseries: um_ibk_airport_timeseries_direct.nc
+Point UM HAF height = 2111.18798828125 m
+Loading/calculating VHD for WRF at ibk airport...
+  Loading WRF from saved timeseries: wrf_ibk_airport_timeseries_direct.nc
+Point WRF HAF height = 2097.707763671875 m
+Adding observational data (HATPRO)...
+Point HATPRO HAF height = 2245 m
+Point radio HAF height = 2276 m
+  ✓ Comparison plot saved: vhd_model_comp_ibk airport_above_terrain.pdf
+
+[4/17] Processing: Brenner Saddle (brenner_saddle)
+Location: 47.006°N, 11.507°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Brenner Saddle...
+  Loading AROME from saved timeseries: arome_brenner_saddle_timeseries_direct.nc
+Point AROME HAF height = 3075.933837890625 m
+Loading/calculating VHD for ICON at Brenner Saddle...
+  Loading ICON from saved timeseries: icon_brenner_saddle_timeseries_direct.nc
+Point ICON HAF height = 2816.85791015625 m
+Loading/calculating VHD for ICON2TE at Brenner Saddle...
+  Loading ICON2TE from saved timeseries: icon2te_brenner_saddle_timeseries_direct.nc
+Point ICON2TE HAF height = 2816.85791015625 m
+Loading/calculating VHD for UM at Brenner Saddle...
+  Loading UM from saved timeseries: um_brenner_saddle_timeseries_direct.nc
+Point UM HAF height = 3048.984619140625 m
+Loading/calculating VHD for WRF at Brenner Saddle...
+  Loading WRF from saved timeseries: wrf_brenner_saddle_timeseries_direct.nc
+Point WRF HAF height = 2966.189453125 m
+  ✓ Comparison plot saved: vhd_model_comp_Brenner Saddle_above_terrain.pdf
+
+[5/17] Processing: between Stafflach and Steinach (wipp_stafflach_steinach)
+Location: 47.072°N, 11.485°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at between Stafflach and Steinach...
+  Loading AROME from saved timeseries: arome_wipp_stafflach_steinach_timeseries_direct.nc
+Point AROME HAF height = 2844.56005859375 m
+Loading/calculating VHD for ICON at between Stafflach and Steinach...
+  Loading ICON from saved timeseries: icon_wipp_stafflach_steinach_timeseries_direct.nc
+Point ICON HAF height = 2738.96337890625 m
+Loading/calculating VHD for ICON2TE at between Stafflach and Steinach...
+  Loading ICON2TE from saved timeseries: icon2te_wipp_stafflach_steinach_timeseries_direct.nc
+Point ICON2TE HAF height = 2738.96337890625 m
+Loading/calculating VHD for UM at between Stafflach and Steinach...
+  Loading UM from saved timeseries: um_wipp_stafflach_steinach_timeseries_direct.nc
+Point UM HAF height = 2910.05517578125 m
+Loading/calculating VHD for WRF at between Stafflach and Steinach...
+  Loading WRF from saved timeseries: wrf_wipp_stafflach_steinach_timeseries_direct.nc
+Point WRF HAF height = 2963.84814453125 m
+  ✗ Error processing wipp_stafflach_steinach: [Errno 13] Permission denied: 'D:\\MSc_Arbeit\\plots\\vhd_plots\\vhd_model_comp_between_Stafflach_and_Steinach_direct.pdf'
+
+[6/17] Processing: between Schoenberg and Matrei (wipp_schoenberg_matrei)
+Location: 47.130°N, 11.450°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at between Schoenberg and Matrei...
+  Loading AROME from saved timeseries: arome_wipp_schoenberg_matrei_timeseries_direct.nc
+Point AROME HAF height = 2676.918701171875 m
+Loading/calculating VHD for ICON at between Schoenberg and Matrei...
+  Loading ICON from saved timeseries: icon_wipp_schoenberg_matrei_timeseries_direct.nc
+Point ICON HAF height = 2496.9189453125 m
+Loading/calculating VHD for ICON2TE at between Schoenberg and Matrei...
+  Loading ICON2TE from saved timeseries: icon2te_wipp_schoenberg_matrei_timeseries_direct.nc
+Point ICON2TE HAF height = 2496.9189453125 m
+Loading/calculating VHD for UM at between Schoenberg and Matrei...
+  Loading UM from saved timeseries: um_wipp_schoenberg_matrei_timeseries_direct.nc
+Point UM HAF height = 2542.155029296875 m
+Loading/calculating VHD for WRF at between Schoenberg and Matrei...
+  Loading WRF from saved timeseries: wrf_wipp_schoenberg_matrei_timeseries_direct.nc
+Point WRF HAF height = 2563.40869140625 m
+  ✓ Comparison plot saved: vhd_model_comp_between Schoenberg and Matrei_above_terrain.pdf
+
+[7/17] Processing: Schoenberg in Stubai (wipp_schoenberg)
+Location: 47.187°N, 11.405°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Schoenberg in Stubai...
+  Loading AROME from saved timeseries: arome_wipp_schoenberg_timeseries_direct.nc
+Point AROME HAF height = 2430.555419921875 m
+Loading/calculating VHD for ICON at Schoenberg in Stubai...
+  Loading ICON from saved timeseries: icon_wipp_schoenberg_timeseries_direct.nc
+Point ICON HAF height = 2351.34716796875 m
+Loading/calculating VHD for ICON2TE at Schoenberg in Stubai...
+  Loading ICON2TE from saved timeseries: icon2te_wipp_schoenberg_timeseries_direct.nc
+Point ICON2TE HAF height = 2351.34716796875 m
+Loading/calculating VHD for UM at Schoenberg in Stubai...
+  Loading UM from saved timeseries: um_wipp_schoenberg_timeseries_direct.nc
+Point UM HAF height = 2376.5341796875 m
+Loading/calculating VHD for WRF at Schoenberg in Stubai...
+  Loading WRF from saved timeseries: wrf_wipp_schoenberg_timeseries_direct.nc
+Point WRF HAF height = 2376.54443359375 m
+  ✓ Comparison plot saved: vhd_model_comp_Schoenberg in Stubai_above_terrain.pdf
+
+[8/17] Processing: Patsch Pfaffenbichl (patsch_EC_south)
+Location: 47.209°N, 11.412°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Patsch Pfaffenbichl...
+  Loading AROME from saved timeseries: arome_patsch_EC_south_timeseries_direct.nc
+Point AROME HAF height = 2453.702880859375 m
+Loading/calculating VHD for ICON at Patsch Pfaffenbichl...
+  Loading ICON from saved timeseries: icon_patsch_EC_south_timeseries_direct.nc
+Point ICON HAF height = 2298.448486328125 m
+Loading/calculating VHD for ICON2TE at Patsch Pfaffenbichl...
+  Loading ICON2TE from saved timeseries: icon2te_patsch_EC_south_timeseries_direct.nc
+Point ICON2TE HAF height = 2298.448486328125 m
+Loading/calculating VHD for UM at Patsch Pfaffenbichl...
+  Loading UM from saved timeseries: um_patsch_EC_south_timeseries_direct.nc
+Point UM HAF height = 2321.4130859375 m
+Loading/calculating VHD for WRF at Patsch Pfaffenbichl...
+  Loading WRF from saved timeseries: wrf_patsch_EC_south_timeseries_direct.nc
+Point WRF HAF height = 2330.260009765625 m
+  ✓ Comparison plot saved: vhd_model_comp_Patsch Pfaffenbichl_above_terrain.pdf
+
+[9/17] Processing: Kochel (kochel)
+Location: 47.670°N, 11.350°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Kochel...
+  Loading AROME from saved timeseries: arome_kochel_timeseries_direct.nc
+Point AROME HAF height = 2222.43115234375 m
+Loading/calculating VHD for ICON at Kochel...
+  Loading ICON from saved timeseries: icon_kochel_timeseries_direct.nc
+Point ICON HAF height = 2099.816650390625 m
+Loading/calculating VHD for ICON2TE at Kochel...
+  Loading ICON2TE from saved timeseries: icon2te_kochel_timeseries_direct.nc
+Point ICON2TE HAF height = 2099.816650390625 m
+Loading/calculating VHD for UM at Kochel...
+  Loading UM from saved timeseries: um_kochel_timeseries_direct.nc
+Point UM HAF height = 2100.049560546875 m
+Loading/calculating VHD for WRF at Kochel...
+  Loading WRF from saved timeseries: wrf_kochel_timeseries_direct.nc
+Point WRF HAF height = 2101.24609375 m
+  ✓ Comparison plot saved: vhd_model_comp_Kochel_above_terrain.pdf
+
+[10/17] Processing: Woergl (woergl)
+Location: 47.494°N, 12.059°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Woergl...
+  Loading AROME from saved timeseries: arome_woergl_timeseries_direct.nc
+Point AROME HAF height = 2101.390869140625 m
+Loading/calculating VHD for ICON at Woergl...
+  Loading ICON from saved timeseries: icon_woergl_timeseries_direct.nc
+Point ICON HAF height = 2061.69287109375 m
+Loading/calculating VHD for ICON2TE at Woergl...
+  Loading ICON2TE from saved timeseries: icon2te_woergl_timeseries_direct.nc
+Point ICON2TE HAF height = 2061.69287109375 m
+Loading/calculating VHD for UM at Woergl...
+  Loading UM from saved timeseries: um_woergl_timeseries_direct.nc
+Point UM HAF height = 2052.778564453125 m
+Loading/calculating VHD for WRF at Woergl...
+  Loading WRF from saved timeseries: wrf_woergl_timeseries_direct.nc
+Point WRF HAF height = 2046.111083984375 m
+  ✓ Comparison plot saved: vhd_model_comp_Woergl_above_terrain.pdf
+
+[11/17] Processing: Jenbach (jenbach)
+Location: 47.389°N, 11.758°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Jenbach...
+  Loading AROME from saved timeseries: arome_jenbach_timeseries_direct.nc
+Point AROME HAF height = 2444.933349609375 m
+Loading/calculating VHD for ICON at Jenbach...
+  Loading ICON from saved timeseries: icon_jenbach_timeseries_direct.nc
+Point ICON HAF height = 2193.673583984375 m
+Loading/calculating VHD for ICON2TE at Jenbach...
+  Loading ICON2TE from saved timeseries: icon2te_jenbach_timeseries_direct.nc
+Point ICON2TE HAF height = 2193.673583984375 m
+Loading/calculating VHD for UM at Jenbach...
+  Loading UM from saved timeseries: um_jenbach_timeseries_direct.nc
+Point UM HAF height = 2197.921630859375 m
+Loading/calculating VHD for WRF at Jenbach...
+  Loading WRF from saved timeseries: wrf_jenbach_timeseries_direct.nc
+Point WRF HAF height = 2203.79541015625 m
+  ✗ Error processing jenbach: [Errno 13] Permission denied: 'D:\\MSc_Arbeit\\plots\\vhd_plots\\vhd_model_comp_Jenbach_direct.pdf'
+
+[12/17] Processing: Kufstein (kufstein)
+Location: 47.575°N, 12.163°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Kufstein...
+  Loading AROME from saved timeseries: arome_kufstein_timeseries_direct.nc
+Point AROME HAF height = 2160.126708984375 m
+Loading/calculating VHD for ICON at Kufstein...
+  Loading ICON from saved timeseries: icon_kufstein_timeseries_direct.nc
+Point ICON HAF height = 2051.54345703125 m
+Loading/calculating VHD for ICON2TE at Kufstein...
+  Loading ICON2TE from saved timeseries: icon2te_kufstein_timeseries_direct.nc
+Point ICON2TE HAF height = 2051.54345703125 m
+Loading/calculating VHD for UM at Kufstein...
+  Loading UM from saved timeseries: um_kufstein_timeseries_direct.nc
+Point UM HAF height = 2123.3447265625 m
+Loading/calculating VHD for WRF at Kufstein...
+  Loading WRF from saved timeseries: wrf_kufstein_timeseries_direct.nc
+Point WRF HAF height = 2135.41259765625 m
+  ✓ Comparison plot saved: vhd_model_comp_Kufstein_above_terrain.pdf
+
+[13/17] Processing: kiefersfelden (kiefersfelden)
+Location: 47.620°N, 12.200°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at kiefersfelden...
+  Loading AROME from saved timeseries: arome_kiefersfelden_timeseries_direct.nc
+Point AROME HAF height = 2077.733642578125 m
+Loading/calculating VHD for ICON at kiefersfelden...
+  Loading ICON from saved timeseries: icon_kiefersfelden_timeseries_direct.nc
+Point ICON HAF height = 2207.7578125 m
+Loading/calculating VHD for ICON2TE at kiefersfelden...
+  Loading ICON2TE from saved timeseries: icon2te_kiefersfelden_timeseries_direct.nc
+Point ICON2TE HAF height = 2207.7578125 m
+Loading/calculating VHD for UM at kiefersfelden...
+  Loading UM from saved timeseries: um_kiefersfelden_timeseries_direct.nc
+Point UM HAF height = 2064.38916015625 m
+Loading/calculating VHD for WRF at kiefersfelden...
+  Loading WRF from saved timeseries: wrf_kiefersfelden_timeseries_direct.nc
+Point WRF HAF height = 2023.2216796875 m
+  ✗ Error processing kiefersfelden: [Errno 13] Permission denied: 'D:\\MSc_Arbeit\\plots\\vhd_plots\\vhd_model_comp_kiefersfelden_direct.pdf'
+
+[14/17] Processing: Rosenheim (rosenheim)
+Location: 47.867°N, 12.133°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Rosenheim...
+  Loading AROME from saved timeseries: arome_rosenheim_timeseries_direct.nc
+Point AROME HAF height = 2055.605712890625 m
+Loading/calculating VHD for ICON at Rosenheim...
+  Loading ICON from saved timeseries: icon_rosenheim_timeseries_direct.nc
+Point ICON HAF height = 1972.21826171875 m
+Loading/calculating VHD for ICON2TE at Rosenheim...
+  Loading ICON2TE from saved timeseries: icon2te_rosenheim_timeseries_direct.nc
+Point ICON2TE HAF height = 1972.21826171875 m
+Loading/calculating VHD for UM at Rosenheim...
+  Loading UM from saved timeseries: um_rosenheim_timeseries_direct.nc
+Point UM HAF height = 1972.9503173828125 m
+Loading/calculating VHD for WRF at Rosenheim...
+  Loading WRF from saved timeseries: wrf_rosenheim_timeseries_direct.nc
+Point WRF HAF height = 1965.8740234375 m
+  ✓ Comparison plot saved: vhd_model_comp_Rosenheim_above_terrain.pdf
+
+[15/17] Processing: Telfs (telfs)
+Location: 47.300°N, 11.100°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at Telfs...
+  Loading AROME from saved timeseries: arome_telfs_timeseries_direct.nc
+Point AROME HAF height = 2264.74951171875 m
+Loading/calculating VHD for ICON at Telfs...
+  Loading ICON from saved timeseries: icon_telfs_timeseries_direct.nc
+Point ICON HAF height = 2227.82763671875 m
+Loading/calculating VHD for ICON2TE at Telfs...
+  Loading ICON2TE from saved timeseries: icon2te_telfs_timeseries_direct.nc
+Point ICON2TE HAF height = 2227.82763671875 m
+Loading/calculating VHD for UM at Telfs...
+  Loading UM from saved timeseries: um_telfs_timeseries_direct.nc
+Point UM HAF height = 2230.506103515625 m
+Loading/calculating VHD for WRF at Telfs...
+  Loading WRF from saved timeseries: wrf_telfs_timeseries_direct.nc
+Point WRF HAF height = 2226.842041015625 m
+  ✓ Comparison plot saved: vhd_model_comp_Telfs_above_terrain.pdf
+
+[16/17] Processing: ziller valley (ziller_valley)
+Location: 47.250°N, 11.900°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at ziller valley...
+  Loading AROME from saved timeseries: arome_ziller_valley_timeseries_direct.nc
+Point AROME HAF height = 2263.32177734375 m
+Loading/calculating VHD for ICON at ziller valley...
+  Loading ICON from saved timeseries: icon_ziller_valley_timeseries_direct.nc
+Point ICON HAF height = 2341.02734375 m
+Loading/calculating VHD for ICON2TE at ziller valley...
+  Loading ICON2TE from saved timeseries: icon2te_ziller_valley_timeseries_direct.nc
+Point ICON2TE HAF height = 2341.02734375 m
+Loading/calculating VHD for UM at ziller valley...
+  Loading UM from saved timeseries: um_ziller_valley_timeseries_direct.nc
+Point UM HAF height = 2366.484130859375 m
+Loading/calculating VHD for WRF at ziller valley...
+  Loading WRF from saved timeseries: wrf_ziller_valley_timeseries_direct.nc
+Point WRF HAF height = 2393.89990234375 m
+  ✓ Comparison plot saved: vhd_model_comp_ziller valley_above_terrain.pdf
+
+[17/17] Processing: ziller ried (ziller_ried)
+Location: 47.300°N, 11.870°E
+--------------------------------------------------
+Loading/calculating VHD for AROME at ziller ried...
+  Loading AROME from saved timeseries: arome_ziller_ried_timeseries_direct.nc
+Point AROME HAF height = 2418.31884765625 m
+Loading/calculating VHD for ICON at ziller ried...
+  Loading ICON from saved timeseries: icon_ziller_ried_timeseries_direct.nc
+Point ICON HAF height = 2379.6650390625 m
+Loading/calculating VHD for ICON2TE at ziller ried...
+  Loading ICON2TE from saved timeseries: icon2te_ziller_ried_timeseries_direct.nc
+Point ICON2TE HAF height = 2379.6650390625 m
+Loading/calculating VHD for UM at ziller ried...
+  Loading UM from saved timeseries: um_ziller_ried_timeseries_direct.nc
+Point UM HAF height = 2410.446044921875 m
+Loading/calculating VHD for WRF at ziller ried...
+  Loading WRF from saved timeseries: wrf_ziller_ried_timeseries_direct.nc
+Point WRF HAF height = 2426.4833984375 m
+  ✓ Comparison plot saved: vhd_model_comp_ziller ried_above_terrain.pdf
+
+======================================================================
 
 ToDo: 
 - Do I have to look at basin north of alps with high VHD in ICON?
@@ -319,6 +674,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
