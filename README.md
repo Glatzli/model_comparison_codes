@@ -20,6 +20,7 @@ the timeseries at that PCGP is opened, the VHD is calculated, and then saved. Th
 calc_vhd.py and are only called from plot_vhd.py
 the calculation of the VHD for the full domain is read and the PCGP is searched for the given point. Then the
 timeline is plotted.
+For indexing and selecting the height of Hafelekar the geopotential or geometric height (only for ICON) is used.
 
 
 ToDo: 
@@ -339,6 +340,7 @@ Contain calculations of stability parameters, CAP depth and CAP characteristics 
 * skipy 1.13.1
 * wrf_python 1.3.4.1
 * xarray 2024.7.0
+
 
 
 
