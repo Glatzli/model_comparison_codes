@@ -216,7 +216,7 @@ def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"],
             raise ValueError("Variable 'z' (geopotential height) not in dataset. "
                              "Cannot set height as z coordinate. Add 'z' to variables list.")
         ds["height"] = ds.z.isel(time=time_idx)
-        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height amsl")
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height amsl at 14 UTC")
 
     elif height_as_z_coord == "above_terrain":
         # Calculate height above terrain at this point (when lowest level is subtracted, we would be on the terrain, therefore
@@ -226,7 +226,7 @@ def read_in_arome_fixed_point(lat: float = confg.ALL_POINTS["ibk_uni"]["lat"],
                              "Cannot set height as z coordinate. Add 'z' to variables list.")
         z_lowest_model_lvl = ds.z.isel(time=time_idx).sel(height=1)  # geopot. height of lowest model level
         ds["height"] = ds.z.isel(time=time_idx) - z_lowest_model_lvl + lowest_model_lvl_above_terrain
-        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height above terrain")
+        ds["height"] = ds["height"].assign_attrs(units="m", description="geopotential height above terrain at 14 UTC")
 
     elif height_as_z_coord not in [False, None]:
         # Warn if invalid value provided, but continue with default behavior
@@ -292,7 +292,8 @@ def read_2D_variables_AROME(variableList, lon, lat, slice_lat_lon=False):
             ds = ds.rename({"latitude": "lat", "longitude": "lon"})  # they already have short lat & lon names!
         # Use no method if lat or lon are slice objects
         if slice_lat_lon:
-            ds = ds.sel(lon=lon, lat=lat)  # formerly indexed time: .isel(time=slice(4, None))
+            ds = ds.sel(lon=lon, lat=lat)  # formerly indexed time: .isel(
+            # time=slice(4, None))
         else:
             ds = ds.sel(lon=lon, lat=lat, method="nearest")  # formerly indexed time: .isel(time=slice(4, None))
 

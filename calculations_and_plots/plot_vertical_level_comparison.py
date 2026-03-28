@@ -29,17 +29,29 @@ def plot_height_levels(arome_heights, icon_heights, um_heights, wrf_heights, rad
     model_names = ['AROME', 'ICON', 'UM', 'WRF', 'Radiosonde', 'HATPRO']
     height_arrays = [arome_heights, icon_heights, um_heights, wrf_heights, radio_heights, hatpro_heights]
 
-    plt.figure(figsize=(5, 6))
+    plt.figure(figsize=(6, 5))
     for i, heights in enumerate(height_arrays):
         plt.plot([model_names[i]] * len(heights), heights, color=confg.model_colors_temp_wind[model_names[i]],
-                 linestyle="None", label=model_names[i], ms=12, marker="_")
+                 linestyle="None", label=model_names[i], ms=18, marker="_", markeredgewidth=2)
 
-    plt.ylabel('Height above terrain [m]')
-    plt.ylim([0, 200])
-    # plt.title('vertical level comparison models & measurments')
-    plt.grid(True, alpha=0.4, axis='y')
+    # Add horizontal line at Hafelekar height
+    plt.axhline(y=confg.hafelekar_height, color='k', linestyle='-', linewidth=1)
+    # Add text label above the line
+    plt.text(1.5, confg.hafelekar_height + 2, f'Hafelekar ({confg.hafelekar_height} m)', color='k', fontsize=13,
+             ha='center', va='bottom')
+
+    plt.ylabel('Height above terrain [m]', fontsize=13)
+
+    plt.grid(True, alpha=0.6, axis='y')
+    plt.tick_params(axis='both', which='major', labelsize=13)
     plt.tight_layout()
-    plt.savefig(os.path.join(confg.dir_PLOTS, "model_infos_general", "vertical_geopot_height_levels_comp.pdf"))
+
+    # plt.ylim([0, 70])  # for bottom part plot
+    # plt.savefig(os.path.join(confg.dir_PLOTS, "model_infos_general", "vertical_geopot_height_levels_comp.pdf"))
+    plt.ylim([2000, 2600])  # for near Hafelekar-plot
+    plt.savefig(os.path.join(confg.dir_PLOTS, "model_infos_general",
+                             "vertical_geopot_height_levels_comp_Hafelekar.pdf"))
+
     plt.show()
 
 
@@ -102,6 +114,6 @@ if __name__ == "__main__":
     print("=" * 50)
 
     plot_height_levels(arome_heights=arome_heights, icon_heights=icon_heights, um_heights=um_heights,
-        wrf_heights=wrf_heights, radio_heights=radio_heights, hatpro_heights=hatpro_heights)
+                       wrf_heights=wrf_heights, radio_heights=radio_heights, hatpro_heights=hatpro_heights)
     plt.show()
     print("\n✓ Done! Plot saved successfully.")

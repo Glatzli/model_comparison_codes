@@ -116,6 +116,7 @@ def plot_pot_temp_time_contours(pot_temp, wind_u=None, wind_v=None, model="AROME
         model: Name of the model
         interface_height: Maximum height for plotting [m]
     """
+    plt.rcParams.update({'font.size': 13})
     fig, ax = plt.subplots(figsize=(12, 6))
 
     vmin, vmax = -2, 2  # uniform colorbar
@@ -150,14 +151,16 @@ def plot_pot_temp_time_contours(pot_temp, wind_u=None, wind_v=None, model="AROME
 
     # Add a colorbar
     cbar = plt.colorbar(contourf, ax=ax)
-    cbar.set_label('K hr$^{-1}$')
+    cbar.set_label('K hr$^{-1}$', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
     # if model == "HATPRO":
     # ax.set_title(f"{model} potential temp time series with SL88 LIDAR wind data for {point_name}")
     # else:
     #     ax.set_title(f"{model} potential temp time series for {point_name}")
     ax.set_title("")
-    ax.set_ylabel(f"height above terrain [m]")
-    ax.set_xlabel("")
+    ax.set_ylabel(f"height above terrain [m]", fontsize=13)
+    ax.set_xlabel("", fontsize=13)
+    ax.tick_params(axis='both', which='major', labelsize=13)
 
     # Create subfolder for vertical timeseries plots if it doesn't exist
     vertical_timeseries_dir = os.path.join(confg.dir_PLOTS, "vertical_timeseries")
@@ -199,10 +202,11 @@ def plot_dewpoint_depression_time_contours(td_dep, pot_temp, wind_u=None, wind_v
         interface_height: Maximum height for plotting [m]
         point_name: Name of the point (e.g., 'ibk_uni')
     """
+    plt.rcParams.update({'font.size': 13})
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    vmin, vmax = 0, 15  # dewpoint depression range in °C
-    levels = np.arange(vmin, vmax + 1, 1)
+    vmin, vmax = -0.3, 15  # dewpoint depression range in °C
+    levels = np.arange(0, vmax + 1, 1)
 
     # Create sequential green colormap (Greens 3)
     pal_green = sequential_hcl(palette="Greens 3")
@@ -232,15 +236,17 @@ def plot_dewpoint_depression_time_contours(td_dep, pot_temp, wind_u=None, wind_v
 
     # Add a colorbar
     cbar = plt.colorbar(contourf, ax=ax)
-    cbar.set_label('Dewpoint Depression [°C]')
+    cbar.set_label('Dewpoint Depression [°C]', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
 
     # if model == "HATPRO":  # add title
     #     ax.set_title(f"{model} dewpoint depression time series with SL88 LIDAR wind data for {point_name}")
     # else:
     #     ax.set_title(f"{model} dewpoint depression time series for {point_name}")
     ax.set_title("")
-    ax.set_ylabel(f"height above terrain [m]")
-    ax.set_xlabel("")
+    ax.set_ylabel(f"height above terrain [m]", fontsize=13)
+    ax.set_xlabel("", fontsize=13)
+    ax.tick_params(axis='both', which='major', labelsize=13)
 
     # Create subfolder for vertical timeseries plots if it doesn't exist
     vertical_timeseries_dir = os.path.join(confg.dir_PLOTS, "vertical_timeseries")

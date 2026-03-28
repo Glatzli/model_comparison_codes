@@ -156,23 +156,24 @@ def plot_four_vertical_profiles(point_names: List[str], model: str = "AROME", ti
             continue
 
     # Configure subplot 1 (Temperature & Humidity)
-    ax1.set_xlabel("Temperature [°C]" if temperature_var == "temp" else "Potential Temperature [K]", fontsize=12)
-    ax1.set_xlim([285, 310])
-    ax1.set_ylabel("Height above terrain [m]", fontsize=12)
+    ax1.set_xlabel("Temperature [°C]" if temperature_var == "temp" else "Potential Temperature [K]", fontsize=13)
+    ax1.set_xlim([280, 310])
+    ax1.set_ylabel("height amsl [m]", fontsize=13)
     ax1.set_ylim([600, plot_max_height])
     ax1.grid(True, alpha=0.3)
 
-    ax1_top.set_xlabel("Dewpoint Depression [°C]", fontsize=12)
+    ax1_top.set_xlabel("Dewpoint Depression [°C]", fontsize=13, color='gray')
+    ax1_top.tick_params(axis='x', labelcolor='gray', labelsize=13)
     ax1_top.set_xlim([0, 70])
-    ax1.legend(loc='upper left', fontsize=12)
+    ax1.legend(loc='upper left', fontsize=13)
 
     # Configure subplot 2 (Wind Speed & Direction)
     ax2.set_xlim([0, 10])
-    ax2.set_xlabel("Wind Speed [m/s]", fontsize=12)
-    ax2.set_ylim([600, plot_max_height])
+    ax2.set_xlabel("Wind Speed [m/s]", fontsize=13)
+    ax2.set_ylim([400, plot_max_height])  # 600
     ax2.grid(True, alpha=0.3)
 
-    ax2_top.set_xlabel("Wind Direction", fontsize=12)
+    ax2_top.set_xlabel("Wind Direction", fontsize=13)
     ax2_top.set_xlim([0, 360])
     ax2_top.set_xticks([0, 90, 180, 270, 360])
     ax2_top.set_xticklabels(["N", "E", "S", "W", "N"])
@@ -184,7 +185,7 @@ def plot_four_vertical_profiles(point_names: List[str], model: str = "AROME", ti
         formatted_ts = timestamp
 
     # Add overall title
-    fig.suptitle(f"{model} at {formatted_ts} UTC", fontsize=12)
+    # fig.suptitle(f"{model} at {formatted_ts} UTC", fontsize=13)
     plt.tight_layout()
     return fig
 
@@ -198,13 +199,14 @@ if __name__ == "__main__":
     """
     # Configuration
     # List of point names to plot (now 4 points)
-    point_names = ["brenner_saddle", "wipp_schoenberg_matrei", "patsch_EC_south", "ibk_uni"]
+    point_names = ["brenner_saddle", "wipp_schoenberg_matrei", "patsch_EC_south", "ibk_uni"]  # ["woergl", "kufstein",
+    # "kiefersfelden", "rosenheim"]
 
     # Which models to extract and compare
     models = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]  # Can be: AROME, ICON, ICON2TE, UM, WRF
 
     # Select timestamp once (ISO format)
-    timestamp = "2017-10-16T00:30:00"
+    timestamp = "2017-10-15T18:00:00"
 
     # Other parameters
     plot_max_height = 2500  # m
@@ -229,7 +231,8 @@ if __name__ == "__main__":
                                               plot_max_height=plot_max_height, temperature_var=temperature_var)
 
             # Save plot
-            output_file = os.path.join(output_dir, f"brenner_cross_section_{model}_{ts_clean}.pdf")
+            output_file = os.path.join(output_dir, f"brenner_cross_section_{model}_{ts_clean}.pdf")  #
+            # brenner_cross_section => adjust min height to 600 m again!
             fig.savefig(output_file, format="pdf", bbox_inches='tight')
             print(f"✓ Plot saved to: {output_file}")
 

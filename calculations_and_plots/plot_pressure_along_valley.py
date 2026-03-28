@@ -255,9 +255,10 @@ def plot_pressure_difference(stations_data_reduced, model_data=None, save_path=N
 
     # Formatting
     # ax.set_title('Pressure Difference: Innsbruck Uni - Kufstein', fontsize=16, fontweight='bold')
-    ax.set_ylabel('Pressure Difference [hPa]', fontsize=12)
+    ax.set_ylabel('pressure difference [hPa]', fontsize=13)
+    ax.tick_params(axis='both', labelsize=13)
     ax.grid(True, alpha=0.3)
-    ax.legend(loc='best', fontsize=11)
+    ax.legend(loc='best', fontsize=13)
 
     # Set time limits
     ax.set_xlim(time_start, time_end)
@@ -355,8 +356,9 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
             legend_handles.append(line[0])
             legend_labels.append(label)
 
-        ax.set_title('Station Measurements', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Pressure reduced to\nKufstein height [hPa]', fontsize=11)
+        ax.set_title('Station Measurements', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Pressure reduced to\nKufstein height [hPa]', fontsize=13)
+        ax.tick_params(axis='both', labelsize=13)
         ax.grid(True, alpha=0.3)
         # Remove individual legend - we'll create one global legend
         ax.set_xlim(time_start, time_end)
@@ -389,12 +391,13 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
                     # Plot with consistent styling
                     ax.plot(time_values, pressure_values, color=color, linewidth=2, alpha=0.8, label=point_name)
 
-            ax.set_title(f'{model_name} Model', fontsize=14, fontweight='bold')
+            ax.set_title(f'{model_name} Model', fontsize=13, fontweight='bold')
 
             # Only add y-label for left plots (even indices: 0, 2, 4)
             if plot_idx % 2 == 1:  # Left plots (index 1, 3, 5 -> plot positions 0, 2, 4 in subplot grid)
-                ax.set_ylabel('Pressure reduced to\nKufstein height [hPa]', fontsize=11)
+                ax.set_ylabel('Pressure reduced to\nKufstein height [hPa]', fontsize=13)
 
+            ax.tick_params(axis='both', labelsize=13)
             ax.grid(True, alpha=0.3)
             # Remove individual legend
             ax.set_xlim(time_start, time_end)
@@ -402,7 +405,7 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
 
             if not model_has_data:
                 print(f"No data available for model {model_name}")
-                ax.text(0.5, 0.5, 'No data available', transform=ax.transAxes, ha='center', va='center', fontsize=12,
+                ax.text(0.5, 0.5, 'No data available', transform=ax.transAxes, ha='center', va='center', fontsize=13,
                         style='italic', alpha=0.7)
 
             plot_idx += 1
@@ -423,7 +426,7 @@ def plot_combined_subplots(stations_data_reduced, stations_metadata, model_data=
 
     # Create single legend in lower right using ZAMG station data
     if len(stations_data_reduced) > 0:
-        fig.legend(legend_handles, legend_labels, loc='lower right', bbox_to_anchor=(0.8, 0.2), fontsize=11,
+        fig.legend(legend_handles, legend_labels, loc='lower right', bbox_to_anchor=(0.8, 0.2), fontsize=13,
                    frameon=True, fancybox=True, shadow=True)
 
     # Overall title

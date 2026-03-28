@@ -20,8 +20,8 @@ Features:
 Variables used: ["th", "temp", "u", "v"]
 """
 import fix_win_DLL_loading_issue
-
 fix_win_DLL_loading_issue
+# from calculations_and_plots.momaa_hobo_utils import add_hobo_stations_to_plot
 # import sys
 # sys.path.append("C:/Users/eleme/Documents/1Uni_Laptop/model_comparison_codes")
 
@@ -38,13 +38,16 @@ import read_wrf_helen
 import read_icon_model_3D
 import read_ukmo
 from plot_heat_fluxes import (plot_small_multiples, make_times)
+# from momaa_hobo_utils import (load_hobo_data, load_zamg_data, load_momma_data)  # Comment out HOBO
+from momaa_hobo_utils import (load_momaa_data, load_hobo_data)
+from find_momma_min_temps import find_momma_minimum_temperatures, print_results
 
 # Simple dictionaries for variable properties
 
 TEMPERATURE_LABELS = {"temp": "Temperature", "th": "Potential Temperature", }
 
 # Temperature ranges - global definition for [5, 25] degrees Celsius
-TEMPERATURE_RANGES = {"temp": {"vmin": 5, "vmax": 25},  # [5, 25]°C
+TEMPERATURE_RANGES = {"temp": {"vmin": 5, "vmax": 15},  # [5, 25]°C
                       "th": {"vmin": 288, "vmax": 305},  # [5, 25]°C in Kelvin (potential temp)
                       }
 
@@ -414,16 +417,16 @@ def read_and_save_wrf_data(times, variables):
     return wrf_ds
 
 
-def plot_single_timestamp(model_dataset, time, model_name, variable, lon_extent, lat_extent,
-                         figsize=(10, 8), contour_line_dist=100, barb_length=4, step=2,
-                         extent_name="single", save_file=True):
+def plot_single_timestamp(model_datasets, time, model_names, variable, lon_extent, lat_extent, figsize=(10, 8),
+        contour_line_dist=100, barb_length=4, step=2, extent_name="single", save_file=True, ds_hobo=None, ds_momma=None,
+        vmin=5, vmax=25):
     """
     Plot a single timestamp for a given region with the same settings as small multiples.
 
     Args:
-        model_dataset: xarray Dataset for a single model
+        model_datasets: xarray Datasets for a the models to plot (e.g., {"AROME": ds_arome, "WRF": ds_wrf, "ICON": ds_icon})
         time: Single datetime object to plot
-        model_name: Name of the model (e.g., "AROME", "WRF", "ICON")
+        model_names: Names of the models (e.g., ["AROME", "WRF", "ICON"])
         variable: Variable to plot (e.g., "temp", "th")
         lon_extent: Tuple (lon_min, lon_max) for plot extent
         lat_extent: Tuple (lat_min, lat_max) for plot extent
@@ -433,6 +436,8 @@ def plot_single_timestamp(model_dataset, time, model_name, variable, lon_extent,
         step: Subsample step for wind barbs (default: 2)
         extent_name: Name for the extent (used in filename)
         save_file: Whether to save the plot (default: True)
+        ds_hobo: xarray Dataset with HOBO station data: indexed only to Hafelekar-HOBO
+        ds_momma: xarray Dataset with MOMMA station data (optional)
 
     Returns:
         Figure and axis objects
@@ -440,11 +445,12 @@ def plot_single_timestamp(model_dataset, time, model_name, variable, lon_extent,
     import cartopy.crs as ccrs
     import cartopy.feature as cfeature
     from plot_heat_fluxes import extract_topography_and_wind
+    from momaa_hobo_utils import add_station_data_to_plot
 
     # Get colormap and range for the variable
     cmap = confg.temperature_colormap
-    vmin = TEMPERATURE_RANGES[variable]["vmin"]
-    vmax = TEMPERATURE_RANGES[variable]["vmax"]
+    # vmin = TEMPERATURE_RANGES[variable]["vmin"]
+    # vmax = TEMPERATURE_RANGES[variable]["vmax"]
     label = TEMPERATURE_LABELS[variable]
 
     # Choose units based on variable type
@@ -455,78 +461,89 @@ def plot_single_timestamp(model_dataset, time, model_name, variable, lon_extent,
     else:
         units = ""
 
-    # Set up projection and figure
-    projection = ccrs.Mercator()
-    fig, ax = plt.subplots(figsize=figsize, subplot_kw={'projection': projection})
+    for model_name in model_names:
+        model_dataset = model_datasets[model_name]
+        # Set up projection and figure
+        projection = ccrs.Mercator()
+        fig, ax = plt.subplots(figsize=figsize, subplot_kw={'projection': projection})
 
-    # Select data for the given time
-    ds_sel = model_dataset.sel(time=time)
+        # Select data for the given time
+        ds_sel = model_dataset.sel(time=time)
 
-    # Plot the temperature variable
-    im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel[variable].values,
-                       cmap=cmap, vmin=vmin, vmax=vmax, transform=projection)
+        # Plot the temperature variable
+        im = ax.pcolormesh(ds_sel.lon.values, ds_sel.lat.values, ds_sel[variable].values, cmap=cmap, vmin=vmin,
+                           vmax=vmax, transform=projection)
 
-    # Extract topography and wind data
-    z, u, v = extract_topography_and_wind(ds_sel, model_name, step)
+        # Extract topography and wind data
+        z, u, v = extract_topography_and_wind(ds_sel, model_name, step)
 
-    # Plot topography contours
-    levels_thin = np.arange(0, 3500, contour_line_dist)
-    ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin,
-               colors="k", linewidths=0.3, transform=projection)
+        # Plot topography contours
+        levels_thin = np.arange(0, 3500, contour_line_dist)
+        ax.contour(ds_sel.lon.values, ds_sel.lat.values, z.values, levels=levels_thin, colors="k", linewidths=0.3,
+                   transform=projection)
 
-    # Add wind barbs if wind data is available
-    if u is not None and v is not None:
-        lat_subset, lon_subset = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
+        # Add wind barbs if wind data is available
+        if u is not None and v is not None:
+            lat_subset, lon_subset = ds_sel.lat.values[::step], ds_sel.lon.values[::step]
 
-        # Convert wind speeds from m/s to knots (multiply by 1.94384)
-        u_knots = u * 1.94384
-        v_knots = v * 1.94384
+            # Convert wind speeds from m/s to knots (multiply by 1.94384)
+            u_knots = u * 1.94384
+            v_knots = v * 1.94384
 
-        # Plot wind barbs
-        ax.barbs(x=lon_subset, y=lat_subset, u=u_knots, v=v_knots,
-                transform=projection, color='black', length=barb_length, linewidth=0.5)
+            # Plot wind barbs
+            ax.barbs(x=lon_subset, y=lat_subset, u=u_knots, v=v_knots, transform=projection, color='black',
+                     length=barb_length, linewidth=0.5)
 
-    # Format timestamp for title
-    time_pd = pd.to_datetime(time)
-    time_str = time_pd.strftime("%Y-%m-%d %H:%M UTC")
-    ax.set_title(f"{model_name} {label} - {time_str}", fontsize=14, fontweight='bold')
+        # Add observation stations if data is provided
+        if ds_momma is not None:
+            add_station_data_to_plot(ax, ds_momma=ds_momma, time=time, marker_size=80, edge_color='black',
+                                     edge_width=0.5, vmin=vmin, vmax=vmax, cmap=cmap)
+        if ds_hobo is not None:
+            add_station_data_to_plot(ax, ds_hobo=ds_hobo, time=time, marker_size=60, edge_color='black', edge_width=0.5,
+                                     vmin=vmin, vmax=vmax, cmap=cmap)
 
-    # Set extent
-    ax.set_xlim(lon_extent)
-    ax.set_ylim(lat_extent)
+        # Format timestamp for title
+        time_pd = pd.to_datetime(time)
+        # time_str = time_pd.strftime("%Y-%m-%d %H:%M UTC")
+        # ax.set_title(f"{model_name} {label} - {time_str}", fontsize=14, fontweight='bold')
 
-    # Add colorbar
-    cbar = plt.colorbar(im, ax=ax, orientation='vertical', shrink=0.8, pad=0.02)
-    cbar.set_label(f"{label} {units}", fontsize=12)
-    cbar.ax.tick_params(labelsize=10)
+        # Set extent
+        ax.set_xlim(lon_extent)
+        ax.set_ylim(lat_extent)
 
-    # Add borders
-    ax.add_feature(cfeature.BORDERS, linewidth=0.5)
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, orientation='vertical', shrink=0.8, pad=0.02)
+        cbar.set_label(f"{label} {units}", fontsize=12)
+        cbar.ax.tick_params(labelsize=12)
 
-    plt.tight_layout()
+        # Add borders
+        ax.add_feature(cfeature.BORDERS, linewidth=0.5)
 
-    # Save file if requested
-    if save_file:
-        time_str_file = time_pd.strftime("%Y%m%d_%H%M")
-        filename = f"{variable}_{model_name}_single_{extent_name}_{time_str_file}.png"
+        plt.tight_layout()
 
-        # Create directory if it doesn't exist
-        plots_dir = os.path.join(confg.dir_PLOTS, "temperature_wind")
-        os.makedirs(plots_dir, exist_ok=True)
+        # Save file if requested
+        if save_file:
+            time_str_file = time_pd.strftime("%Y%m%d_%H%M")
+            filename = f"{variable}_{model_name}_single{extent_name}_{time_str_file}.png"
 
-        filepath = os.path.join(plots_dir, filename)
+            # Create directory if it doesn't exist
+            plots_dir = os.path.join(confg.dir_PLOTS, "temperature_wind")
+            os.makedirs(plots_dir, exist_ok=True)
 
-        # Delete existing file if it exists to ensure clean overwrite
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
-        print(f"✓ Saved: {filename}")
+            filepath = os.path.join(plots_dir, filename)
+
+            # Delete existing file if it exists to ensure clean overwrite
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            plt.savefig(filepath, dpi=300, bbox_inches='tight')
+            print(f"✓ Saved: {filename}")
 
     return fig, ax
 
 
 def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_extent, figsize, contour_line_dist,
-        extent_name="detail", variables_to_plot=None, barb_length=None, step=2):
+        extent_name="detail", variables_to_plot=None, barb_length=None, step=2, vmin=None, vmax=None, ds_hobo=None,
+        ds_zamg=None, ds_momma=None):
     """
     Plot detailed small multiples for temperature variables for all available models for a given extent.
     Uses the imported plot_small_multiples function from plot_heat_fluxes.py but with temperature-specific settings.
@@ -540,6 +557,9 @@ def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_ex
         variables_to_plot: List of variables to plot (if None, uses ["temp"])
         barb_length: Length of wind barbs. Controls visual size of wind barbs.
         step: Subsample step for wind barbs (default: 2). Controls distance between wind barbs.
+        ds_hobo: xarray Dataset with HOBO station data (optional). If provided, HOBO stations will be plotted.
+        ds_zamg: Dictionary with ZAMG station data (optional). If provided, ZAMG stations will be plotted.
+        ds_momma: xarray Dataset with MOMMA station data (optional). If provided, MOMMA stations will be plotted.
     """
     if variables_to_plot is None:
         variables_to_plot = ["temp"]
@@ -573,15 +593,17 @@ def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_ex
             # Check if variable exists in dataset
             if var in model_detail:
                 print(f"      Plotting {model_name} {var} ({extent_name} detail)...")
+                if vmin is None:
+                    vmin = TEMPERATURE_RANGES[var]["vmin"]
+                if vmax is None:
+                    vmax = TEMPERATURE_RANGES[var]["vmax"]
 
                 # Use temperature-specific colormap and label directly
-                plot_small_multiples(ds=model_detail.sel(time=times), model=model_name, variable=var,
-                                     vmin=TEMPERATURE_RANGES[var]["vmin"], vmax=TEMPERATURE_RANGES[var]["vmax"],
-                                     lon_extent=lon_extent, lat_extent=lat_extent, figsize=figsize,
-                                     filename_suffix=f"{extent_name}_{model_name}",
-                                     contour_line_dist=contour_line_dist, barb_length=barb_length, step=step,
-                                     plot_dir="temperature_wind",
-                                     custom_label=TEMPERATURE_LABELS[var])
+                plot_small_multiples(ds=model_detail.sel(time=times), model=model_name, variable=var, vmin=vmin,
+                                     vmax=vmax, lon_extent=lon_extent, lat_extent=lat_extent, figsize=figsize,
+                                     filename_suffix=f"{extent_name}_{model_name}", contour_line_dist=contour_line_dist,
+                                     barb_length=barb_length, step=step, plot_dir="temperature_wind",
+                                     custom_label=TEMPERATURE_LABELS[var], ds_momma=ds_momma)
 
             else:
                 print(f"      Warning: {var} not found in {model_name} dataset")
@@ -594,8 +616,9 @@ def plot_temperature_detail_for_extent(model_datasets, times, lon_extent, lat_ex
 
 if __name__ == "__main__":
     # Choose which plots to create (similar to plot_heat_fluxes.py):
-    create_orig_hf_plots = False  # extent of original heat flux plots (around Ibk)
-    create_wipp_detail_plots = True  # Detailed Wipp Valley region
+    create_central_inn_plots = False  # extent of original heat flux plots (around Ibk)
+    create_ibk_surr_plots = False  # extent around Ibk, espc for Momma comparison
+    create_wipp_detail_plots = False  # Detailed Wipp Valley region
     create_valley_exit_detail = False  # Specific detail plots for the valley exit region
     create_ziller_detail_plots = False  # Detailed Zillertal region
 
@@ -624,16 +647,18 @@ if __name__ == "__main__":
     model_datasets["UM"] = read_and_save_um_data(times, variables_to_process)
     model_datasets["WRF"] = read_and_save_wrf_data(times, variables_to_process)
 
-    # Print summary of successfully loaded models
-    available_models = [name for name, ds in model_datasets.items() if ds is not None]
-    unavailable_models = [name for name, ds in model_datasets.items() if ds is None]
+    # Load observation data (MOMMA, ZAMG only - HOBO commented out)
+    print("\n" + "=" * 70)
+    print("LOADING OBSERVATION DATA")
+    print("=" * 70)
+    ds_hobo = load_hobo_data()
+    ds_hobo = ds_hobo.where(ds_hobo['hobo_id'] == 'H38', drop=True).squeeze()
+    ds_momaa = load_momaa_data()
 
-    print(f"\n✓ Successfully loaded models: {', '.join(available_models)}")
-    if unavailable_models:
-        print(f"✗ Failed to load models: {', '.join(unavailable_models)}")
+    print_results(find_momma_minimum_temperatures)  #
 
     # Create plots for different extents
-    if create_orig_hf_plots:
+    if create_central_inn_plots:
         print("\n" + "=" * 70)
         print("Creating FULL EXTENT plots")
         print("=" * 70)
@@ -641,12 +666,23 @@ if __name__ == "__main__":
         # lon_extent = (confg.lon_min, confg.lon_max)  # plot full extent
         # lat_extent = (confg.lat_min, confg.lat_max)
 
+        plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times,
+                                           lon_extent=confg.lon_central_inn_extent,
+                                           lat_extent=confg.lat_central_inn_extent, figsize=(12, 8),
+                                           contour_line_dist=250, extent_name="_central_inn",
+                                           variables_to_plot=variables_to_plot, barb_length=3, step=2)
 
-        plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times, lon_extent=confg.lon_hf_extent,
-                                           lat_extent=confg.lat_hf_extent, figsize=(12, 8), contour_line_dist=250,
-                                           extent_name="_zentral_inn", variables_to_plot=variables_to_plot,
-                                           barb_length=3,
-                                           step=2)
+    if create_ibk_surr_plots:
+        print("\n" + "=" * 70)
+        print("Creating INNSBRUCK SURROUNDINGS plots w MOMMA data")
+        print("=" * 70)
+
+        plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times,
+                                           lon_extent=confg.lon_ibk_surr_extent, lat_extent=confg.lat_ibk_surr_extent,
+                                           figsize=(10, 8), contour_line_dist=100, extent_name="_ibk_surroundings",
+                                           variables_to_plot=variables_to_plot, barb_length=4, step=2,
+                                           ds_momma=ds_momaa)
+
     if create_wipp_detail_plots:
         plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times, lon_extent=confg.lon_wipp_extent,
                                            lat_extent=confg.lat_wipp_extent, figsize=(8, 8), contour_line_dist=100,
@@ -658,7 +694,8 @@ if __name__ == "__main__":
         plot_temperature_detail_for_extent(model_datasets=model_datasets, times=times,
                                            lon_extent=confg.lon_inn_exit_extent, lat_extent=confg.lat_inn_exit_extent,
                                            figsize=(11, 8), contour_line_dist=100, extent_name="_valley_exit",
-                                           variables_to_plot=variables_to_plot, barb_length=3, step=2)
+                                           variables_to_plot=variables_to_plot, barb_length=3, step=2, vmin=280,
+                                           vmax=304)
 
     if create_ziller_detail_plots:
         # Use the generic function for Zillertal plots
@@ -667,27 +704,31 @@ if __name__ == "__main__":
                                            figsize=(8, 8), contour_line_dist=100, extent_name="_ziller_valley",
                                            variables_to_plot=variables_to_plot, barb_length=3, step=1)
 
-    # EXAMPLE: Plot a single timestamp for a specific region (uncomment to use)
-    """
-    plot_single_timestamp(
-        model_dataset=model_datasets["AROME"],  # Choose model: "AROME", "WRF", "ICON", "ICON2TE", "UM"
-        time=times[5],  # Select a specific time from the times array
-        model_name="AROME",
-        variable="th",  # or "temp"
-        lon_extent=confg.lon_wipp_extent,  # Choose region extent
-        lat_extent=confg.lat_wipp_extent,
-        figsize=(12, 10),  # Larger figure for single plot
-        contour_line_dist=100,
-        barb_length=5,  # Larger barbs for single plot
-        step=2,
-        extent_name="wipp_valley",
-        save_file=True)
-    """
+    # model_names = ["AROME", "ICON", "ICON2TE", "UM", "WRF"]  # which models should be plotted as single timestamp
+    # plots
+
+    # _central_inn  _ibk_surroundings  _wipp_valley  _valley_exit  _ziller_valley
+    # vmin = 288, vmax = 305
+    plot_single_timestamp(model_datasets=model_datasets, time="2017-10-16 06:00:00",
+                          model_names=list(model_datasets.keys()), variable="temp",  # or "temp"
+                          lon_extent=confg.lon_inn_exit_extent,  # Choose region extent
+                          lat_extent=confg.lat_inn_exit_extent, figsize=(6, 3), contour_line_dist=200, barb_length=4,
+                          # Larger barbs for single plot
+                          step=2, extent_name="_valley_exit", save_file=True,#  ds_momma=ds_momma, ds_hobo=ds_hobo,
+                          vmin=4, vmax=17)
+
+    plot_single_timestamp(model_datasets=model_datasets, time="2017-10-16 06:00:00",
+                          model_names=list(model_datasets.keys()), variable="temp",  # or "temp"
+                          lon_extent=confg.lon_central_inn_extent,  # Choose region extent
+                          lat_extent=confg.lat_central_inn_extent, figsize=(10, 6), contour_line_dist=200,
+                          barb_length=5,  # Larger barbs for single plot
+                          step=2, extent_name="_central_inn", save_file=True, ds_momma=ds_momaa, ds_hobo=ds_hobo,
+                          vmin=3, vmax=20)
+    # plt.show()
+    # for central inn 06:00 UTC temp plot: vmin=5, vmax=20
 
     print("\n" + "=" * 70)
     print("Temperature and wind plotting completed!")
-    print(f"Processed models: {', '.join(available_models)}")
     print("=" * 70)
 
     # Show all plots at once
-    plt.show()

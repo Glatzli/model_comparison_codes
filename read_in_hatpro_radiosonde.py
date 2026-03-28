@@ -1,7 +1,11 @@
 """
 Process and interpolate HATPRO and radiosonde data for model comparison.
+read_hatpro_dataset(height_as_z_coord) and read_radiosonde_dataset(height_as_z_coord) are the main functions for reading
+HATPRO & radiosonde data, which should manage everything (height coords have similar options as in models!),
+with CAP height calculation.
 
 how to read radiosonde & HATPRO data: look in main for usage example!
+
 
 The radiosonde data is calculated/transformed & saved in different formats (last few lines in main):
 1. original, CSV-data: 2017101603_bufr309052.csv
@@ -11,13 +15,6 @@ The radiosonde data is calculated/transformed & saved in different formats (last
 Function read_radiosonde_dataset reads the radiosonde dataset with 3 different height options (as in the models, see fct
 description):
 
-The problem with this code is now that I used timerseries with the model levels as vertical coordinate => would need to
-change the indexing for the code to work (to interpolate the radiosonde data f.e...)
-
-Confusing: I have HATPRO and Radiosonde data calculations in the same file, which should be seperated: At first,
-all HATPRO functions are defined, then all radiosonde fcts
-
-(written by Daniel)
 """
 import fix_win_DLL_loading_issue
 
@@ -30,7 +27,7 @@ import xarray as xr
 from metpy.units import units
 
 import confg
-
+from calculations_and_plots.calc_cap_height import cap_height_profile
 
 # mpl.use('Qt5Agg')
 
@@ -154,16 +151,15 @@ def read_hatpro(filepath):
     return ds
 
 
-def merge_save_hatpro():
+def merge_save_hatpro(filepath_temp=f"{confg.hatpro_folder}/data_HATPRO_temp.csv",
+        filepath_hum=f"{confg.hatpro_folder}/data_HATPRO_humidity.csv"):
     """
-    deprecated?
+    merge HATPRO temp & humidity data together
     :return:
     """
     # read hatpro data and save it as a merged .nc file
-    filepath = f"{confg.hatpro_folder}/data_HATPRO_temp.csv"
-    hatpro_temp = read_hatpro(filepath)
-    filepath = f"{confg.hatpro_folder}/data_HATPRO_humidity.csv"
-    hatpro_humidity = read_hatpro(filepath)
+    hatpro_temp = read_hatpro(filepath_temp)
+    hatpro_humidity = read_hatpro(filepath_hum)
     # Merge the temp & humidity datasets
     hatpro = xr.merge([hatpro_temp, hatpro_humidity])
     hatpro = hatpro.rename({"height_level": "height"})  # rename coordinate name for uniform name
@@ -397,16 +393,67 @@ def read_radiosonde_dataset(height_as_z_coord: str | bool = "direct"):
 
 def read_hatpro_dataset(height_as_z_coord: str | bool = "direct"):
     """
-    read in merged HATPRO dataset (temp & humidity) with height as z coordinate
-    :param filepath:
-    :return:
+    main function for HATPRO:
+    Read HATPRO dataset with all calculated variables and CAP height.
+    All processing steps are performed automatically if files don't exist yet.
+    Only ONE dataset with CAP height is saved (with height above terrain).
+    The height coordinate is adjusted on-the-fly based on the height_as_z_coord parameter.
+
+    :param height_as_z_coord:
+        - "direct": height as m.s.l. (612m offset added)
+        - "above_terrain": height above terrain (default in saved file)
+        - False/None: original height indices
+    :return: HATPRO dataset with requested height coordinate
     """
-    ds = xr.open_dataset(confg.hatpro_calced_vars)
-    if height_as_z_coord == "above_terrain":
-        ds["height"] = ds["height"].assign_attrs(units="m", description="height above terrain")
-    elif height_as_z_coord == "direct":  # in HATPROs' case it is not direct, but for models it a.m.s.l- is direct...
+    # Step 1: Merge raw HATPRO temp & humidity data if not done yet
+    if not os.path.exists(f"{confg.hatpro_folder}/hatpro_merged.nc"):
+        try:
+            print("    Merging HATPRO temperature and humidity data...")
+            merge_save_hatpro(filepath_temp=f"{confg.hatpro_folder}/data_HATPRO_temp.csv",
+                              filepath_hum=f"{confg.hatpro_folder}/data_HATPRO_humidity.csv")
+            print("    ✓ Merged HATPRO dataset created")
+        except Exception as e:
+            print(f"    Warning: Error in merging raw HATPRO temp and humidity data: {e}")
+            raise
+
+    # Step 2: Calculate pot. temp, density, etc. with AROME pressure if not done yet
+    if not os.path.exists(confg.hatpro_calced_vars):
+        try:
+            print("    Calculating HATPRO variables with AROME pressure...")
+            hatpro = xr.open_dataset(f"{confg.hatpro_folder}/hatpro_merged.nc")
+            arome = xr.open_dataset(
+                os.path.join(confg.dir_AROME, "timeseries", "arome_ibk_uni_timeseries_above_terrain.nc"))
+            hatpro_sel = interpolate_hatpro_arome(hatpro, arome)
+            hatpro_w_pressure = calc_vars_hatpro_w_pressure(ds=hatpro_sel)
+            hatpro_w_pressure.to_netcdf(confg.hatpro_calced_vars)
+            print("    ✓ HATPRO variables calculated and saved")
+        except Exception as e:
+            print(f"    Warning: Error in calculating HATPRO variables with interpolated AROME pressure: {e}")
+            raise
+
+    # Step 3: Calculate CAP height and save dataset, calcs per default like above_terrain-coordinate
+    if not os.path.exists(confg.hatpro_with_cap_height):
+        try:
+            print("    Calculating CAP height for HATPRO...")
+            ds = xr.open_dataset(confg.hatpro_calced_vars)
+            ds["height"] = ds["height"].assign_attrs(units="m", description="height above terrain")
+            ds["cap_height"] = cap_height_profile(ds, consecutive=3, model="HATPRO")["cap_height"]
+            ds["cap_height"] = ds["cap_height"].assign_attrs(units="m", description="cap height calculated terrain")
+
+            # Save complete dataset with CAP height
+            print(f"    Saving HATPRO dataset with CAP height to {confg.hatpro_with_cap_height}")
+            ds.to_netcdf(confg.hatpro_with_cap_height)
+        except Exception as e:
+            print(f"    Warning: Error in calculating CAP height: {e}")
+    else:
+        ds = xr.open_dataset(confg.hatpro_with_cap_height)
+
+    if height_as_z_coord == "direct":  # only for "direct" - variant need to add height of HATPRO measurement
         ds["height"] = ds["height"] + 612
         ds["height"] = ds["height"].assign_attrs(units="m", description="height above m.s.l.")
+        ds["cap_height"] = ds["cap_height"] + 612
+        ds["cap_height"] = ds["cap_height"].assign_attrs(units="m", description="cap height calculated m.s.l.")
+
     return ds
 
 
@@ -417,7 +464,7 @@ if __name__ == '__main__':
     is now not needed anymore. But I left it in here for documentation purposes."""
 
     # merge_save_hatpro()  # only used once to merge the T & rh files, saved again
-    hatpro = xr.open_dataset(confg.hatpro_merged)
+    # hatpro = xr.open_dataset(confg.hatpro_merged)
 
     # deprecated?!
     # hatpro_sel = hatpro.sel(time=slice('2017-10-15 12:00:00', '2017-10-16 12:00:00'))  # select modeled period
@@ -425,7 +472,8 @@ if __name__ == '__main__':
     # hatpro_sel["height"] = hatpro_sel.height + 612  # the HATPRO station is at 612 m a.s.l., models always have
     # height above m amsl.
 
-    arome = xr.open_dataset(os.path.join(confg.dir_AROME, "timeseries", "arome_ibk_uni_timeseries_above_terrain.nc"))
+    # arome = xr.open_dataset(os.path.join(confg.dir_AROME, "timeseries", "arome_ibk_uni_timeseries_above_terrain.nc"))
+
     # read PCGP around HATPRO for comparing:
     # Difficulty: AROME is for that gridpoint on 645 m, HATPRO on 612 m => ignore difference (pressure difference is
     # only 3-4 hPa...)
@@ -448,13 +496,4 @@ if __name__ == '__main__':
     radio = read_radiosonde_dataset(height_as_z_coord="above_terrain")
     radio  # and then the radiosonde dataset can be used the same way as the model datasets
 
-
-
-    # sensitivity test (probably won't work directly because some things changed...)
-    # icon = xr.open_dataset(confg.icon_folder_3D + "/timeseries/" + "/icon_ibk_uni_timeseries_height_as_z.nc")
-    # um = xr.open_dataset(confg.ukmo_folder + "/timeseries/" + "um_ibk_uni_timeseries_height_as_z.nc")
-    # wrf = xr.open_dataset(confg.wrf_folder + "/timeseries/" + "/wrf_ibk_uni_timeseries_height_as_z.nc")
-    # interpolate_hatpro(hatpro_sel, arome, icon, wrf)
-    # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],
-    #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,  #  #  #  #  #
-    #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)
+    # sensitivity test (probably won't work directly because some things changed...)  # icon = xr.open_dataset(confg.icon_folder_3D + "/timeseries/" + "/icon_ibk_uni_timeseries_height_as_z.nc")  # um = xr.open_dataset(confg.ukmo_folder + "/timeseries/" + "um_ibk_uni_timeseries_height_as_z.nc")  # wrf = xr.open_dataset(confg.wrf_folder + "/timeseries/" + "/wrf_ibk_uni_timeseries_height_as_z.nc")  # interpolate_hatpro(hatpro_sel, arome, icon, wrf)  # plot_height_levels(arome_heights=arome.isel(time=0).z.values[::-1], icon_heights=icon.z.values[::-1],  #                    um_heights=um.isel(time=0).z.values, wrf_heights=wrf.isel(time=0).z.values,  #  #  #  #  #  #                    radio_heights=radio.z.values, hatpro_heights=hatpro_sel.height.values)

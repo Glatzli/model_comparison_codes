@@ -31,7 +31,9 @@ import math
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
+import xarray as xr
 from colorspace import sequential_hcl, diverging_hcl
 
 import confg
@@ -39,10 +41,14 @@ import read_icon_model_3D
 import read_in_arome
 import read_ukmo
 import read_wrf_helen
+from momaa_hobo_utils import load_hobo_data, load_momaa_data
 
 # define fine contour levels
 levels_thin = np.arange(0, 3500, 100)
 levels_thick = np.arange(0, 3500, 500)
+
+lon_ibk_surr_extent = (11.31, 11.46)  # coordinates for extra detailed ibk surroundings-plot
+lat_ibk_surr_extent = (47.18, 47.337)
 
 
 def calculate_lon_extent_for_km(latitude, km):
@@ -95,18 +101,63 @@ def add_contour_lines(ax, topo_data, levels_thin=levels_thin, levels_thick=level
     Returns:
         Tuple of (contours_thin, contours_thick)
     """
-    # Add thin contour lines every 100m
+    # Add thin contour lines every 100m (in background)
     contours_thin = ax.contour(topo_data.lon, topo_data.lat, topo_data.values, levels=levels_thin, colors='black',
-                               linewidths=0.5, alpha=0.5, transform=ccrs.PlateCarree())
+                               linewidths=0.2, transform=ccrs.PlateCarree())  # , zorder=1
 
-    # Thick contours every 500m with optional labels
+    # Thick contours every 500m with optional labels (in background but above thin lines)
     contours_thick = ax.contour(topo_data.lon, topo_data.lat, topo_data.values, levels=levels_thick, colors='black',
-                                linewidths=1, transform=ccrs.PlateCarree())
+                                linewidths=0.5, transform=ccrs.PlateCarree())  # , zorder=2
 
     if add_labels:
-        ax.clabel(contours_thick, inline=True, fontsize=8, fmt='%1.0f')
+        # Contour labels also in background
+        labels = ax.clabel(contours_thick, inline=True, fontsize=8,
+                           fmt='%1.0f')  # Set zorder for all label texts  # for label in labels:  #     label.set_zorder(3)
 
     return contours_thin, contours_thick
+
+
+def add_scalebar(ax, length_km=1, location='lower right'):
+    """
+    Add a simple black scalebar with text label to a cartopy axes.
+
+    Args:
+        ax: Cartopy axes object
+        length_km: Length of scalebar in kilometers (default: 1)
+        location: Location string for the scalebar (default: 'lower right')
+    """
+    # Get the current extent in data coordinates
+    extent = ax.get_extent(crs=ccrs.PlateCarree())
+    lon_min, lon_max, lat_min, lat_max = extent
+
+    # Calculate center latitude for scalebar positioning
+    center_lat = (lat_min + lat_max) / 2
+
+    # Use the existing function to calculate longitude extent for km
+    scalebar_lon_size = calculate_lon_extent_for_km(center_lat, length_km)
+
+    # Position the scalebar
+    if 'right' in location:
+        scalebar_lon_start = lon_max - scalebar_lon_size - 0.01
+    else:
+        scalebar_lon_start = lon_min + 0.01
+
+    if 'lower' in location:
+        scalebar_lat = lat_min + 0.01
+    else:
+        scalebar_lat = lat_max - 0.01
+
+    # Draw the scalebar as a white rectangle with black borderline
+    from matplotlib.patches import Rectangle
+    bar_height = 0.005  # height of scalebar in degrees
+    rect = Rectangle((scalebar_lon_start, scalebar_lat), scalebar_lon_size, bar_height, fill=True, facecolor='white',
+                     edgecolor='black', linewidth=0.8, transform=ccrs.PlateCarree(), zorder=12)
+    ax.add_patch(rect)
+
+    # Add text label
+    scalebar_lon_center = scalebar_lon_start + scalebar_lon_size / 2
+    ax.text(scalebar_lon_center, scalebar_lat + 0.005, f'{length_km} km', transform=ccrs.PlateCarree(), ha='center',
+            va='bottom', fontsize=11)
 
 
 def check_read_topographies(day, hour, minute):
@@ -238,7 +289,7 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
     n_rows = 2
 
     # Use terrain colormap
-    cmap = sequential_hcl("Terrain").cmap()
+    cmap = sequential_hcl("Terrain 2").cmap()
 
     # Create figure with space for colorbar at bottom (wider figure)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(18, 8), subplot_kw={'projection': ccrs.PlateCarree()})
@@ -268,7 +319,7 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
 
         # Add features
         ax.coastlines(resolution='10m', linewidth=1)
-        ax.add_feature(cfeature.BORDERS, linewidth=1)
+        ax.add_feature(cfeature.BORDERS, linewidth=1.5)
 
         ax.set_extent(extent, crs=ccrs.PlateCarree())
 
@@ -276,7 +327,7 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
         gl = ax.gridlines(draw_labels=False, linewidth=0.5, alpha=0.5, linestyle='--')
 
         # Add title inside the plot at the top
-        ax.text(0.5, 0.98, f"{model_name}", transform=ax.transAxes, fontsize=12, fontweight='bold', ha='center',
+        ax.text(0.5, 0.98, f"{model_name}", transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center',
                 va='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
         if add_points_confg:
@@ -292,10 +343,11 @@ def plot_topography_comparison(topo_data: dict, save_path: str = None, add_point
         fig.subplots_adjust(bottom=0.12)
         cbar_ax = fig.add_axes([0.3, 0.05, 0.4, 0.015])  # [left, bottom, width, height]
         cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-        cbar.set_label('Height [m]', fontsize=12)
+        cbar.set_label('Height [m]', fontsize=13)
+        cbar.ax.tick_params(labelsize=13)
 
     # Overall title
-    fig.suptitle('Topography Comparison: All Models at 2017-10-15 14:00 UTC', fontsize=14, fontweight='bold', y=0.98)
+    fig.suptitle('Topography Comparison: All Models at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold', y=0.98)
 
     # Save figure
     if save_path:
@@ -470,7 +522,7 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=10, fontweight='bold', ha='center', va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Hide unused subplots
@@ -481,10 +533,11 @@ def plot_topography_differences(diff_data: dict, topo_data: dict, save_path: str
     fig.subplots_adjust(bottom=0.12)
     cbar_ax = fig.add_axes([0.3, 0.05, 0.4, 0.015])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Height Difference [m]', fontsize=12)
+    cbar.set_label('Height Difference [m]', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
 
     # Overall title
-    fig.suptitle('Topography Differences Between Models at 2017-10-15 14:00 UTC', fontsize=14, fontweight='bold',
+    fig.suptitle('Topography Differences Between Models at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold',
                  y=0.98)
 
     plt.savefig(save_path, dpi=400, bbox_inches='tight')
@@ -561,14 +614,15 @@ def plot_internal_model_differences(diff_data: dict, topo_data: dict, save_path:
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold', ha='center', va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Add single colorbar at the bottom center
     fig.subplots_adjust(bottom=0.15)
     cbar_ax = fig.add_axes([0.25, 0.08, 0.5, 0.02])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Height Difference [m]', fontsize=12)
+    cbar.set_label('Height Difference [m]', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
 
     # Overall title
     fig.suptitle('Internal Model Topography Differences at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold',
@@ -650,7 +704,7 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
 
         # Add title inside the plot at the top with statistics
         title_text = f"{diff_name}\nMean: {mean_diff:.1f} m, Std: {std_diff:.1f} m"
-        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=11, fontweight='bold', ha='center', va='top',
+        ax.text(0.5, 0.98, title_text, transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     # Hide unused subplots
@@ -661,7 +715,8 @@ def plot_model_to_model_differences(diff_data: dict, topo_data: dict, save_path:
     fig.subplots_adjust(bottom=0.15)
     cbar_ax = fig.add_axes([0.25, 0.08, 0.5, 0.02])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Height Difference [m]', fontsize=12)
+    cbar.set_label('Height Difference [m]', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
 
     # Overall title
     fig.suptitle('Model-to-Model Topography Differences at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold',
@@ -725,7 +780,7 @@ def plot_arome_wrf_topography_only(topo_data: dict, save_path: str = None, add_p
         extent: Tuple (lon_min, lon_max, lat_min, lat_max) for plot extent
     """
     # Use terrain colormap
-    cmap = sequential_hcl("Terrain").cmap()
+    cmap = sequential_hcl("Terrain 2").cmap()
 
     # Create figure with 2 subplots side by side
     fig, axes = plt.subplots(1, 2, figsize=(16, 7), subplot_kw={'projection': ccrs.PlateCarree()})
@@ -760,7 +815,7 @@ def plot_arome_wrf_topography_only(topo_data: dict, save_path: str = None, add_p
         gl.right_labels = False
 
         # Add title
-        ax.text(0.5, 0.98, "AROME", transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center', va='top',
+        ax.text(0.5, 0.98, "AROME", transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
         if add_points_confg:
@@ -790,7 +845,7 @@ def plot_arome_wrf_topography_only(topo_data: dict, save_path: str = None, add_p
         gl.right_labels = False
 
         # Add title
-        ax.text(0.5, 0.98, "WRF", transform=ax.transAxes, fontsize=14, fontweight='bold', ha='center', va='top',
+        ax.text(0.5, 0.98, "WRF", transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
                 bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
         if add_points_confg:
@@ -800,10 +855,11 @@ def plot_arome_wrf_topography_only(topo_data: dict, save_path: str = None, add_p
     fig.subplots_adjust(bottom=0.15)
     cbar_ax = fig.add_axes([0.25, 0.08, 0.5, 0.02])  # [left, bottom, width, height]
     cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Height [m]', fontsize=12)
+    cbar.set_label('Height [m]', fontsize=13)
+    cbar.ax.tick_params(labelsize=13)
 
     # Overall title
-    fig.suptitle('AROME vs WRF Topography at 2017-10-15 14:00 UTC', fontsize=16, fontweight='bold', y=0.96)
+    fig.suptitle('AROME vs WRF Topography at 2017-10-15 14:00 UTC', fontsize=13, fontweight='bold', y=0.96)
 
     # Save figure
     if save_path:
@@ -846,41 +902,160 @@ def plot_arome_wrf_topography_main(day: int = 15, hour: int = 14, minute: int = 
     return fig, axes
 
 
-def add_points_to_axes(ax, lon_extent=confg.lon_hf_extent, lat_extent=confg.lat_hf_extent):
+def add_points_to_axes(ax, lon_extent=confg.lon_central_inn_extent, lat_extent=confg.lat_central_inn_extent,
+        save_path="_ibk_surroundings"):
     """
     Add location markers from confg.ALL_POINTS to a map axes.
+    Also adds MOMAA stations (white crosses) and Hafelekar HOBO (white square).
 
     Args:
         ax: Matplotlib axes with cartopy projection
         lon_extent: Tuple (lon_min, lon_max)
         lat_extent: Tuple (lat_min, lat_max) to check if points are within extent
+        save_path: Path to save the figure (for checking which domain for legend)
     """
     # Unpack extent if provided
     lon_min, lon_max = lon_extent[0], lon_extent[1]
     lat_min, lat_max = lat_extent[0], lat_extent[1]
 
-    # Plot each point from ALL_POINTS dictionary
-    for point_name, point_data in confg.ALL_POINTS.items():
-        if point_name == "ibk_villa":  # plot all except ibk villa, otherwise it's too scattered
-            continue
+    # Initialize legend handle variables
+    points = None
+    momaa = None
+    hobo = None
+    ec_stations = None
+
+    # plot only given points, others are not mentioned in thesis, map gets otherwise too crowded!
+    selected_points = {point: confg.ALL_POINTS[point] for point in
+                       ["telfs", "inzing", "ibk_uni", "ibk_airport", "hafelekar", "brenner_saddle",
+                        "wipp_schoenberg_matrei", "patsch_EC_south", "volders", "jenbach", "woergl", "kufstein",
+                        "rosenheim"]}
+    point_marker_size = 80
+    momaa_marker_size = 60
+    hobo_marker_size = 100
+    ec_marker_size = 120
+    lidar_marker_size = 120
+    for point_name, point_data in selected_points.items():  # add selected points, where timeseries are computed &
+        # which are discussed in the thesis
+
         # Check if point is within extent
-        if not ((lon_min <= point_data["lon"] <= lon_max) and (lat_min <= point_data["lat"] <= lat_max)):
+        if not ((lon_min < point_data["lon"] < lon_max) and (lat_min < point_data["lat"] < lat_max)):
             continue  # Skip points outside extent
 
-        # Plot marker
-        ax.plot(point_data["lon"], point_data["lat"], marker='o', markersize=6, markerfacecolor='black',
-                markeredgecolor='white', markeredgewidth=1, transform=ccrs.PlateCarree(), zorder=10)
+        # Plot marker (above contours) - only set handle once for legend
+        if points is None:
+            points = ax.scatter(point_data["lon"], point_data["lat"], marker='x', s=point_marker_size, c="white",
+                                # confg.model_colors_temp_wind['HATPRO'],
+                                transform=ccrs.PlateCarree(), zorder=11, label="Points computed")
+        else:
+            ax.scatter(point_data["lon"], point_data["lat"], marker='x', s=point_marker_size, c="white",
+                       # confg.model_colors_temp_wind['HATPRO'],
+                       transform=ccrs.PlateCarree(), zorder=11)
 
-        # Add label below the point_data with automatic adjustment
+        # Add label below the point_data with automatic adjustment (above contours)
         ax.annotate(point_data['name'], xy=(point_data["lon"], point_data["lat"]), xytext=(0, -8),
-                    # Offset: 8 points below
-                    textcoords='offset points', transform=ccrs.PlateCarree(), fontsize=10, ha='center', va='top',
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='black', linewidth=0.5),
-                    zorder=11)
+                    # Offset: 13 points below
+                    textcoords='offset points', transform=ccrs.PlateCarree(), fontsize=11, ha='center', va='top',
+                    bbox=dict(boxstyle='round,pad=0.15', facecolor='white', edgecolor='black', linewidth=0.5,
+                              alpha=0.8), zorder=12)
+
+    # Add MOMAA stations (white crosses)
+    try:
+        ds_momaa = load_momaa_data()
+
+        for station_key in ds_momaa['STATION_KEY'].values:
+            # if "central_inn" in save_path:  # skip MOMAAs for central Inn extent
+            #     continue
+            station_data = ds_momaa.sel(STATION_KEY=station_key)
+            lat = float(station_data['lat'].values)
+            lon = float(station_data['lon'].values)
+
+            # Check if station is within extent
+            if (lon_min < lon < lon_max) and (lat_min < lat < lat_max):
+                # Plot white cross (above contours) - only set handle once for legend
+                if momaa is None:
+                    momaa = ax.scatter(lon, lat, c=confg.model_colors_temp_wind['AROME'], edgecolors='black',
+                                       s=momaa_marker_size, linewidth=0.5, marker='o', zorder=10,
+                                       transform=ccrs.PlateCarree(), label="MOMAAs")
+                else:
+                    ax.scatter(lon, lat, c=confg.model_colors_temp_wind['AROME'], edgecolors='black',
+                               s=momaa_marker_size, linewidth=0.5, marker='o', zorder=10, transform=ccrs.PlateCarree())
+            else:
+                print("MOMAA outside of extent, not plotted")
+                continue
+
+    except Exception as e:
+        print(f"Warning: Could not add MOMMA stations: {e}")
+
+    # Add Hafelekar HOBO station (white square)
+    try:
+        ds_hobo = load_hobo_data()
+        ds_hobo_h38 = ds_hobo.where(ds_hobo['hobo_id'] == 'H38', drop=True).squeeze()
+
+        lat = float(ds_hobo_h38.lat.values)
+        lon = float(ds_hobo_h38.lon.values)
+
+        # Check if station is within extent
+        if (lon_min < lon < lon_max) and (lat_min < lat < lat_max):
+            # Plot white square (above contours: 15 for MOMAA and HOBO, even above the points from confg
+            hobo = ax.scatter(lon, lat, c=confg.model_colors_temp_wind['AROME'], s=hobo_marker_size, edgecolors='black',
+                              linewidth=0.5, marker='s', zorder=10, transform=ccrs.PlateCarree(), label="HOBO")
+
+    except Exception as e:
+        print(f"Warning: Could not add HOBO H38 station: {e}")
+
+    # Add EC stations (tri-left marker with AROME color and black edgecolor)
+    try:
+        ec_dict = confg.ec_station_names.items()
+        for ec_station in ec_dict:
+            if "central_inn" in save_path:  # skip ECs for central Inn extent
+                continue
+            lat = ec_station[1]["lat"]
+            lon = ec_station[1]["lon"]
+
+            # Check if station is within extent
+            if (lon_min < lon < lon_max) and (lat_min < lat < lat_max):
+                # Plot EC station marker (tri-left, "3") - only set handle once for legend
+                ec_stations = ax.scatter(lon, lat, c=confg.model_colors_temp_wind['AROME'], s=ec_marker_size,
+                                         edgecolors='black', linewidth=0.5, marker='>', zorder=10,
+                                         transform=ccrs.PlateCarree(),
+                                         label="ECs")  # else:  #     ax.scatter(lon, lat,  # c=confg.model_colors_temp_wind['AROME'], s=ec_marker_size, linewidth=0.5,  #                marker='3', zorder=10, transform=ccrs.PlateCarree())
+
+    except Exception as e:
+        print(f"Warning: Could not add EC stations: {e}")
+
+    if "ibk_surroundings" in save_path:
+        lidar_data = xr.open_dataset(confg.lidar_sl88_merged_path)
+        lidar = ax.scatter(lidar_data.lon, lidar_data.lat, c=confg.model_colors_temp_wind["AROME"], edgecolors='black',
+                           s=lidar_marker_size, marker='^', linewidth=0.5, zorder=10, transform=ccrs.PlateCarree(),
+                           label="Lidar")
+    else:
+        lidar = None
+
+    if "wipp" in save_path:  # only for the
+        legend_location = "lower left"
+    else:
+        legend_location = "upper right"
+
+    # Collect only existing handles for the legend
+    legend_handles = []
+    # Check if each handle exists and is not None
+    if points is not None:
+        legend_handles.append(points)
+    if momaa is not None:
+        legend_handles.append(momaa)
+    if hobo is not None:
+        legend_handles.append(hobo)
+    if ec_stations is not None:
+        legend_handles.append(ec_stations)
+    if lidar is not None:
+        legend_handles.append(lidar)
+    # Add legend for all extents- except the valley_exit-region
+    if "valley_exit" not in save_path:
+        ax.legend(handles=legend_handles, loc=legend_location, framealpha=0.9, facecolor="lightgray")
 
 
 def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str = None, add_points_confg: bool = True,
-        lat_extent: tuple = None, lon_extent: tuple = None):
+        lat_extent: tuple = None, lon_extent: tuple = None, add_ibk_surroundings_rectangle: bool = False):
     """
     Create a plot of topography from a single model.
 
@@ -897,7 +1072,7 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
         raise ValueError(f"Model '{model_key}' not found in topo_data. Available models: {list(topo_data.keys())}")
 
     # Use terrain colormap
-    cmap = sequential_hcl("Terrain").cmap()
+    cmap = sequential_hcl("Terrain 2").cmap()
 
     # Create figure with single subplot
     fig, ax = plt.subplots(1, 1, figsize=(10, 8), subplot_kw={'projection': ccrs.PlateCarree()})
@@ -911,6 +1086,9 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
 
     # Get data
     data = topo_data[model_key]
+    # if "ibk_surroundings" in save_path:
+    #     lon_extent = (lon_extent[0] - 0.1, lon_extent[1] + 0.1)
+
     data = data.sel(lat=slice(lat_extent[0] - 0.01, lat_extent[1] + 0.01),  # subset data, to have smaller .pdf-files...
                     lon=slice(lon_extent[0] - 0.01, lon_extent[1] + 0.01))
 
@@ -922,30 +1100,35 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
     add_contour_lines(ax, data)
 
     # Add features
-    ax.coastlines(resolution='10m', linewidth=1)
-    ax.add_feature(cfeature.BORDERS, linewidth=2)
+    # ax.coastlines(resolution='10m', linewidth=1)
+    ax.add_feature(cfeature.BORDERS, linewidth=1.2)
     ax.set_extent((lon_extent[0], lon_extent[1], lat_extent[0], lat_extent[1]), crs=ccrs.PlateCarree())
 
-    # Add gridlines
-    # gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
-    # gl.top_labels = False
-    # gl.right_labels = False
-
     # Clean up model name for title
-    model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '')
-
+    # model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '')
     # Add title
-    ax.text(0.5, 0.98, model_name, transform=ax.transAxes, fontsize=16, fontweight='bold', ha='center', va='top',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
+    # ax.text(0.5, 0.98, model_name, transform=ax.transAxes, fontsize=13, fontweight='bold', ha='center', va='top',
+    #          bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='none'))
 
     if add_points_confg:
-        add_points_to_axes(ax, lon_extent=lon_extent, lat_extent=lat_extent)
+        add_points_to_axes(ax, lon_extent=lon_extent, lat_extent=lat_extent, save_path=save_path)
 
-    # Add colorbar
-    fig.subplots_adjust(bottom=0.12)
-    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])  # [left, bottom, width, height]
-    cbar = fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
-    cbar.set_label('Height [m]', fontsize=12)
+    if add_ibk_surroundings_rectangle:
+        rect = Rectangle((lon_ibk_surr_extent[0], lat_ibk_surr_extent[0]),
+                         lon_ibk_surr_extent[1] - lon_ibk_surr_extent[0],
+                         lat_ibk_surr_extent[1] - lat_ibk_surr_extent[0], fill=False, edgecolor="black", linestyle="-",
+                         linewidth=1, transform=ccrs.PlateCarree(), zorder=12)
+
+    # Add scalebar (1 km length)
+    if ("central_inn" in save_path) or ("inn_exit" in save_path):
+        add_scalebar(ax, length_km=10, location='lower right')
+    else:
+        add_scalebar(ax, length_km=1, location='lower right')
+
+    # Add colorbar automatically below the plot
+    # cbar = plt.colorbar(im, ax=ax, orientation='horizontal', shrink=0.7, pad=0.08, aspect=30)
+    # cbar.set_label('Height [m]', fontsize=13)
+    # cbar.ax.tick_params(labelsize=13)
     # plt.grid(False)  # deactivate grid
     plt.xlabel("")
     plt.ylabel("")
@@ -962,8 +1145,9 @@ def plot_single_model_topography(topo_data: dict, model_key: str, save_path: str
 
 
 def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int = 14, minute: int = 0,
-        add_points_confg: bool = True, lat_extent: tuple = confg.lat_hf_extent, lon_extent: tuple = confg.lon_hf_extent,
-        extent_name: str = "heat_flux"):
+        add_points_confg: bool = True, lat_extent: tuple = confg.lat_central_inn_extent,
+        lon_extent: tuple = confg.lon_central_inn_extent, extent_name: str = "_central_inn",
+        add_ibk_surroundings_rectangle: bool = False):
     """
     Main function to read data and create a single model topography plot.
 
@@ -976,9 +1160,9 @@ def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int =
         lat_extent: Tuple (lat_min, lat_max) for plot extent
         lon_extent: Tuple (lon_min, lon_max) for plot extent
     """
-    if lat_extent and lon_extent is None:
-        lat_extent = confg.lat_hf_extent
-        lon_extent = confg.lon_hf_extent
+    if lat_extent is None or lon_extent is None:  # if no values are passed for lat/lon default is set:
+        lat_extent = confg.lat_central_inn_extent
+        lon_extent = confg.lon_central_inn_extent
 
     print(f"\n{'=' * 70}")
     print(f"Creating {model_key} Topography Plot")
@@ -991,14 +1175,171 @@ def plot_single_model_topography_main(model_key: str, day: int = 15, hour: int =
 
     # Create save path
     model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '').lower()
-    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_" + extent_name + ".pdf")
+    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}" + extent_name + ".svg")
 
     # Create plot
     fig, ax = plot_single_model_topography(topo_data, model_key=model_key, save_path=save_path,
                                            add_points_confg=add_points_confg, lon_extent=lon_extent,
-                                           lat_extent=lat_extent)
+                                           lat_extent=lat_extent,
+                                           add_ibk_surroundings_rectangle=add_ibk_surroundings_rectangle)
 
     print(f"{'=' * 70}\n")
+    return fig, ax
+
+
+def add_extent_rectangles_to_plot(ax, extent_dict: dict, zorder=8):
+    """
+    Add rectangles showing the outlines of different plotting extents to a topography plot.
+    Rectangles have uniform style (solid black lines) with text labels for each extent.
+
+    Args:
+        ax: Matplotlib axis object to add rectangles to
+        extent_dict: Dictionary with extent names and their (lon_min, lon_max, lat_min, lat_max) tuples
+        zorder: Z-order for the rectangles (default: 8, above contours but below points)
+    """
+
+    # Define display names for extents
+    extent_labels = {"ibk_surroundings": "Ibk surroundings", "central_inn": "central Inn", "wipp": "Wipp valley",
+                     "inn_exit": "Inn exit"}
+
+    for extent_key, (lon_min, lon_max, lat_min, lat_max) in extent_dict.items():
+        if extent_key in extent_labels:
+            # Create rectangle with uniform style
+            rect = Rectangle((lon_min, lat_min), lon_max - lon_min, lat_max - lat_min, fill=False,
+                             edgecolor=confg.model_colors_temp_wind['AROME'], linestyle="-", linewidth=2.5,
+                             transform=ccrs.PlateCarree(), zorder=zorder)
+            ax.add_patch(rect)
+
+            # Calculate center of rectangle for text placement
+            center_lon = (lon_min + lon_max) / 2
+            if extent_key == "Ibk surroundings":
+                lat_text = lat_min + 0.04
+            else:
+                lat_text = lat_max - 0.04
+
+            # Add text label at center of extent
+            ax.text(center_lon, lat_text, extent_labels[extent_key], fontsize=13, ha='center', va='center',
+                    transform=ccrs.PlateCarree(), zorder=zorder + 1,
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='black', linewidth=0.5))
+
+
+def plot_full_extent_topography(model_key: str = 'AROME_z', day: int = 15, hour: int = 14, minute: int = 0,
+        add_points_confg: bool = True, add_extent_rectangles: bool = True):
+    """
+    Plot topography for the full extent with outlines of all subplot extents.
+
+    This function plots the full domain defined by confg.lat_full_extent and confg.lon_full_extent,
+    with thick contour lines every 500m and thin lines every 200m. It optionally adds rectangles
+    showing the outlines of ibk_surroundings, central_inn, wipp, and inn_exit regions.
+
+    Args:
+        model_key: Key for the model to plot (default: 'AROME_z')
+        day: Day of month (default: 15)
+        hour: Hour of day (default: 14 for 14:00)
+        minute: Minute of hour (default: 0)
+        add_points_confg: Whether to add location markers from confg.ALL_POINTS (default: True)
+        add_extent_rectangles: Whether to add rectangles for subplot extents (default: True)
+    """
+    print(f"\n{'=' * 70}")
+    print(f"Creating Full Extent Topography Plot ({model_key})")
+    print(f"{'=' * 70}")
+
+    # Define plot extent (limited to specific region)
+    plot_lon_extent = (10.9, 12.7)
+    plot_lat_extent = (46.9, 48.05)
+    print(f"Plot extent: lon [{plot_lon_extent[0]:.2f}, {plot_lon_extent[1]:.2f}], "
+          f"lat [{plot_lat_extent[0]:.2f}, {plot_lat_extent[1]:.2f}]")
+
+    # Use terrain colormap
+    cmap = sequential_hcl("Terrain 2").cmap()
+
+    # Create figure with single subplot
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10), subplot_kw={'projection': ccrs.PlateCarree()})
+
+    # Set fixed colorbar limits
+    vmin = 400
+    vmax = 3000
+
+    print(f"Topography range: {vmin:.1f} m - {vmax:.1f} m")
+
+    # Read or load topo data
+    topo_data = check_read_topographies(day=day, hour=hour, minute=minute)
+
+    # Check if model exists in data
+    if model_key not in topo_data:
+        raise ValueError(f"Model '{model_key}' not found in topo_data. Available models: {list(topo_data.keys())}")
+
+    # Get data
+    data = topo_data[model_key]
+
+    # Subset data to plot extent with small buffer
+    data = data.sel(lat=slice(plot_lat_extent[0] - 0.01, plot_lat_extent[1] + 0.01),
+                    lon=slice(plot_lon_extent[0] - 0.01, plot_lon_extent[1] + 0.01))
+
+    # Create plot
+    im = ax.pcolormesh(data.lon, data.lat, data.values, cmap=cmap, vmin=vmin, vmax=vmax, transform=ccrs.PlateCarree(),
+                       shading='auto', zorder=1)
+
+    # Add contour lines (thin every 200m, thick every 500m as requested)
+    levels_thin_full = np.arange(0, 3500, 200)
+    levels_thick_full = np.arange(0, 3500, 500)
+    add_contour_lines(ax, data, levels_thin=levels_thin_full, levels_thick=levels_thick_full, add_labels=True)
+
+    # Add features
+    ax.add_feature(cfeature.BORDERS, linewidth=1.2)
+    ax.set_extent((plot_lon_extent[0], plot_lon_extent[1], plot_lat_extent[0], plot_lat_extent[1]),
+                  crs=ccrs.PlateCarree())
+    add_scalebar(ax, length_km=10, location='lower right')
+
+    # Add gridlines
+    # gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.3, linestyle='--')
+    # gl.top_labels = False
+    # gl.right_labels = False
+
+    # Add location markers if requested
+    # if add_points_confg:
+    #    add_points_to_axes(ax, lon_extent=plot_lon_extent, lat_extent=plot_lat_extent, save_path="full_extent")
+
+    # Add rectangles for subplot extents if requested
+    if add_extent_rectangles:
+        extent_dict = {"ibk_surroundings": (lon_ibk_surr_extent[0], lon_ibk_surr_extent[1], lat_ibk_surr_extent[0],
+                                            lat_ibk_surr_extent[1]),
+                       # (confg.lon_ibk_surr_extent[0], confg.lon_ibk_surr_extent[1],
+                       # confg.lat_ibk_surr_extent[0], confg.lat_ibk_surr_extent[1]),
+                       "central_inn": (confg.lon_central_inn_extent[0], confg.lon_central_inn_extent[1],
+                                       confg.lat_central_inn_extent[0], confg.lat_central_inn_extent[1]),
+                       "wipp": (confg.lon_wipp_extent[0], confg.lon_wipp_extent[1], confg.lat_wipp_extent[0],
+                                confg.lat_wipp_extent[1]),
+                       "inn_exit": (confg.lon_inn_exit_extent[0], confg.lon_inn_exit_extent[1],
+                                    confg.lat_inn_exit_extent[0], confg.lat_inn_exit_extent[1])}
+        add_extent_rectangles_to_plot(ax, extent_dict, zorder=8)
+
+    # Add colorbar automatically below the plot
+    # cbar = plt.colorbar(im, ax=ax, orientation='horizontal', shrink=0.8, pad=0.1, aspect=40)
+    # cbar.set_label('Height [m]', fontsize=13)
+    # cbar.ax.tick_params(labelsize=13)
+
+    # Remove axis labels and ticks
+    plt.xticks([])
+    plt.yticks([])
+    ax.set_xlabel("")
+    ax.set_xticklabels([])
+    ax.set_ylabel("")
+    ax.set_yticklabels([])
+
+    # Create save path
+    model_name = model_key.replace('_z', '').replace('_unstag', '').replace('_hgt', '').lower()
+    save_path = os.path.join(confg.dir_topo_plots, f"topo_{model_name}_full_extent.svg")
+
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # Save figure
+    plt.savefig(save_path, bbox_inches='tight', dpi=300)
+    print(f"\n✓ Figure saved to: {save_path}")
+
+    print(f"{'=' * 70}\n")
+
     return fig, ax
 
 
@@ -1015,15 +1356,29 @@ if __name__ == "__main__":
     # plot_arome_wrf_topography_main(day=15, hour=14, minute=0, add_points_confg=True)
 
     # 4. Plot single model topography using main function
-    plot_single_model_topography_main(model_key='AROME_z', day=15, hour=14, minute=0, add_points_confg=True)
+    # plot_single_model_topography_main(model_key='AROME_z', day=15, hour=14, minute=0, add_points_confg=True)
     # plot_single_model_topography_main(model_key='ICON', day=15, hour=14, minute=0, add_points_confg=True)
     # plot_single_model_topography_main(model_key='UM', day=15, hour=14, minute=0, add_points_confg=True)
     # plot_single_model_topography_main(model_key='WRF_z_unstag', day=15, hour=14, minute=0, add_points_confg=True)
 
     # plot areas of interest Topography plots:
-    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True, lon_extent=confg.lon_wipp_extent,
-                                      lat_extent=confg.lat_wipp_extent, extent_name="wipp")
-    plot_single_model_topography_main(model_key='AROME_z', add_points_confg=True, lon_extent=confg.lon_inn_exit_extent,
-                                      lat_extent=confg.lat_inn_exit_extent, extent_name="inn_exit")
+    # _central_inn _ibk_surroundings _wipp_valley _valley_exit _ziller_valley
+    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True, lon_extent=lon_ibk_surr_extent,
+                                      lat_extent=lat_ibk_surr_extent,  # confg.lon_ibk_surr_extent
+                                      # confg.lat_ibk_surr_extent
+                                      extent_name="_ibk_surroundings")
 
+    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True,
+                                      lon_extent=confg.lon_central_inn_extent, lat_extent=confg.lat_central_inn_extent,
+                                      extent_name="_central_inn", add_ibk_surroundings_rectangle=True)
+
+    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True, lon_extent=confg.lon_wipp_extent,
+                                      lat_extent=confg.lat_wipp_extent, extent_name="_wipp")
+    plot_single_model_topography_main(model_key='AROME_hgt', add_points_confg=True,
+                                      lon_extent=confg.lon_inn_exit_extent, lat_extent=confg.lat_inn_exit_extent,
+                                      extent_name="_inn_exit")
+
+    # Plot full extent with extent rectangles
+    plot_full_extent_topography(model_key='AROME_z', day=15, hour=14, minute=0, add_points_confg=False,
+                                add_extent_rectangles=True)
     plt.show()

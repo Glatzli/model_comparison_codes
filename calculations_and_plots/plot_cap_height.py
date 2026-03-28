@@ -306,7 +306,8 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
         print(f"Error: Point {point_name} not found in confg.ALL_POINTS")
         return
 
-    plt.figure(figsize=(10, 6))
+    plt.rcParams.update({'font.size': 13})
+    plt.figure(figsize=(10, 5))
 
     # Plot model data
     for model in MODEL_ORDER:
@@ -318,8 +319,10 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
         # Filter times from 14:00 onwards
         cap_filtered = cap_da.where(cap_da.time >= np.datetime64("2017-10-15T14:00"), drop=True)
 
-        plt.plot(cap_filtered["time"].values, cap_filtered.values,
-                color=confg.model_colors_temp_wind[model], linewidth=1.5, label=model)
+        plt.plot(cap_filtered["time"].values, cap_filtered.values, color=confg.model_colors_temp_wind[model],
+                 linewidth=2, label=model)
+        # plt.scatter(cap_filtered["time"].values, cap_filtered.values, color=confg.model_colors_temp_wind[model],
+                   # label=model, marker='_', s=50)
 
     # Plot observation data for Innsbruck points
     if point_name.startswith("ibk"):
@@ -330,7 +333,7 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
 
             plt.plot(cap_hatpro_filtered["time"].values, cap_hatpro_filtered.values,
                     color=confg.model_colors_temp_wind["HATPRO"], linestyle='dotted',
-                    linewidth=1.5, label='HATPRO')
+                    linewidth=2, label='HATPRO')
 
         # Radiosonde
         if "radiosonde" in cap_data and point_name in cap_data["radiosonde"]:
@@ -338,29 +341,30 @@ def plot_single_point_matplotlib(cap_data: Dict[str, Dict[str, xr.DataArray]], p
             cap_radiosonde_filtered = cap_radiosonde.where(cap_radiosonde.time >= np.datetime64("2017-10-15T14:00"), drop=True)
 
             plt.scatter(cap_radiosonde_filtered["time"].values, cap_radiosonde_filtered.values,
-                       color=confg.model_colors_temp_wind["Radiosonde"], s=80, marker='*',
+                       color=confg.model_colors_temp_wind["Radiosonde"], s=200, marker='*',
                        label='Radiosonde', zorder=5)
 
     # Formatting
     plt.xlim(np.datetime64("2017-10-15T14:00"), np.datetime64("2017-10-16T10:00"))
     plt.ylim(ymin, ymax)
-    plt.xlabel("Time")
-    plt.ylabel("CAP height [m]")
-    plt.legend()
+    plt.ylabel("CAP height [m]", fontsize=13)
+    plt.legend(fontsize=13)
     plt.grid(True, alpha=0.3)
 
     # Format x-axis
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-    plt.gca().xaxis.set_major_locator(mdates.HourLocator(interval=2))
-    plt.xticks(rotation=45)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+    ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+    ax.tick_params(axis='both', which='major', labelsize=13)
+    # plt.xticks(rotation=45)
 
     plt.tight_layout()
 
     # Save with reasonable filename
-    filename = f"cap_height_{point_name}.png"
+    filename = f"cap_height_{point_name}.pdf"
     filepath = os.path.join(confg.dir_PLOTS, "cap_depth", filename)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    plt.savefig(filepath, dpi=300, bbox_inches='tight')
+    plt.savefig(filepath)
 
     print(f"✓ Plot saved to: {filepath}")
     plt.show()
@@ -371,7 +375,7 @@ if __name__ == "__main__":
     # start_time="2017-10-15T14:00:00",
     # end_time="2017-10-16T12:00:00",
 
-    max_height=5000,
+    max_height=1000,
     point_names=confg.get_valley_points_only()
 
     """
@@ -398,14 +402,16 @@ if __name__ == "__main__":
     # Create small multiples plot
     print("\nCreating small multiples plot...")
     fig = plot_cap_timeseries_small_multiples(cap_data, point_names, ymin=0, ymax=1000)  # plot small multiples
-    # plot_single_point_matplotlib(cap_data, "ibk_uni")  # or any other point name
+    plot_single_point_matplotlib(cap_data, point_name="inzing", ymax=600)  # or any other point name
+    plot_single_point_matplotlib(cap_data, point_name="volders", ymax=600)  # or any other point name
+    plot_single_point_matplotlib(cap_data, point_name="rosenheim", ymax=600)  # or any other point name
 
     # Save small multiples plot
     html_dir = os.path.join(confg.dir_PLOTS, "cap_depth")
     os.makedirs(html_dir, exist_ok=True)
     html_path = os.path.join(html_dir, "cap_depth_all_points_small_multiples.html")
     fig.write_html(html_path)
-    fig.show(renderer="browser")
+    # fig.show(renderer="browser")
 
     print(f"\n{'=' * 70}")
     print(f"✓ Plot saved to: {html_path}")

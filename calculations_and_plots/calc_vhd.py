@@ -23,15 +23,16 @@ import sys
 
 sys.path.append("D:/MSc_Arbeit/model_comparison_codes")
 import richdem as rd
-import read_wrf_helen
-import importlib
 import pandas as pd
 
-importlib.reload(read_wrf_helen)
 import confg
 import xarray as xr
 import numpy as np
 from calculations_and_plots.plot_topography import calculate_km_for_lon_extent
+import read_in_arome
+import read_icon_model_3D
+import read_ukmo
+import read_wrf_helen
 
 import matplotlib.pyplot as plt
 from colorspace import sequential_hcl
@@ -100,8 +101,8 @@ def calculate_slope_aspect_richdem(filepath):
     :return:
     :ds: dataset with slope and aspect ratio
     """
-    ds = xr.open_dataset(filepath,
-                         engine="rasterio")  # for xDEM calculation I had a .tif file of topo, continue with that
+    ds = xr.open_dataset(filepath, engine="rasterio")
+    # for xDEM calculation I had a .tif file of topo, continue with that
     if "dem" in filepath:  # missing geotransform, try to set it by hand
         # In case of north up images, the GT(2) and GT(4) coefficients are zero, and the GT(1) is pixel width,
         # and GT(5) is pixel height.
@@ -184,34 +185,30 @@ def define_ds_below_hafelekar(ds, model="AROME"):
     """
     if model == "AROME":  # back then I haven't had geopot height as z coord...
         # select full dataset below Hafelekar for AROME (and all else...)
-        ds_below_hafelekar = ds.sel(height=(
-                    ds.height <= confg.hafelekar_height))  # use uniformely level of HAF for Ibk gridpoint from bottom up till lvl 37, 90 (total vert. lvls) - 37 = 53...
 
+        # use uniformely level of HAF for Ibk gridpoint from bottom up till lvl 37, 90 (total vert. lvls) - 37 = 53...
+        ds_below_hafelekar = ds.isel(height=slice(53, 90))
     elif model in ["ICON", "ICON2TE"]:
         # for ICON we have different height coordinates (staggered & unstaggered), therefore I chose the height level
         # below Hafelekar with the height var of z (original z_ifc) and used index to be geopot height change-independent
         # (and with that uniformly in space and time)
 
-        # (there is ~ 10% VHD error when taking an additional level for the computation for AROME, just took hafelekar
-        # height +50m and looked at VHD...)
-
         ds_below_hafelekar = ds.isel(height=slice(59, 100))
     elif model == "UM":
-        ds_below_hafelekar = ds.where(ds.z <= confg.hafelekar_height, drop=True)  # maybe the others are uselessly
         ds_below_hafelekar = ds.isel(height=slice(0, 21))  # complicated? check again for errors...
     elif model == "WRF":
-        ds_below_hafelekar = ds.isel(
-            height=ds.z.where(ds.z <= confg.hafelekar_height, drop=True).bottom_top_stag.values)
         ds_below_hafelekar = ds.isel(height=slice(0, 30))
     elif model in ["HATPRO", "radio", "radiosonde"]:
         ds_below_hafelekar = ds.sel(height=slice(0, confg.hafelekar_height))  # for HATPRO
 
     return ds_below_hafelekar
 
-def calculate_height_diff(ds, model):
+
+def calculate_height_diff_point(ds, model):
     """
-    calculates the height difference between model levels (dz) for the given model or Observation, which is needed for
-    the VHD calculation (layer thickness to numerically solve the integral)
+    calculates the height difference between model levels (dz) for the given model (point) or Observation,
+    which is needed for the VHD calculation (layer thickness to numerically solve the integral)
+    Works only with point-data!
     :param ds:
     :param model:
     :return:
@@ -221,8 +218,32 @@ def calculate_height_diff(ds, model):
         # indices are vice-versa for AROME and ICONs, therefore difference gets negative -> correct here!
         ds["dz"] = -ds["dz"]
     elif model in ["UM", "WRF", "HATPRO", "radio"]:  # AROME & ICON has NaN value for dz at highest lvl -> no problem
-        ds["dz"] = ds.dz.shift(height=-1)
-        # NaN value is at lowest level -> shift by 1 value to have NaN at highest lvl,  # which is not used in VHD calculation and therefore doesn't cause problems
+        ds["dz"] = ds.dz.shift(
+            height=-1)  # NaN value is at lowest level -> shift by 1 value to have NaN at highest lvl,  # which is not used in VHD calculation and therefore doesn't cause problems
+    return ds
+
+
+def calc_height_diff_full_domain(ds, model):
+    """
+    calculates the geopotential height difference between model levels (dz) for the given model
+    which is needed for the VHD calculation (layer thickness to numerically solve the integral)
+    works only with full domain data!
+    :param ds:
+    :param model:
+    :return:
+    """
+    if model in ["AROME", "UM"]:
+        ds["dz"] = ds.z.diff("height")
+    elif model in ["ICON", "ICON2TE", "WRF"]:
+        ds["dz"] = ds.z_unstag.diff(
+            "height")  # ICON and WRF have the unstaggered height as z coord, therefore I use that for dz calculation
+
+    if model in ["AROME", "ICON", "ICON2TE"]:
+        # indices are vice-versa for AROME and ICONs, therefore difference gets negative -> correct here!
+        ds["dz"] = -ds["dz"]
+    elif model in ["UM", "WRF", "HATPRO", "radio"]:  # AROME & ICON has NaN value for dz at highest lvl -> no problem
+        ds["dz"] = ds.dz.shift(
+            height=-1)  # NaN value is at lowest level -> shift by 1 value to have NaN at highest lvl,  # which is not used in VHD calculation and therefore doesn't cause problems
     return ds
 
 
@@ -237,12 +258,13 @@ def calc_vhd_single_point(ds_point, model="AROME"):
     param ds_point:
     :return: vhd_point: xarray.DataArray with valley heat deficit at the point with time as coord.
     """
-    ds_point = calculate_height_diff(ds=ds_point, model=model)
+    ds_point = calculate_height_diff_point(ds=ds_point, model=model)
 
     # ds_point["dz"] = ds_point["dz"]  # sometimes lowest lvl gives NaN, sometimes not?!
     ds_below_hafelekar = define_ds_below_hafelekar(ds=ds_point, model=model)
 
     th_hafelekar = ds_below_hafelekar.sel(height=ds_below_hafelekar.height.max()).th
+    print(f"Point {model} HAF height = {th_hafelekar.height.values} m, levels = {len(ds_below_hafelekar.height)}")
     vhd_point = confg.c_p * (
             (th_hafelekar - ds_below_hafelekar.th) * ds_below_hafelekar.rho * ds_below_hafelekar.dz).sum(dim="height")
     # vhd_point = confg.c_p * ((th_hafelekar - th_layers) * rho_layers * dz_values).sum(dim="height")
@@ -251,7 +273,7 @@ def calc_vhd_single_point(ds_point, model="AROME"):
 
 def calc_vhd_full_domain(ds_extent, model="AROME"):
     """
-    should calculate the VHD for the full domain which is in the dataset given. for indexing the full dataset below
+    calculate VHD for full domain which is in the dataset given. for indexing the full dataset below
     hafelekar, another function is used (due to different handling for all models...)
 
     large data, espc for AROME because I didn't subset it yet, CDO gives error... maybe subset in python first?
@@ -259,31 +281,23 @@ def calc_vhd_full_domain(ds_extent, model="AROME"):
     :param model: model name, used to select the correct height coord for indexing
     :return:
     """
-    ds_extent = calculate_height_diff(ds=ds_extent, model=model)
+    ds_extent = calc_height_diff_full_domain(ds=ds_extent, model=model)
 
-    if model in ["ICON", "ICON2TE"]:  # need to use unstaggered height vars for ICON and invert sign
-        ds_extent["dz"] = -ds_extent.z_unstag.diff(dim="height")
-    elif model == "WRF":
-        ds_extent["dz"] = ds_extent.z_unstag.diff(dim="height")  # only unstaggered for WRF
-    else:
-        ds_extent["dz"] = ds_extent.z.diff(dim="height")
+    if model == "AROME":  # for the full domain I don't use geopot. height as z/height coord, wouldn't make sense,
+        # therefore index HAF height with original height coord
 
-    if model in ["AROME"]:
-        # indices are vice-versa for AROME and ICONs, therefore difference gets negative -> correct here!
-        ds_extent["dz"] = -ds_extent["dz"]
-
-    if model == "AROME":  # searched for height-value of Hafelekar in the point-calculation for Ibk gridpoint and use
-        # that height for the full domain (searching here with HAF-height doesn't work properly,
-        # because some gridpoints are above HAF height...)
-        ds_below_hafelekar = ds_extent.sel(height=slice(37, 1))
+        # searched for height-value of Hafelekar in the point-calculation for Ibk gridpoint and use
+        # that height for the full domain
+        ds_below_hafelekar = ds_extent.sel(height=slice(38, 1))
     elif model in ["ICON", "ICON2TE"]:
         ds_below_hafelekar = ds_extent.sel(height=slice(32, 1))
-    elif model == "UM":  # for WRF and UM indices are vice-versa somehow => need to use different order of slicing
+    elif model == "UM":  # for WRF and UM indices are vice-versa => need to use different order of slicing
         ds_below_hafelekar = ds_extent.sel(height=slice(1, 22))
     elif model == "WRF":
         ds_below_hafelekar = ds_extent.sel(height=slice(1, 31))
 
     th_hafelekar = ds_below_hafelekar.sel(height=ds_below_hafelekar.height.max()).th
+    print(f"Full extent {model} HAF height = {th_hafelekar.height.values} m")
     vhd_full_domain = confg.c_p * (
             (th_hafelekar - ds_below_hafelekar.th) * ds_below_hafelekar.rho * ds_below_hafelekar.dz).sum(dim="height")
 
@@ -393,15 +407,16 @@ def select_pcgp_vhd(lat=confg.ALL_POINTS["ibk_uni"]["lat"], lon=confg.ALL_POINTS
 
     pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=lat, lon=lon)
     vhd_arome_pcgp = vhd_arome.sel(lat=pcgp_arome.y.item(), lon=pcgp_arome.x.item(), method="nearest")  # I thought
-    # "nearest" isn't needed, but somehow the exact lon of pcgp vhd is not exactly the same as lon of vhd_arome?!
+    # "nearest" is only needed due to "saving of too many digits in python; coords are the same till 3rd or 4th digit
+    # after comma but then they diverge... => "nearest" needed
+
     # difference is f.e. 12.064999 for vhd lon value and 12.065000 for pcgp lon value...
     vhd_icon_pcgp = vhd_icon.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item(), method="nearest")
     vhd_icon2te_pcgp = vhd_icon2te.sel(lat=pcgp_icon.y.item(), lon=pcgp_icon.x.item(), method="nearest")
-    vhd_um = vhd_um.sel(lat=pcgp_um.y.item(), lon=pcgp_um.x.item())  # , method="nearest" needed?
-    vhd_wrf_pcgp = vhd_wrf.sel(lat=pcgp_wrf.y.item(), lon=pcgp_wrf.x.item(),
-                               method="nearest")  # maybe lies here the problem
+    vhd_um_pcgp = vhd_um.sel(lat=pcgp_um.y.item(), lon=pcgp_um.x.item(), method="nearest")  # , method="nearest" needed?
+    vhd_wrf_pcgp = vhd_wrf.sel(lat=pcgp_wrf.y.item(), lon=pcgp_wrf.x.item(), method="nearest")
     # with the unmatched results from domain & point VHD?!
-    return vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp, vhd_um, vhd_wrf_pcgp
+    return vhd_arome_pcgp, vhd_icon_pcgp, vhd_icon2te_pcgp, vhd_um_pcgp, vhd_wrf_pcgp
 
 
 if __name__ == '__main__':
@@ -417,12 +432,16 @@ if __name__ == '__main__':
     # radio = pd.read_csv(confg.radiosonde_edited)
     # calc_vhd_single_point(ds=radio, model="radio")
 
+    # just added for debugging:
+    # pcgp_arome, pcgp_icon, pcgp_um, pcgp_wrf = read_dems_calc_pcgp(lat=confg.ALL_POINTS["ibk_uni"]["lat"],
+    #                                                                lon=confg.ALL_POINTS["ibk_uni"]["lon"])
+
+
     # read full domain of model and calc VHD for every hour concatenate them into 1 dataset and write them to a .nc file
     timerange = pd.date_range("2017-10-15 12:00:00", periods=49, freq="30min")
     vhd_datasets, vhd_ds_arome, vhd_ds_icon, vhd_ds_icon2te, vhd_ds_um, vhd_ds_wrf = [], [], [], [], [], []
 
     for timestamp in timerange:
-        """
         arome = read_in_arome.read_in_arome_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                        variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_arome.append(calc_vhd_full_domain(ds_extent=arome, model="AROME"))
@@ -431,7 +450,6 @@ if __name__ == '__main__':
                                                        variant="ICON",
                                                        variables=["p", "temp", "th", "z", "z_unstag", "rho"])
         vhd_ds_icon.append(calc_vhd_full_domain(ds_extent=icon, model="ICON"))
-
         icon2te = read_icon_model_3D.read_icon_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                           variant="ICON2TE",
                                                           variables=["p", "temp", "th", "z", "z_unstag", "rho"])
@@ -440,11 +458,12 @@ if __name__ == '__main__':
         um = read_ukmo.read_ukmo_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                             variables=["p", "temp", "th", "z", "rho"])
         vhd_ds_um.append(calc_vhd_full_domain(ds_extent=um, model="UM"))
-        """
+
         wrf = read_wrf_helen.read_wrf_fixed_time(day=timestamp.day, hour=timestamp.hour, min=timestamp.minute,
                                                  variables=["p", "temp", "th", "z", "z_unstag", "rho"])
         vhd_ds_wrf.append(calc_vhd_full_domain(ds_extent=wrf, model="WRF"))
-        """
+
+"""
 vhd_arome_full = xr.concat(vhd_ds_arome, dim="time").to_dataset(name="vhd")
 vhd_arome_full = vhd_arome_full.assign_attrs(units="J/m^2", description="Valley heat deficit, calculated in calc_vhd.py")
 vhd_arome_full.to_netcdf(confg.dir_AROME + "/AROME_vhd_full_domain_full_time.nc")

@@ -282,4 +282,4 @@ def compute_and_save_all_timeseries(point_names: List[str] = confg.POINT_NAMES, 
 
 if __name__ == "__main__":
     # Compute and save timeseries for all points and all models
-    compute_and_save_all_timeseries(point_names=confg.get_valley_points_only(), height_as_z_coord="direct")
+    compute_and_save_all_timeseries(point_names=confg.get_valley_points_only(), height_as_z_coord="above_terrain")

@@ -4,7 +4,8 @@ original by hannes, daniel adapted it a bit and added/edited some coords and def
 to avoid double definitions & confusions...
 
 """
-
+import fix_win_DLL_loading_issue
+fix_win_DLL_loading_issue
 import os
 
 # -------------------------------------------To change --------------------------------------------------------
@@ -21,46 +22,52 @@ hafelekar_height = 2279  # m, highest HOBO from https://zenodo.org/records/46723
 c_p = 1005  # J/(kg*K), specific heat capacity of air at constant pressure, for VHD calc
 
 # All point locations defined below (created for Daniel's thesis):
-ALL_POINTS = {"ibk_villa": {"name": "ibk villa", "lat": 47.25971, "lon": 11.38420, "height": 579},
+ALL_POINTS = {"telfs": {"name": "Telfs", "lat": 47.3, "lon": 11.1, "height": 622},  # 622m
+              "inzing": {"name": "Inzing", "lat": 47.2744, "lon": 11.2143, "height": 597},  # most westerly MOMAA
+              # station
+
+              "ibk_villa": {"name": "Ibk villa", "lat": 47.25971, "lon": 11.38420, "height": 579},
               # same lat & lon of Ibk cosma already used: which
               # is for Ibk_Villa (2m temp recording); changed point to coords of https://acinn-data.uibk.ac.at/pages/meteodat.html
               # now 4 m higher as Cosma's point (she had 575m ...)
 
-              "ibk_uni": {"name": "ibk uni", "lat": 47.264, "lon": 11.385, "height": 612},
+              "ibk_uni": {"name": "Ibk uni", "lat": 47.264, "lon": 11.385, "height": 612},
               # hatpro height, uni coords rounded to 3 digits after comma
               # pressure is measured at 609.5 m https://acinn-data.uibk.ac.at/pages/tawes-uibk.html
-              "ibk_airport": {"name": "ibk airport", "lat": 47.26, "lon": 11.34, "height": 577},
+              "ibk_airport": {"name": "Ibk airport", "lat": 47.26, "lon": 11.34, "height": 577},
               "hafelekar": {"name": "Hafelekar", "lat": 47.316, "lon": 11.383, "height": hafelekar_height},
               # 2279m, with 3 digits; moved from lat=47.315 to .316
-              "hohe_warte": {"name": "Hohe Warte", "lat": 47.302, "lon": 11.33, "height": 2440},
+              "hohe_warte": {"name": "Hohe warte", "lat": 47.302, "lon": 11.33, "height": 2440},
               # found by looking into model topos, highest point west of Hafelekar
-              "brenner_saddle": {"name": "Brenner Saddle", "lat": 47.006, "lon": 11.507, "height": 1368},
+              "brenner_saddle": {"name": "Brenner saddle", "lat": 47.006, "lon": 11.507, "height": 1368},
               "wipp_stafflach_steinach": {"name": "between Stafflach and Steinach", "lat": 47.072, "lon": 11.485,
                                           "height": 1080},
               "wipp_schoenberg_matrei": {"name": "between Schoenberg and Matrei", "lat": 47.13, "lon": 11.45,
                                          "height": 1044},  # between Schönberg & Matrei
-              "wipp_schoenberg": {"name": "Schoenberg in Stubai", "lat": 47.187, "lon": 11.405, "height": 1012.5},
+              "wipp_schoenberg": {"name": "Schoenberg in Stubai", "lat": 47.187, "lon": 11.405, "height": 1013},
               # Schönberg im Stubaital, ACINN station would be at Ellbögen, but that's on the slope in models...
-              "patsch_EC_south": {"name": "Patsch Pfaffenbichl", "lat": 47.209068, "lon": 11.411932, "height": 971.6},
+              "patsch_EC_south": {"name": "Patsch Pfaffenbichl", "lat": 47.209068, "lon": 11.411932, "height": 972},
               # took coords from Hannes' dict further down
 
               "kochel": {"name": "Kochel", "lat": 47.67, "lon": 11.35, "height": 599},
-              "woergl": {"name": "Woergl", "lat": 47.494, "lon": 12.059, "height": 504},
-              # coords for wörgl (504m), lower Inn valley
+              "volders": {"name": "Volders", "lat": 47.293, "lon": 11.5698, "height": 552},
+              # MOMMA station in Volders, 552m
+
               "jenbach": {"name": "Jenbach", 'lat': 47.388889, 'lon': 11.758056, 'hoehe': 525},
               # lat & lons like Geosphere station, height from elevation finder (5 m below Geosphere)
+              "woergl": {"name": "Woergl", "lat": 47.494, "lon": 12.059, "height": 504},
+              # coords for wörgl (504m), lower Inn valley
               "kufstein": {"name": "Kufstein", "lat": 47.575279, "lon": 12.162778, "height": 491},
               # coords of geosphere station
-              "kiefersfelden": {"name": "kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480},
+              "kiefersfelden": {"name": "Kiefersfelden", "lat": 47.62, "lon": 12.2, "height": 480},
               # coords for kiefersfelden (480m), Germany, entrance Inn valley
               "rosenheim": {"name": "Rosenheim", "lat": 47.8667, "lon": 12.1333, "height": 440},
               # coords for rosenheim station (440m); DWD ID: 4261
-              "telfs": {"name": "Telfs", "lat": 47.3, "lon": 11.1, "height": 622},  # 622m
-              # valley points in wipp & ziller valley for stability plots (where valleys are narrow):
 
-              "ziller_valley": {"name": "ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
+              # valley points in ziller valley for stability plots (where valley is narrow):
+              "ziller_valley": {"name": "Ziller valley", "lat": 47.25, "lon": 11.9, "height": 565},
               # between Zell am Ziller & Zillertal
-              "ziller_ried": {"name": "ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
+              "ziller_ried": {"name": "Ziller ried", "lat": 47.3, "lon": 11.87, "height": 572}  # Zillertal, Kaltenbach
               }
 # deleted slope points:
 # "slope_north_patscherkofel": {"name": "slope north patscherkofel", "lat": 47.23, "lon": 11.5, "height": 1750},
@@ -76,10 +83,10 @@ POINT_NAMES = list(ALL_POINTS.keys())  # list w. all point names
 # Heights in m from https://www.freemaptools.com/elevation-finder.htm
 
 # Define point categories for easy filtering; hardcoded list to distinguish valley and mountain points
-VALLEY_POINTS = (
-["telfs", "ibk_villa", "ibk_uni", "ibk_airport", "brenner_saddle", "wipp_stafflach_steinach", "wipp_schoenberg_matrei",
- "wipp_schoenberg", "patsch_EC_south", "kochel", "woergl", "jenbach", "kufstein", "kiefersfelden", "rosenheim",
- "ziller_valley", "ziller_ried"])
+VALLEY_POINTS = (["telfs", "inzing", "ibk_villa", "ibk_uni", "ibk_airport","volders",  "brenner_saddle",
+                  "wipp_stafflach_steinach",
+                  "wipp_schoenberg_matrei", "wipp_schoenberg", "patsch_EC_south", "kochel", "woergl", "jenbach",
+                  "kufstein", "kiefersfelden", "rosenheim", "ziller_valley", "ziller_ried"])
 MOUNTAIN_SLOPE_POINTS = ["hafelekar", "slope_north_patscherkofel", "ziller_ne_slope", "ziller_sw_slope"]
 
 
@@ -94,11 +101,17 @@ def get_points_excluding_mountains():
 
 
 # define lat & lon boundaries for different domains used for plotting different vars
-lat_hf_extent = (47, 47.6)  # for original heat-flux plots
-lon_hf_extent = (11.1, 12.1)
+lat_central_inn_extent = (47, 47.6)  # central Inn valley; had this for original heat-flux plots
+lon_central_inn_extent = (11.05, 12.1)
+
+lat_ibk_surr_extent = (47.12, 47.36)  # area around Ibk, espc for Momma comparison
+lon_ibk_surr_extent = (11.17, 11.64)
+
+lat_full_inn_extent = (47, 47.93)
+lon_full_inn_extent = (11.1, 12.218)
 
 # valley exit region:
-lat_inn_exit_extent = (47.4, 47.9)
+lat_inn_exit_extent = (47.4, 47.91)
 lon_inn_exit_extent = (11.7, 12.5)
 
 # wipp valley region:
@@ -117,8 +130,10 @@ lon_min_topo, lon_max_topo = 11, 12.4
 lat_cap_height_extent = (47, 48.2)
 lon_cap_height_extent = (10.6, 13)
 
-lat_min, lat_max = 46.5, 48.2
-lon_min, lon_max = 9.2, 13
+lat_full_extent = (46.5, 48.2)
+lon_full_extent = (9.2, 13)
+# lat_min, lat_max = 46.5, 48.2
+# lon_min, lon_max = 9.2, 13
 
 # -------------------------------------------------------------------------------------------------------------
 radiosonde_folder = os.path.join(data_folder, "Observations", "Radiosonde")
@@ -193,7 +208,7 @@ icon2TE_folder_3D = os.path.join(model_folder, "ICON2TE")
 ukmo_folder = os.path.join(model_folder, "ukmo")
 
 # ------------------------------colormaps for plotting ---------------------------------------------
-from colorspace import qualitative_hcl, diverging_hcl
+from colorspace import qualitative_hcl, sequential_hcl
 
 # --- Color scheme for models (consistent with plot_cap_height) ---
 qualitative_colors_temp = qualitative_hcl(palette="Dark 3").colors()
@@ -201,7 +216,8 @@ qualitative_colors_wind = qualitative_colors_temp
 qualitative_colors_humidity = qualitative_hcl(palette="Dark 3").colors()
 
 # Unified temperature colormap for plots
-temperature_colormap = diverging_hcl(palette="Blue-Red 2").cmap()
+# temperature_colormap = diverging_hcl(palette="Blue-Red 2").cmap()
+temperature_colormap = sequential_hcl(palette="Red-Blue").cmap().reversed()
 
 # Model color mapping for temperature - ICON and ICON2TE share the same color; take same color for LIDAR88 and HATPRO
 model_colors_temp_wind = {"AROME": qualitative_colors_temp[0], "ICON": qualitative_colors_temp[4],
@@ -215,9 +231,6 @@ model_colors_humidity = {"AROME": qualitative_colors_humidity[0], "ICON": qualit
                          "ICON2TE": qualitative_colors_humidity[3], "UM": qualitative_colors_humidity[2],
                          "WRF": qualitative_colors_humidity[6], "Radiosonde": qualitative_colors_humidity[10],
                          "HATPRO": qualitative_colors_humidity[8]}
-
-# define linestyle for ICON2TE; changed to solid!
-# icon_2te_hatpro_linestyle = "dot"
 
 # -------------------------------Data and Plot paths -----------------------------------------------
 
@@ -372,3 +385,4 @@ hatpro_vertical_levels = {
     "height": ["0", "10", "30", "50", "75", "100", "125", "150", "200", "250", "325", "400", "475", "550", "625", "700",
                "800", "900", "1000", "1150", "1300", "1450", "1600", "1800", "2000", "2200", "2500", "2800", "3100",
                "3500", "3900", "4400", "5000", "5600", "6200", "7000", "8000", "9000", "10000"]}
+
