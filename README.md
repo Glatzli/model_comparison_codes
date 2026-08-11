@@ -3,8 +3,8 @@ Code for MSc Thesis:
 
 ## Program structure 
 Each model & observation has a seperate file for reading in the data, cause every raw file looks a bit different. For the model data there are always 2 ways: 
-1. either read a timeseries at a specific coordinate (first the data is extracted, manipulated and then saved as a .nc file for later use): used for timeseries plotting, vertical profiles etc
-2. or read the full domain at a specific timestamp (much bigger data due to a lot of height levels): used for spatial plots of full domain as temp, VHD (valley heat deficit) etc
+1. either read a timeseries at a specific coordinate (fixed_ first the data is extracted, manipulated and then saved as a .nc file for later use): used for timeseries plotting, vertical profiles etc
+2. or read the full domain at a specific timestamp (fixed_time; much bigger data due to a lot of height levels): used for spatial plots of full domain as temp, VHD (valley heat deficit) etc
 
 
 VHD calculation: (If the timeseries isn't already calculated for that point)
