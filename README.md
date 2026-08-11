@@ -1,17 +1,6 @@
+Code for MSc Thesis:
 Modeling a cold air pool in the Inn Valley: A
 model intercomparison study
-GOAL: till end of the year/mid Jan 1. draft of full thesis!
-NEW GOAL: first draft as soon as realistically possible...
-
-
- Processing: ibk villa (ibk_villa)
-Point AROME HAF height = 2230.487060546875 m
-Point ICON HAF height = 2146.096923828125 m
-Point ICON2TE HAF height = 2146.096923828125 m
-Point UM HAF height = 2118.859375 m
-Point WRF HAF height = 2130.05712890625 m
-Point HATPRO HAF height = 2245 m
-Point radio HAF height = 2276 m
 
 # Program structure 
 VHD calculation: (If the timeseries isn't already calculated for that point)
