@@ -1,5 +1,6 @@
 Code for MSc Thesis:
 # Modeling a cold air pool in the Inn Valley: A model intercomparison study
+full thesis available under: https://ulb-dok.uibk.ac.at/urn/urn:nbn:at:at-ubi:1-203202
 
 ## Program structure 
 Each model & observation has a seperate file for reading in the data, cause every raw file looks a bit different. For the model data there are always 2 ways: 
